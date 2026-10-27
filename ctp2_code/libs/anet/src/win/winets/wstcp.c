@@ -706,6 +706,24 @@ TCPWIN_Create(
 
 		err = bind(pTcp->socket, (SOCKADDR *) &sockAddr, sizeof(sockAddr));
 	}
+#ifndef TCP_LAN
+	if (SOCKET_ERROR == err && *port != TCP_SOCKET_ANY)
+	{
+		/* The requested port is busy, e.g. a second instance of the game
+		 * runs on this machine. Fall back to a random port from our range,
+		 * the game can still connect to a host as a client.
+		 */
+		int tries;
+		for (tries = 0; tries < 20 && SOCKET_ERROR == err; tries++)
+		{
+			uint16 randport = (uint16) (((eclock() + tries * 7919) % TCP_PORT_RANGE_LEN) + TCP_PORT_RANGE_START);
+			sockAddr.sin_port = htons(randport);
+			peer.port = sockAddr.sin_port;
+			DPRINT(("TCPWIN_Create: port %d busy, trying %d\n", *port, randport));
+			err = bind(pTcp->socket, (SOCKADDR *) &sockAddr, sizeof(sockAddr));
+		}
+	}
+#endif
 	if (SOCKET_ERROR == err)
 	{
 		DPRINT(("TCPWIN_Create: Could not bind socket\n"));
@@ -716,8 +734,8 @@ TCPWIN_Create(
 		return(NULL);
 	}
 
-	/* determine the actual port number */
-	if (TCP_SOCKET_ANY == *port)
+	/* determine the actual port number (the requested one may have been
+	 * replaced by a random one above) */
 	{
 		sint32 addrlen = sizeof(sockAddr);
 		memset(&sockAddr, 0, sizeof(sockAddr));
@@ -729,10 +747,6 @@ TCPWIN_Create(
 		}
 		truePort = ntohs(sockAddr.sin_port);
 		*port = truePort;
-	}
-	else
-	{
-		truePort = *port;
 	}
 
 	peer.port = htons(truePort);

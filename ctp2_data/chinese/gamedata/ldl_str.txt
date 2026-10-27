@@ -3225,3 +3225,10 @@ str_tbl_ldl_BarbarianCities_On			"允许野蛮人移居城市 - 开"	# Entrenched barbaria
 str_tbl_ldl_BarbarianCamps_On			"允许野蛮人建造设施 - 开"	# Entrenched barbarians create an imp
 str_tbl_ldl_AINoSinking_On			"AI船只沉没 - 开 "				# AI ships don't sink
 str_tbl_ldl_AINoSinking_Off			"AI船只沉没 - 关"				# AI ships don't sink
+
+# ctp2-redux: direct multiplayer connection (netshell server window)
+str_ldl_DIRECT_CONNECT_LABEL		"Direct connection (host address, e.g. 192.168.1.5:21157):"
+str_ldl_DIRECT_JOIN		"Join"
+str_ldl_DIRECT_HOST		"Host Game"
+str_ldl_DIRECT_YOUR_ADDRESS		"Your address:"
+str_ldl_DIRECT_NO_CONTACT		"Host not found"

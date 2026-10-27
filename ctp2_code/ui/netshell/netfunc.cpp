@@ -2357,6 +2357,10 @@ NETFunc::STATUS NETFunc::SetTransport(Transport *t) {
 			delete s_transport;
 		if(t->GetType() == Transport::INTERNET && adialup_willdial())
 			return BUSSY;
+		s_directAddress[0] = 0;
+		s_directHost = false;
+		if(t->GetType() == Transport::INTERNET)
+			t->SetPort(k_DIRECT_PORT); // fixed port, so a host can forward it
 		s_transport = new TransportSetup(t);
 		if(s_transport->GetType() == Transport::INTERNET) {
 			s_userId = dp_UID_NONE;
@@ -2623,6 +2627,51 @@ NETFunc::STATUS NETFunc::SetServer(Server *s) {
 		return OK;
 	}
 	return ERR;
+}
+
+// Host a game without an Anet game server: this node creates the lobby
+// itself (like in a LAN) and other players join it by address.
+NETFunc::STATUS NETFunc::SetDirectHost(void) {
+	if(s_status == PRECONNECT || s_status == LOGIN) {
+		s_directHost = true;
+		s_directAddress[0] = 0;
+		s_servername[0] = 0;
+		EnumServers(false);
+		dpSetGameServerEx(s_dp, 0, s_GameType);
+		s_status = READY;
+		return OK;
+	}
+	return ERR;
+}
+
+// Join a game hosted at address ("host" or "host:port").
+NETFunc::STATUS NETFunc::SetDirectAddress(const char *address) {
+	if((s_status == PRECONNECT || s_status == LOGIN) && address && *address) {
+		char adr[dp_MAX_ADR_LEN];
+		if(dpResolveHostname(s_dp, (char *)address, adr) != dp_RES_OK)
+			return NOCONTACT;
+		strncpy(s_directAddress, address, sizeof(s_directAddress) - 1);
+		s_directAddress[sizeof(s_directAddress) - 1] = 0;
+		s_directHost = false;
+		s_servername[0] = 0;
+		EnumServers(false);
+		dpSetGameServerEx(s_dp, 0, s_GameType);
+		s_status = READY;
+		return OK;
+	}
+	return ERR;
+}
+
+bool NETFunc::IsDirect(void) {
+	return s_directHost || s_directAddress[0] != 0;
+}
+
+// Own transport address as "host:port", shown to a host so he can pass it on.
+bool NETFunc::GetMyAddress(char *buf, size_t len) {
+	if(!buf || len == 0)
+		return false;
+	buf[0] = 0;
+	return s_dp && s_connected && dpGetMyAddressString(s_dp, buf, len) == dp_RES_OK && buf[0] != 0;
 }
 
 bool NETFunc::NeedUpdate(void) {
@@ -2941,6 +2990,8 @@ NETFunc::STATUS NETFunc::Disconnect(void) {
 	if(s_status != START)
 	if((s_status == READY && s_transport && s_transport->GetType() == Transport::INTERNET)) {
 		s_userId = dp_UID_NONE;
+		s_directAddress[0] = 0;
+		s_directHost = false;
 		EnumServers(true);
 
 		m_timer.Start(1000);
@@ -3254,10 +3305,25 @@ void NETFunc::Execute(void) {
 			m_retries--;
 		s_status = JOINLOBBY;
 
-		if(s_transport && s_transport->GetType() == Transport::INTERNET) {
+		if(s_transport && s_transport->GetType() == Transport::INTERNET && !IsDirect()) {
 			dpSetGameServerEx(s_dp, s_servername, s_GameType);
 			if(dpOpen(s_dp, 0, SessionCallBack, this) != dp_RES_OK)
 				s_status = OPENLOBBY;
+		} else if(s_directAddress[0]) {
+			// Direct connection: join the lobby hosted at the given address.
+			// The host answers with its session list, so games created by
+			// the host show up like in a LAN.
+			dp_session_t sess;
+			memset(&sess, 0, sizeof(sess));
+			sess.dwSize = sizeof(dp_session_t);
+			if(dpResolveHostname(s_dp, s_directAddress, (char *)sess.adrMaster) != dp_RES_OK) {
+				s_status = OPENLOBBY;
+			} else {
+				sess.sessionType = s_GameType;
+				sess.flags = dp_SESSION_FLAGS_ISLOBBY;
+				if(dpOpen(s_dp, &sess, SessionCallBack, this) != dp_RES_OK)
+					s_status = OPENLOBBY;
+			}
 		} else {
 
 			Lobby *l = s_lobbies.FindBest();
@@ -3277,6 +3343,11 @@ void NETFunc::Execute(void) {
 		break;
 	case OPENSESSION:
 		s_status = JOINSESSION;
+		if(s_directAddress[0]) {
+			// The session list carries the host's local address, which is
+			// useless behind a NAT. Use the address we reached the host by.
+			dpResolveHostname(s_dp, s_directAddress, (char *)m_session.m_session.adrMaster);
+		}
 		if(dpOpen(s_dp, &m_session.m_session, SessionCallBack, this) != dp_RES_OK) {
 			s_status = OPENLOBBY;
 
@@ -3301,7 +3372,7 @@ void NETFunc::Execute(void) {
 		s_status = WAITCLOSE;
 	case WAITCLOSE:
 		if(dpReadyToFreeze(s_dp) == dp_RES_OK || m_timer.Finished()) {
-			if(m_nextStatus != READY && m_nextStatus != OPENLOBBY && m_nextStatus != OPENSESSION && s_transport && s_transport->GetType() == Transport::INTERNET)
+			if(m_nextStatus != READY && m_nextStatus != OPENLOBBY && m_nextStatus != OPENSESSION && s_transport && s_transport->GetType() == Transport::INTERNET && !IsDirect())
 				dpSetGameServerEx(s_dp, 0, s_GameType);
 			m_timer.Start(2000);
 			s_status = WAITDELAY;
@@ -3548,4 +3619,6 @@ bool NETFunc::s_gotgame = false;
 
 char NETFunc::s_servername[64] = "";
 char NETFunc::s_playername[dp_PNAMELEN] = "";
+char NETFunc::s_directAddress[128] = "";
+bool NETFunc::s_directHost = false;
 char NETFunc::s_sessionname[dp_SNAMELEN] = "";

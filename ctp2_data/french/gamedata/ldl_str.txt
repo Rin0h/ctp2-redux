@@ -3225,3 +3225,10 @@ str_tbl_ldl_BarbarianCities_On			"Barbares retranchés créent villes - Activé"	# 
 str_tbl_ldl_BarbarianCamps_On			"Barbares retranchés créent amén. cases - Activé"	# Entrenched barbarians create an imp
 str_tbl_ldl_AINoSinking_On			"Les navires AI ne coulent pas"			# AI ships don't sink
 str_tbl_ldl_AINoSinking_Off			"Les navires AI peuvent couler"			# AI ships don't sink
+
+# ctp2-redux: direct multiplayer connection (netshell server window)
+str_ldl_DIRECT_CONNECT_LABEL		"Direct connection (host address, e.g. 192.168.1.5:21157):"
+str_ldl_DIRECT_JOIN		"Join"
+str_ldl_DIRECT_HOST		"Host Game"
+str_ldl_DIRECT_YOUR_ADDRESS		"Your address:"
+str_ldl_DIRECT_NO_CONTACT		"Host not found"

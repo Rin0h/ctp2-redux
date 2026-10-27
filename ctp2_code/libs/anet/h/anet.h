@@ -862,6 +862,17 @@ DP_API dp_result_t DP_APIX dpResolveHostname(
 	char *hostname,
 	char adrbuf[dp_MAX_ADR_LEN]);
 
+/*--------------------------------------------------------------------------
+ Print this node's own transport address into buf, for IP drivers in the
+ form "host:port". Games that let players connect to a host directly show
+ this to the host so he can pass it on.
+ Returns dp_RES_EMPTY if the address is not known (yet).
+--------------------------------------------------------------------------*/
+DP_API dp_result_t DP_APIX dpGetMyAddressString(
+	dp_t *dp,
+	char *buf,
+	size_t buflen);
+
 /*------------------------------------------------------------------------
  When using an Internet driver, call this function with the ascii name of
  the server, and explicit requests for sessions will be sent to that server.

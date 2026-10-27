@@ -84,6 +84,12 @@ public:
 	static char         s_playername[dp_PNAMELEN];
 	static char         s_sessionname[dp_SNAMELEN];
 
+	// Direct connection (no Anet game server): the host binds k_DIRECT_PORT
+	// and hosts the lobby itself, clients join it by address.
+	static const sint32 k_DIRECT_PORT = 21157;
+	static char         s_directAddress[128]; // host address a client joins, "" = none
+	static bool         s_directHost;         // this node hosts a direct connection
+
 
 enum STATUS
 {
@@ -1333,6 +1339,14 @@ public:
 	STATUS DoUpdate(void);
 
 	STATUS SetServer(Server *s);
+
+	STATUS SetDirectHost(void);
+
+	STATUS SetDirectAddress(const char *address);
+
+	static bool IsDirect(void);
+
+	bool GetMyAddress(char *buf, size_t len);
 
 	static bool IsHost();
 

@@ -4,6 +4,8 @@
 #include "ns_window.h"
 #include "aui_action.h"
 
+// ctp2-redux: besides the Anet game server list this window offers a direct
+// connection: host a game on a fixed port, or join a host by address.
 
 class ServerSelectWindow : public ns_Window
 {
@@ -19,30 +21,37 @@ protected:
 
 public:
 	void	Update( bool wait = false );
+	void	UpdateMyAddress( void );
 	virtual AUI_ERRCODE Idle( void );
-
 
 	enum CONTROL
 	{
 		CONTROL_FIRST = 0,
 
 		CONTROL_TITLESTATICTEXT = CONTROL_FIRST,
-
 		CONTROL_SELECTSERVERLISTBOX,
 		CONTROL_OKBUTTON,
 		CONTROL_CANCELBUTTON,
+		CONTROL_DIRECTSTATICTEXT,
+		CONTROL_DIRECTTEXTFIELD,
+		CONTROL_DIRECTJOINBUTTON,
+		CONTROL_DIRECTHOSTBUTTON,
+		CONTROL_MYADDRESSSTATICTEXT,
+
 		CONTROL_LAST,
 		CONTROL_MAX = CONTROL_LAST - CONTROL_FIRST
 	};
 
 protected:
-
 	aui_Action *m_dbActionArray[ 1 ];
 
 	AUI_ACTION_BASIC(OKButtonAction);
-    AUI_ACTION_BASIC(CancelButtonAction);
-    AUI_ACTION_BASIC(ServerListBoxAction);
-    AUI_ACTION_BASIC(DialogBoxPopDownAction);
+	AUI_ACTION_BASIC(CancelButtonAction);
+	AUI_ACTION_BASIC(ServerListBoxAction);
+	AUI_ACTION_BASIC(DialogBoxPopDownAction);
+	AUI_ACTION_BASIC(DirectJoinButtonAction);
+	AUI_ACTION_BASIC(DirectHostButtonAction);
+	AUI_ACTION_BASIC(DirectTextFieldAction);
 };
 
 #endif

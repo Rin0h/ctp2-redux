@@ -4006,6 +4006,23 @@ DP_API dp_result_t dpCloseGameServer(
 }
 
 /*--------------------------------------------------------------------------
+ Print this node's own transport address ("host:port" for IP drivers).
+--------------------------------------------------------------------------*/
+DP_API dp_result_t DP_APIX dpGetMyAddressString(
+	dp_t *dp,
+	char *buf,
+	size_t buflen)
+{
+	precondition(dp != NULL);
+	precondition(dp->dpio != NULL);
+	precondition(buf != NULL);
+	if (dp->dpio->myAdrLen <= 0)
+		return dp_RES_EMPTY;
+	return dpio_printAdr(dp->dpio, (const char *)dp->dpio->myAdr,
+						 (size_t)dp->dpio->myAdrLen, buf, buflen);
+}
+
+/*--------------------------------------------------------------------------
  Convert an ASCII hostname into a binary address.
 --------------------------------------------------------------------------*/
 DP_API dp_result_t dpResolveHostname(

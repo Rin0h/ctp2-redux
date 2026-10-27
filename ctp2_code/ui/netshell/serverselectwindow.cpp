@@ -38,6 +38,10 @@
 
 #include "c3_button.h"
 #include "c3_static.h"
+#include "c3textfield.h"
+#include "StrDB.h"
+
+#include <time.h>
 
 #include "netshell.h"
 #include "ns_customlistbox.h"
@@ -48,6 +52,11 @@
 #include "dialogboxwindow.h"
 
 static DialogBoxWindow *s_dbw = NULL;
+// When the "waiting for servers" dialog was opened. Without a reachable
+// Anet server nothing ever answers, so the dialog is closed after a while
+// to let the player use the direct connection controls.
+static time_t s_dbwShown = 0;
+static const sint32 k_WAIT_FOR_SERVERS_SECONDS = 6;
 
 MBCHAR g_serverName[ 100 + 1 ] = "";
 
@@ -119,6 +128,45 @@ AUI_ERRCODE ServerSelectWindow::CreateControls( void )
 	if ( !AUI_NEWOK(control,errcode) ) return errcode;
 	m_controls[ CONTROL_CANCELBUTTON ] = control;
 
+	control = new c3_Static(
+		&errcode,
+		aui_UniqueId(),
+		"serverselectwindow.directstatictext" );
+	Assert( AUI_NEWOK(control,errcode) );
+	if ( !AUI_NEWOK(control,errcode) ) return errcode;
+	m_controls[ CONTROL_DIRECTSTATICTEXT ] = control;
+
+	control = new C3TextField(
+		&errcode,
+		aui_UniqueId(),
+		"serverselectwindow.directtextfield" );
+	Assert( AUI_NEWOK(control,errcode) );
+	if ( !AUI_NEWOK(control,errcode) ) return errcode;
+	m_controls[ CONTROL_DIRECTTEXTFIELD ] = control;
+
+	control = new aui_Button(
+		&errcode,
+		aui_UniqueId(),
+		"serverselectwindow.directjoinbutton" );
+	Assert( AUI_NEWOK(control,errcode) );
+	if ( !AUI_NEWOK(control,errcode) ) return errcode;
+	m_controls[ CONTROL_DIRECTJOINBUTTON ] = control;
+
+	control = new aui_Button(
+		&errcode,
+		aui_UniqueId(),
+		"serverselectwindow.directhostbutton" );
+	Assert( AUI_NEWOK(control,errcode) );
+	if ( !AUI_NEWOK(control,errcode) ) return errcode;
+	m_controls[ CONTROL_DIRECTHOSTBUTTON ] = control;
+
+	control = new c3_Static(
+		&errcode,
+		aui_UniqueId(),
+		"serverselectwindow.myaddressstatictext" );
+	Assert( AUI_NEWOK(control,errcode) );
+	if ( !AUI_NEWOK(control,errcode) ) return errcode;
+	m_controls[ CONTROL_MYADDRESSSTATICTEXT ] = control;
 
 	aui_Ldl::SetupHeirarchyFromRoot( "serverselectwindow" );
 
@@ -139,6 +187,21 @@ AUI_ERRCODE ServerSelectWindow::CreateControls( void )
 	Assert( action != NULL );
 	if ( !action ) return AUI_ERRCODE_MEMALLOCFAILED;
 	m_controls[ CONTROL_SELECTSERVERLISTBOX ]->SetAction( action );
+
+	action = new DirectJoinButtonAction;
+	Assert( action != NULL );
+	if ( !action ) return AUI_ERRCODE_MEMALLOCFAILED;
+	m_controls[ CONTROL_DIRECTJOINBUTTON ]->SetAction( action );
+
+	action = new DirectHostButtonAction;
+	Assert( action != NULL );
+	if ( !action ) return AUI_ERRCODE_MEMALLOCFAILED;
+	m_controls[ CONTROL_DIRECTHOSTBUTTON ]->SetAction( action );
+
+	action = new DirectTextFieldAction;
+	Assert( action != NULL );
+	if ( !action ) return AUI_ERRCODE_MEMALLOCFAILED;
+	m_controls[ CONTROL_DIRECTTEXTFIELD ]->SetAction( action );
 
 
 
@@ -163,9 +226,13 @@ void ServerSelectWindow::Update( bool wait )
 	c3_Button *b = (c3_Button *)(FindControl( ServerSelectWindow::CONTROL_OKBUTTON ));
 	if(wait)
 		if ( !s_dbw )
-		s_dbw = DialogBoxWindow::PopUp(
-			"waitserverdialogboxwindow",
-			m_dbActionArray );
+		{
+			s_dbw = DialogBoxWindow::PopUp(
+				"waitserverdialogboxwindow",
+				m_dbActionArray );
+			s_dbwShown = time(NULL);
+		}
+	UpdateMyAddress();
 	if(item)
 	{
 		b->Enable(TRUE);
@@ -188,10 +255,39 @@ void ServerSelectWindow::Update( bool wait )
 	}
 }
 
+// Shows the own address ("host:port") next to the host button, so the host
+// can tell the other players where to connect. Behind a router the player
+// has to replace the local address by the public one.
+void ServerSelectWindow::UpdateMyAddress( void )
+{
+	c3_Static *text = (c3_Static *)m_controls[ CONTROL_MYADDRESSSTATICTEXT ];
+	if ( !text || !g_netfunc ) return;
+
+	MBCHAR address[128];
+	if ( g_netfunc->GetMyAddress( address, sizeof(address) ) )
+	{
+		MBCHAR label[256];
+		sprintf( label, "%s %s", g_theStringDB->GetNameStr("str_ldl_DIRECT_YOUR_ADDRESS"), address );
+		text->SetText( label );
+	}
+	else
+	{
+		text->SetText( "" );
+	}
+}
+
 AUI_ERRCODE ServerSelectWindow::Idle( void )
 {
 	if (g_netfunc)
 	{
+		if ( s_dbw && time(NULL) - s_dbwShown >= k_WAIT_FOR_SERVERS_SECONDS )
+		{
+			// No server answered, give the player the direct connection controls.
+			DialogBoxWindow::PopDown( s_dbw );
+			s_dbw = NULL;
+			UpdateMyAddress();
+		}
+
 		while (NETFunc::Message * m = g_netfunc->GetMessage())
 		{
 			g_netfunc->HandleMessage(m);
@@ -317,4 +413,79 @@ void ServerSelectWindow::DialogBoxPopDownAction::Execute(
 	}
 
 	g_netshell->GotoScreen( NetShell::SCREEN_CONNECTIONSELECT );
+}
+
+// Join the lobby of a host at the address typed into the text field.
+void ServerSelectWindow::DirectJoinButtonAction::Execute(
+	aui_Control *control,
+	uint32 action,
+	uint32 data )
+{
+	if ( action != (uint32)AUI_BUTTON_ACTION_EXECUTE ) return;
+
+	ServerSelectWindow *w = (ServerSelectWindow *)control->GetParentWindow();
+	aui_TextField *field = (aui_TextField *)w->FindControl( ServerSelectWindow::CONTROL_DIRECTTEXTFIELD );
+	c3_Static *info = (c3_Static *)w->FindControl( ServerSelectWindow::CONTROL_MYADDRESSSTATICTEXT );
+
+	MBCHAR address[128];
+	address[0] = 0;
+	field->GetFieldText( address, sizeof(address) - 1 );
+
+	// trim blanks
+	MBCHAR *start = address;
+	while ( *start == ' ' ) start++;
+	size_t len = strlen( start );
+	while ( len > 0 && start[len - 1] == ' ' ) start[--len] = 0;
+	if ( len == 0 ) return;
+
+	if ( s_dbw )
+	{
+		DialogBoxWindow::PopDown( s_dbw );
+		s_dbw = NULL;
+	}
+
+	if ( g_netfunc->SetDirectAddress( start ) == NETFunc::OK )
+	{
+		strncpy( g_serverName, start, 100 );
+		g_netshell->GotoScreen( NetShell::SCREEN_PLAYERSELECT );
+	}
+	else if ( info )
+	{
+		info->SetText( g_theStringDB->GetNameStr("str_ldl_DIRECT_NO_CONTACT") );
+	}
+}
+
+// Host a game on this machine without an Anet game server.
+void ServerSelectWindow::DirectHostButtonAction::Execute(
+	aui_Control *control,
+	uint32 action,
+	uint32 data )
+{
+	if ( action != (uint32)AUI_BUTTON_ACTION_EXECUTE ) return;
+
+	if ( s_dbw )
+	{
+		DialogBoxWindow::PopDown( s_dbw );
+		s_dbw = NULL;
+	}
+
+	if ( g_netfunc->SetDirectHost() == NETFunc::OK )
+	{
+		strncpy( g_serverName, "", 100 );
+		g_netshell->GotoScreen( NetShell::SCREEN_PLAYERSELECT );
+	}
+}
+
+// Enter in the address field joins.
+void ServerSelectWindow::DirectTextFieldAction::Execute(
+	aui_Control *control,
+	uint32 action,
+	uint32 data )
+{
+	if ( action != (uint32)AUI_TEXTFIELD_ACTION_EXECUTE ) return;
+
+	ServerSelectWindow *w = (ServerSelectWindow *)control->GetParentWindow();
+	aui_Control *button = w->FindControl( ServerSelectWindow::CONTROL_DIRECTJOINBUTTON );
+	if ( button && button->GetAction() )
+		button->GetAction()->Execute( button, AUI_BUTTON_ACTION_EXECUTE, 0 );
 }

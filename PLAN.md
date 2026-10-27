@@ -132,8 +132,18 @@ Stufenplan:
 5. **Optional 32 Bit:** großer Umbau (pixelutils, SpriteLow555/565,
    tiledraw-Assembler, Blitter). Erst nach 2x.
 
-KI-Hochskalierung läuft lokal in D:\AI (vorhandene Tools), Ergebnisse nur
-lokal. Modelle und Lizenzen vor Nutzung prüfen (Real-ESRGAN: BSD-3).
+Vorgabe des Besitzers (2026-10-27): **ein Skript, das den Pfad der
+Spielinstallation bekommt und das Upscaling vor Ort beim Spieler
+durchführt.** Wir bieten selbst keine Grafiken oder Videos an. Das Skript
+muss also beim Spieler lauffähig sein (Windows, Python-frei oder mit
+mitgeliefertem Runtime, GPU optional mit CPU-Fallback), prüft die
+Installation, legt Sicherungen an und schreibt nur in die eigene
+Installation. Die deutsche Fassung (Texte, Videos im Sprachordner) wird dabei
+genauso behandelt wie die englische.
+
+KI-Hochskalierung für die Entwicklung läuft lokal in D:\AI (vorhandene
+Tools). Modelle und Lizenzen vor Nutzung prüfen (Real-ESRGAN: BSD-3), damit
+das Skript die Modelle beim Spieler nachladen darf.
 
 ## Offene Fragen an den Besitzer
 
