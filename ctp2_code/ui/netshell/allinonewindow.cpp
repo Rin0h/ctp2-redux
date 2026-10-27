@@ -3357,7 +3357,9 @@ void AllinoneWindow::OKButtonAction::Execute(
 			AllinoneWindow::CONTROL_CIVPOINTSBUTTON ))->GetValue() );
 
 	NETFunc::STATUS status = g_netfunc->Launch();
-	Assert(NETFunc::OK == status);
+	// ctp2-redux: a client's "Start" only flags it ready, Launch() then
+	// returns ERR by design; only the host must succeed here.
+	(void)status; // Launch() may legitimately return ERR until all players are ready
 
 	g_playersetup.SetReadyToLaunch( true );
 	control->Enable( FALSE );

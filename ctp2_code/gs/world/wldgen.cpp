@@ -2556,7 +2556,11 @@ IMapGenerator *World::LoadMapPlugin(sint32 pass)
 		return NULL;
 #ifndef USE_COM_REPLACEMENT
 #if defined(_DEBUG)
-	char* name_dbg = strdup(name);
+	// ctp2-redux: "d.dll" is one byte longer than ".dll", strdup() left no
+	// room for it and the terminator was written past the block (heap damage).
+	size_t name_len = strlen(name);
+	char* name_dbg = (char*)malloc(name_len + 2);
+	strcpy(name_dbg, name);
 	char *p = strrchr(name_dbg, '.');
 	if (p) strcpy(p, "d.dll"); // Change quickly to debug version
 	plugin = LoadLibrary(name_dbg);

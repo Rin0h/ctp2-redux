@@ -276,6 +276,10 @@ BOOL g_powerPointsMode = FALSE;
 BOOL g_exclusiveMode = FALSE;
 BOOL g_hideTaskBar = FALSE;
 BOOL g_useIntroMovie = TRUE;
+#if defined(_DEBUG) && defined(WIN32)
+static int ctp2redux_CrtReportHook(int reportType, char *message, int *returnValue);
+static int ctp2redux_CrtReportHookW(int reportType, wchar_t *message, int *returnValue);
+#endif
 BOOL g_noAssertDialogs = FALSE;
 BOOL g_runInBackground = FALSE;
 BOOL g_runSpriteEditor = FALSE;
@@ -1155,7 +1159,84 @@ void ParseCommandLine(PSTR szCmdLine)
 		_CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_DEBUG);
 #endif
 	}
+#if defined(_DEBUG) && defined(WIN32)
+	// ctp2-redux: find heap overflows: check the heap every 16 allocations and
+	// write the call stack of the first failing check into the log.
+	_CrtSetReportHook(ctp2redux_CrtReportHook);
+	_CrtSetReportHookW2(_CRT_RPTHOOK_INSTALL, ctp2redux_CrtReportHookW);
+#endif
 }
+
+// ctp2-redux: called when a game starts (data is loaded by then): check the
+// heap every 16 allocations from now on, the report hook logs the stack.
+void ctp2redux_EnableHeapChecks(void)
+{
+#if defined(_DEBUG) && defined(WIN32)
+	_CrtSetDbgFlag(_CrtSetDbgFlag(_CRTDBG_REPORT_FLAG) | _CRTDBG_CHECK_EVERY_16_DF);
+#endif
+}
+
+#if defined(_DEBUG) && defined(WIN32)
+// Wide variant: assert() from C code (e.g. the Anet DLL) reports here.
+// Logs message and stack; known harmless asserts are suppressed.
+static int ctp2redux_CrtReportHookW(int reportType, wchar_t *message, int *returnValue)
+{
+	static bool s_inHook = false;
+	if (!s_inHook && message)
+	{
+		s_inHook = true;
+		char narrow[2048];
+		size_t n = 0;
+		wcstombs_s(&n, narrow, sizeof(narrow), message, _TRUNCATE);
+		c3debug_dprintf("CRT report W (%d): %s", reportType, narrow);
+		c3debug_dprintf("Stack: %s", c3debug_StackTrace());
+		{
+			// "Normal located at 0x... is N bytes long.": dump the block and the
+			// bytes written past its end, they usually tell who wrote them.
+			const char *at = strstr(narrow, "located at 0x");
+			const char *is = at ? strstr(at, " is ") : NULL;
+			if (at && is)
+			{
+				unsigned long long addr = _strtoui64(at + 13, NULL, 16);
+				int len = atoi(is + 4);
+				const unsigned char *b = (const unsigned char *)(uintptr_t)addr;
+				char hex[400]; char asc[140]; int i; int n = len + 24;
+				if (n > 120) n = 120;
+				hex[0] = 0; asc[0] = 0;
+				for (i = 0; i < n; i++)
+				{
+					char t[8]; sprintf(t, "%02x%s", b[i], (i + 1 == len) ? " | " : " "); strcat(hex, t);
+					char c = (b[i] >= 32 && b[i] < 127) ? (char)b[i] : '.'; size_t l = strlen(asc); asc[l] = c; asc[l + 1] = 0;
+					if (i + 1 == len) strcat(asc, "|");
+				}
+				c3debug_dprintf("Damaged block %d bytes + 24 after: %s", len, hex);
+				c3debug_dprintf("As text: %s", asc);
+			}
+		}
+		s_inHook = false;
+		if (reportType == _CRT_ASSERT && strstr(narrow, "d != NULL"))
+		{
+			if (returnValue) *returnValue = 0; // continue, no dialog
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+static int ctp2redux_CrtReportHook(int reportType, char *message, int *returnValue)
+{
+	static bool s_inHook = false;
+	if (!s_inHook && message
+	&&  (reportType == _CRT_ERROR || reportType == _CRT_ASSERT || strstr(message, "HEAP CORRUPTION") || strstr(message, "DAMAGE")))
+	{
+		s_inHook = true;
+		c3debug_dprintf("CRT report (%d): %s", reportType, message);
+		c3debug_dprintf("Stack: %s", c3debug_StackTrace());
+		s_inHook = false;
+	}
+	return FALSE;
+}
+#endif
 
 #if defined(_MSC_VER)
 static LONG _cdecl main_CivExceptionHandler(LPEXCEPTION_POINTERS pException)

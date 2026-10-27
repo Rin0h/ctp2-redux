@@ -3273,7 +3273,9 @@ void NETFunc::Execute(void) {
 		SDL_WaitThread(m_threadHandle, &dw);
 
 			m_threadHandle = NULL;
-			if (dw > 0) {
+			// ctp2-redux: a failed dpCreate (e.g. port in use) must not be
+			// treated as connected, the netshell would then poll a NULL handle.
+			if (dw > 0 || s_result != dp_RES_OK || !s_dp) {
 #else
 		DWORD dw;
 
@@ -3282,7 +3284,7 @@ void NETFunc::Execute(void) {
 			CloseHandle(m_threadHandle);
 
 			m_threadHandle = NULL;
-			if (dw) {
+			if (dw || s_result != dp_RES_OK || !s_dp) {
 #endif
 				s_status = START;
 

@@ -39,6 +39,7 @@
 //----------------------------------------------------------------------------
 
 #include "c3.h"
+#include "c3debug.h"
 #include "Cell.h"
 
 #include "net_types.h"
@@ -795,7 +796,15 @@ void Network::ProcessSends()
 				if(!packet->m_packetbuf) {
 					Assert(FALSE);
 					uint16 psize;
+					#if defined(_DEBUG) && defined(WIN32)
+					bool heapOkBeforeSend = _CrtCheckMemory() != 0;
+					#endif
 					packet->Packetize(buf, psize);
+					#if defined(_DEBUG) && defined(WIN32)
+					if(heapOkBeforeSend && !_CrtCheckMemory()) {
+						c3debug_dprintf("ctp2-redux: HEAP DAMAGED while packetizing packet %02x %02x ('%c%c'), size %d", buf[0], buf[1], buf[0], buf[1], (int)psize);
+					}
+					#endif
 					size = (sint32)psize;
 					sbuf = buf;
 				} else {
@@ -1036,7 +1045,16 @@ void Network::PacketReady(sint32 from,
 		Packetizer* handler = GetHandler(buf, static_cast<sint16>(size));
 		Assert(handler != NULL);
 		if(handler) {
+#if defined(_DEBUG) && defined(WIN32)
+			// ctp2-redux: pin heap damage to the packet that causes it
+			bool heapOkBefore = _CrtCheckMemory() != 0;
+#endif
 			handler->Unpacketize((uint16)from, buf, static_cast<sint16>(size));
+#if defined(_DEBUG) && defined(WIN32)
+			if(heapOkBefore && !_CrtCheckMemory()) {
+				c3debug_dprintf("ctp2-redux: HEAP DAMAGED while handling packet %02x %02x ('%c%c'), size %d, from %d", buf[0], buf[1], buf[0], buf[1], (int)size, (int)from);
+			}
+#endif
 			handler->Release();
 		}
 
