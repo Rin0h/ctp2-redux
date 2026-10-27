@@ -101,10 +101,19 @@ Instanzen), Debug-only Pufferüberlauf beim Kartengenerator-Namen.
 Das angezeigte Jahr ist der Rundenzähler des jeweils eigenen Spielers; bei
 nacheinander laufenden Zügen weicht es um eine Runde ab, das ist normal.
 
+Stand 2026-10-27 (Nacht): **Release-Version über Direktverbindung: über 50
+Runden ohne Absturz** (Host `x64a\ctp2.exe`, Client `x64b\ctp2.exe`,
+127.0.0.1:21157). Ursache des früheren Absturzes beim Spielstart mit einem
+AddressSanitizer-Build des Clients gefunden: Kartenanzeige schrieb nach dem
+Neuanlegen der Spieler in das freigegebene Sichtfeld des alten Spielers;
+dazu doppelte Freigabe zusammengesetzter Netzwerkpakete. Offene harmlose
+Lesefehler laut ASan: ThroneDB-Tokenizer, Chat-Textfeld, Karten-Icon-Encoder.
+ASan-Build: `civctp.vcxproj` mit `-p:EnableASAN=true`, Ausgabe nach
+`_local/asan/out`, Start über `_local/asan/start-client-asan.bat`.
+
 Plan:
-1. **Release-Test:** dasselbe mit `ctp2.exe` (nicht Debug) über mehrere
-   Runden. Dann Test mit LAN-Adresse statt 127.0.0.1 und ein echter Test
-   über zwei Anschlüsse.
+1. **Weitere Tests:** LAN-Adresse statt 127.0.0.1, dann ein echter Test über
+   zwei Anschlüsse (Port 21157 UDP weiterleiten).
 2. **Direkt ins Spiel-Setup (Wunsch des Besitzers):** ohne Chat-Lobby. Host
    „Spiel hosten“ → Profil → direkt Spiel-Setup (Spielsitzung sofort
    anlegen); Client „Beitreten“ → Profil → direkt ins Spiel-Setup des Hosts
