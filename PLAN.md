@@ -1,7 +1,7 @@
 # Call to Power II – Modern-PC-Fork: Plan
 
 Stand: 2026-10-27. Fork von github.com/civctp2/civctp2 (Apolyton Edition).
-Arbeitsbranch: `modern-pc` (master bleibt Spiegel von upstream).
+Arbeitsbranch: `redux` (master bleibt Spiegel von upstream).
 
 ## Ziele
 
@@ -39,7 +39,7 @@ Fensterbetrieb zum Testen: `ctp2_code\ctp\x64\userprofile.txt` mit
 - [x] Klon, Build-Umgebung ohne Admin (NASM, lokale VC-Targets, CDKDIR, D:\tmp)
 - [x] MSVC-14.44-Fixes: Anet comm*-Prototypen, FFmpeg `max_align_t`
 - [x] Final-SDL x64 baut und startet (Intro-Video läuft über FFmpeg)
-- [ ] Fork auf GitHub anlegen, Branch `modern-pc` pushen (braucht `gh auth login`)
+- [ ] Fork auf GitHub anlegen, Branch `redux` pushen (braucht `gh auth login`)
 - [ ] CI-Workflow (GitHub Actions, windows-latest) für den Windows-Build
 - [ ] Spielstart ohne userprofile.txt prüfen: sinnvolle Standardauflösung
       (Desktop-Auflösung, Fenster statt Vollbild beim ersten Start)

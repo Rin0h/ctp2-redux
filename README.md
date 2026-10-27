@@ -12,7 +12,7 @@ with three goals:
    changes needed to display them.
 
 The roadmap, findings from the code analysis and the current status live in
-[PLAN.md](PLAN.md). Work happens on the `modern-pc` branch, `master` mirrors
+[PLAN.md](PLAN.md). Work happens on the `redux` branch, `master` mirrors
 upstream.
 
 ### Status (October 2026)
@@ -244,7 +244,7 @@ The old format of Linux save-games was not compatible with that of windows save-
    mit jeder Sprachfassung, auch mit der deutschen.
 
 Fahrplan, Erkenntnisse aus der Code-Analyse und der aktuelle Stand stehen in
-[PLAN.md](PLAN.md). Gearbeitet wird auf dem Branch `modern-pc`, `master`
+[PLAN.md](PLAN.md). Gearbeitet wird auf dem Branch `redux`, `master`
 spiegelt das Upstream-Projekt.
 
 ### Stand (Oktober 2026)
