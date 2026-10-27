@@ -1721,7 +1721,9 @@ dp_hosts_cb(
 	/* To tell whether a host record refers to us, it is sufficient to check
 	 * the global address.
 	 */
-	itsMe = !memcmp(dp->dpio->myAdr, host.iadr, dp->dpio->myAdrLen);
+	/* ctp2-redux: our own record may carry an address we announced earlier
+	 * (before dpio learned an externally seen one), so ask dpio. */
+	itsMe = dpio_adrIsMe(dp->dpio, host.iadr);
 
 	if ((status == dp_RES_CREATED) || (status == dp_RES_CHANGED)) {
 #if 1
@@ -5666,6 +5668,22 @@ static dp_result_t dpHandleSelectedSession
 		dp->select_keylen = s->keylen;
 		memcpy(dp->select_key, s->key, s->keylen);
 	}
+
+	/* ctp2-redux: the selected session carries the master's address as the
+	 * master sees itself (often a public or a private address that does
+	 * not work from here). We reached the master through handle h, i.e.
+	 * the address the player typed, so keep using that one. */
+	if (dp->hGameServer == PLAYER_NONE && h != PLAYER_NONE && h != PLAYER_ME) {
+		char adr[dp_MAX_ADR_LEN];
+		size_t len = sizeof(adr);
+		if (dpio_hdl2adr(dp->dpio, h, adr, &len) == dp_RES_OK
+		&&  len == (size_t)dp->dpio->myAdrLen
+		&&  memcmp(s->sess.adrMaster, adr, len)) {
+			DPRINT(("dpHandleSelectedSession: using the address of h:%x as master address\n", h));
+			memcpy(s->sess.adrMaster, adr, len);
+		}
+	}
+
 	err = initOpenSession(dp, &s->sess, &sess);
 	if (err != dp_RES_OK) {
 		dpClose(dp);

@@ -280,6 +280,12 @@ typedef struct {
 				/* indexed by ping_current_pktnum % * dpio_PING_TIME_SENT_N */
 	clock_t ping_time_sent[dpio_PING_TIME_SENT_N];
 	sint16	ping_bits;		/* Bit i set if i'th newest ping is still outstanding */
+
+	/* ctp2-redux: addresses this node announced for itself in its SYN
+	 * packets. A later open to one of them reuses this connection instead
+	 * of creating a second one to the same node (see dpio_openHdlRaw2). */
+	uint8	alias[2][dp_MAX_ADR_LEN];
+	sint32	nalias;
 } dpio_conn_t;
 
 /*------- The dpio_t itself. ----------------------------------------------- */
@@ -358,6 +364,19 @@ typedef struct dpio_s {
 	 * See design comment for dpio_setPingIntervals(). */
 	clock_t ping_piggyback_interval;	/* in ECLOCKS */
 	clock_t ping_forced_interval;		/* in ECLOCKS */
+
+	/* ctp2-redux: packet numbers of the last SYNs and the handles they
+	 * arrived on. A node that reaches us from a second address sends the
+	 * very same SYN again; it must not get a second handle (dpio_get). */
+	sint32		recentSynPktnum[4];
+	playerHdl_t	recentSynHdl[4];
+	sint32		recentSynIdx;
+
+	/* ctp2-redux: addresses we used for ourselves before myAdr was
+	 * overwritten with an externally seen one. Other nodes may still
+	 * refer to us by them (dpio_adrIsMe). */
+	uint8		myAdrOld[2][dp_MAX_ADR_LEN];
+	sint32		nMyAdrOld;
 } dpio_t;
 
 /* Obscure our entry point names */
@@ -568,6 +587,12 @@ playerHdl_t dpio_openHdlRaw2(dpio_t *dpio, void *adr, void *adr2, sint32 flags);
  other info.  Internal use only.
 -----------------------------------------------------------------------*/
 dp_result_t dpio_closeHdlRaw(dpio_t *dpio, playerHdl_t h);
+
+/*-----------------------------------------------------------------------
+ ctp2-redux: Is this one of our own addresses (current, second, or one we
+ announced earlier)?
+-----------------------------------------------------------------------*/
+int dpio_adrIsMe(dpio_t *dpio, const void *adr);
 
 /*--------------------------------------------------------------------------
  Find out the network address for a given handle opened with dpio_openHdl.

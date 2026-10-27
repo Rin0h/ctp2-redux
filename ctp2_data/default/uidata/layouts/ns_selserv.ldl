@@ -124,29 +124,33 @@ serverselectwindow:nswindow {
 		int	heightpix	20
 		int	maxfieldlen	80
 	}
-	directjoinbutton:nscommonbutton {
-		int	xpix	303
-		int	ypix	244
-		int	widthpix	82
-		int	heightpix	22
+	directjoinbutton:nsnextbutton {
+		string	xanchor	"left"
+		string	yanchor	"top"
+		int	xpix	305
+		int	ypix	243
+		int	widthpix	80
+		int	heightpix	24
 		string	text	"str_ldl_DIRECT_JOIN"
 	}
-	directhostbutton:nscommonbutton {
+	directhostbutton:nsnextbutton {
+		string	xanchor	"left"
+		string	yanchor	"top"
 		int	xpix	73
-		int	ypix	276
+		int	ypix	275
 		int	widthpix	120
-		int	heightpix	22
+		int	heightpix	24
 		string	text	"str_ldl_DIRECT_HOST"
 	}
 	myaddressstatictext:nsstatictext {
-		int	xpix	203
-		int	ypix	277
-		int	widthpix	182
+		int	xpix	73
+		int	ypix	305
+		int	widthpix	312
 		int	heightpix	20
 		string	text	""
-		int	srcxpix	203
-		int	srcypix	277
-		int	srcwidthpix	182
+		int	srcxpix	73
+		int	srcypix	305
+		int	srcwidthpix	312
 		int	srcheightpix	20
 	}
 	closebutton:nsclosebutton {

@@ -73,15 +73,31 @@ Befund (Code-Analyse 2026-10-27):
 - Server-Quellcode liegt bei: `libs/anet/src/linux/server/` (Linux, UDP 21157).
   Session-Typ-Abweichung beachten: Spiel sendet Typ 0, `anet.inf` sagt 1504.
 
+Stand 2026-10-27 (abends): **Direktverbindung bis in die Lobby funktioniert**
+(zwei Instanzen auf einem PC, Host über „Spiel hosten“, Client über
+„Beitreten“ mit 127.0.0.1:21157; beide sehen sich, Ping 20 ms).
+Nebenbefund: die drei Anet-Community-Server (911.alink.bz911.net,
+alink.iondriver.com, play.interstate76.com) antworten noch, der klassische
+Serverweg ist also ebenfalls einen Test wert.
+
+Kernproblem, das dafür gelöst wurde: Anet identifiziert Mitspieler über
+Adressen, die sie selbst über sich melden (öffentlich, LAN), nicht über die
+Verbindung, über die sie erreichbar sind. Ein Rechner tritt so unter bis zu
+drei Adressen auf und bekam mehrere Verbindungen, die sich gegenseitig
+zurücksetzten. Regel jetzt in `libs/anet/src/dp/dpio.c`: ein Rechner = die
+Menge aller Adressen, unter denen er je aufgetreten ist (Alias-Liste je
+Verbindung, Verlauf der eigenen Adressen, SYN-Dubletten per Paketnummer,
+Zielportprüfung statt exakter Adresse). Dazu in `dp2.c`: Sitzungsmaster wird
+über die getippte Adresse angesprochen, eigener Eintrag wird auch über
+frühere eigene Adressen erkannt.
+
 Plan:
-1. **LAN-Ist-Test:** zwei Instanzen (dieser PC + zweiter PC/VM) mit
-   `wudplan`; Windows-Firewall UDP 21157 eingehend. Ergebnis dokumentieren.
-2. **Direkte IP (kleine Änderung):** Textfeld „Host-Adresse“ im
-   Server-Auswahlfenster (`serverselectwindow.cpp`); Client ruft
-   `dpResolveHostname("ip:port")` + `dpOpen` mit `adrMaster`, überspringt
-   `dpSetGameServerEx`. Host bindet festen Port (`Internet::SetPort(21157)`),
-   damit Port-Weiterleitung möglich ist. Netshell muss eine vom Host erzeugte
-   Lobby-Sitzung auch im Internet-Pfad akzeptieren (wie im LAN).
+1. **Spielstart über Direktverbindung testen:** Host erstellt Spiel aus der
+   Lobby, Client tritt bei, Start, erste Runden. Dann Test mit LAN-Adresse
+   statt 127.0.0.1 und ein echter Test über zwei Anschlüsse.
+2. **Direkte IP – Rest:** eigene Adresse im Fenster zeigt die lokale
+   Adresse; hinter einem Router muss der Host seine öffentliche IP selbst
+   kennen (Hinweistext). Eigener Ping in der Lobby zeigt 2000 (kosmetisch).
 3. **Robustheit:** feste Pakettypen (sint32 statt long/bool/enum) in den
    Netshell-Paketen; Interface-Wahl bei mehreren Adaptern; nur x64 ausliefern.
 4. **Optional Serverbrowser:** eigenen Anet-Server betreiben und in

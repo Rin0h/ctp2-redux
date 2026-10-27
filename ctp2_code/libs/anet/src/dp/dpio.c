@@ -870,6 +870,42 @@ DP_API dp_result_t dpio_printAdr(dpio_t *dpio, const char *adrbuf, size_t adrlen
 /*-----------------------------------------------------------------------
  This function has been superceeded by dpio_openHdlRaw2 (below)
 -----------------------------------------------------------------------*/
+static playerHdl_t dpio_findHdlByPacketAdr(dpio_t *dpio, const char *a1, const char *a2);
+
+/* ctp2-redux: keep the current own address before it gets replaced. */
+static void dpio_rememberMyAdr(dpio_t *dpio)
+{
+	sint32 i;
+	sint32 len = dpio->myAdrLen;
+	if (len <= 0 || len > dp_MAX_ADR_LEN)
+		return;
+	if (dpio->nMyAdrOld < 0 || dpio->nMyAdrOld > 2)
+		dpio->nMyAdrOld = 0;
+	for (i = 0; i < dpio->nMyAdrOld; i++)
+		if (!memcmp(dpio->myAdrOld[i], dpio->myAdr, len))
+			return;
+	if (dpio->nMyAdrOld < 2) {
+		memcpy(dpio->myAdrOld[dpio->nMyAdrOld++], dpio->myAdr, len);
+	} else {
+		memcpy(dpio->myAdrOld[0], dpio->myAdrOld[1], len);
+		memcpy(dpio->myAdrOld[1], dpio->myAdr, len);
+	}
+}
+
+int dpio_adrIsMe(dpio_t *dpio, const void *adr)
+{
+	sint32 i;
+	sint32 len = dpio->myAdrLen;
+	if (!adr || len <= 0 || len > dp_MAX_ADR_LEN)
+		return 0;
+	if (!memcmp(dpio->myAdr, adr, len) || !memcmp(dpio->myAdr2, adr, len))
+		return 1;
+	for (i = 0; i < dpio->nMyAdrOld && i < 2; i++)
+		if (!memcmp(dpio->myAdrOld[i], adr, len))
+			return 1;
+	return 0;
+}
+
 playerHdl_t dpio_openHdlRaw(dpio_t *dpio, void *adr)
 {
   return (dpio_openHdlRaw2(dpio, adr, NULL, FALSE));
@@ -893,6 +929,18 @@ playerHdl_t dpio_openHdlRaw2(dpio_t *dpio, void *adr, void *adr2, sint32 flags)
 	playerHdl_t       h;
 
 	dpio_assertValid(dpio);
+
+	/* ctp2-redux: one connection per node. If the address belongs to a
+	 * node we already talk to (by its connection address or by an address
+	 * it announced for itself), hand out that handle. */
+	h = dpio_findHdlByPacketAdr(dpio, (const char *)adr, (const char *)adr2);
+	if (h != PLAYER_NONE) {
+		DPRINT(("dpio_openHdlRaw2: adr "));
+		dpio_dprintAdr((char *) adr, dpio->myAdrLen);
+		DPRINT((" belongs to known h:%x, reusing it\n", h));
+		dpio_assertValid(dpio);
+		return h;
+	}
 
 	cshReq.address = adr;
 	cshReq.address2 = adr2;
@@ -2160,6 +2208,84 @@ playerHdl_t dpio_openHdl(dpio_t *dpio, void *adr, dpioOpenHdlCallback_t cb, void
  machines which are known to have multiple addresses.  Refer to header
  for more infomation.
 -----------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------
+ ctp2-redux: A player who connects to a host directly types whatever
+ address reaches the host (LAN address, loopback, public address behind a
+ router, DNS name). That address rarely equals the address the host
+ detected for itself, so the SYN sanity checks below only insist that the
+ port matches. IP transports keep the port in the last two bytes.
+--------------------------------------------------------------------------*/
+static int dpio_adrPortMatches(dpio_t *dpio, const char *a, const char *b)
+{
+	if (dpio->myAdrLen < 2)
+		return 0;
+	return memcmp(a + dpio->myAdrLen - 2, b + dpio->myAdrLen - 2, 2) == 0;
+}
+
+/*--------------------------------------------------------------------------
+ ctp2-redux: Find an existing connection whose address (or second
+ address) equals one of the addresses embedded in a SYN packet. A node
+ that reaches us from a second address (a host answering to our LAN and
+ loopback address, or through a NAT hairpin) must not get a second
+ handle, otherwise the first connection is dropped as closed.
+ Returns PLAYER_NONE if nothing matches.
+--------------------------------------------------------------------------*/
+static playerHdl_t dpio_findHdlByPacketAdr(dpio_t *dpio, const char *a1, const char *a2)
+{
+	sint32 i;
+	for (i = 0; i < dpio->conns->n_used; i++) {
+		assoctab_item_t *pe = assoctab_getkey(dpio->conns, i);
+		char adr[dp_MAX_ADR_LEN];
+		char adr2[dp_MAX_ADR_LEN];
+		size_t len = sizeof(adr);
+		dpio_conn_t *pc;
+		if (!pe)
+			continue;
+		pc = (dpio_conn_t *)pe->value;
+		if ((pc->state & dpio_STATE_CLOSED) == dpio_STATE_CLOSED)
+			continue;
+		if (dpio_hdl2adr2(dpio, (playerHdl_t)pe->key, adr, adr2, &len) != dp_RES_OK)
+			continue;
+		if (len != (size_t)dpio->myAdrLen)
+			continue;
+		if (a1 && (!memcmp(adr, a1, len) || !memcmp(adr2, a1, len)))
+			return (playerHdl_t)pe->key;
+		if (a2 && (!memcmp(adr, a2, len) || !memcmp(adr2, a2, len)))
+			return (playerHdl_t)pe->key;
+		{
+			sint32 k;
+			for (k = 0; k < pc->nalias && k < 2; k++) {
+				if (a1 && !memcmp(pc->alias[k], a1, len))
+					return (playerHdl_t)pe->key;
+				if (a2 && !memcmp(pc->alias[k], a2, len))
+					return (playerHdl_t)pe->key;
+			}
+		}
+	}
+	return PLAYER_NONE;
+}
+
+/* ctp2-redux: remember an address a node announced for itself. */
+static void dpio_addAlias(dpio_t *dpio, playerHdl_t h, const char *adr)
+{
+	dpio_conn_t *pc = (dpio_conn_t *)assoctab_subscript(dpio->conns, h);
+	sint32 i;
+	sint32 len = dpio->myAdrLen;
+	if (!pc || !adr || len <= 0 || len > dp_MAX_ADR_LEN)
+		return;
+	if (pc->nalias < 0 || pc->nalias > 2)
+		pc->nalias = 0;
+	for (i = 0; i < pc->nalias; i++)
+		if (!memcmp(pc->alias[i], adr, len))
+			return;
+	if (pc->nalias < 2) {
+		memcpy(pc->alias[pc->nalias++], adr, len);
+	} else {
+		memcpy(pc->alias[0], pc->alias[1], len);
+		memcpy(pc->alias[1], adr, len);
+	}
+}
+
 playerHdl_t dpio_openHdl2(dpio_t *dpio, void *adr, void *adr2)
 {
 	playerHdl_t h;
@@ -2219,6 +2345,8 @@ playerHdl_t dpio_openHdl2(dpio_t *dpio, void *adr, void *adr2)
 		}
 
 		pc = (dpio_conn_t *)assoctab_subscript_grow(dpio->conns, h);
+		if (pc)
+			pc->nalias = 0;
 		if (!pc) {
 			DPRINT(("dpio_openHdl: error: out of memory\n"));
 			dpio_closeHdlRaw(dpio, h);
@@ -3540,13 +3668,40 @@ dp_result_t dpio_get(
 				}
 			}
 
+			/* ctp2-redux: a SYN from a node we already talk to via another
+			 * address is a repeat SYN for that handle, not a new node. */
+			if (!pc) {
+				playerHdl_t hx = dpio_findHdlByPacketAdr(dpio, (const char *)(pDat->data + 2), (const char *)srcAdr2);
+				if (hx == PLAYER_NONE) {
+					/* Same SYN (same packet number) seen a moment ago on a
+					 * handle we already have? Then it is the same node. */
+					sint32 synPktnum = (sint32)SwapBytes2(pDat->pktnum);
+					sint32 i;
+					for (i = 0; i < 4; i++) {
+						if (dpio->recentSynPktnum[i] == synPktnum
+						&&  dpio->recentSynHdl[i] != PLAYER_NONE
+						&&  assoctab_subscript(dpio->conns, dpio->recentSynHdl[i])) {
+							hx = dpio->recentSynHdl[i];
+							break;
+						}
+					}
+				}
+				if (hx != PLAYER_NONE) {
+					DPRINT(("dpio_get: SYN from a second address of known h:%x, reusing it\n", hx));
+					h = hx;
+					pc = (dpio_conn_t *)assoctab_subscript(dpio->conns, h);
+				}
+			}
+			if (!pc) {
 			/* Must ignore bogus SYNs before opening handle and replying! */
 			if (rxPktResp.length >= sizeof(dp_packetType_t) +
 				sizeof(dpio_data_packet_t) - dpio_MAXLEN_RELIABLE
 				+ 2 + 2*dpio->myAdrLen) {
 				char *destAdr =(char*)(pDat->data+2+dpio->myAdrLen);
 
-				if (memcmp(dpio->myAdr, destAdr, dpio->myAdrLen)) {
+				if (memcmp(dpio->myAdr, destAdr, dpio->myAdrLen)
+				&&  memcmp(dpio->myAdr2, destAdr, dpio->myAdrLen)
+				&&  !dpio_adrPortMatches(dpio, (const char *)dpio->myAdr, destAdr)) {
 					DPRINT(("dpio_get: SYN for wrong host received, ignoring\n"));
 					return dp_RES_AGAIN;
 				}
@@ -3567,11 +3722,22 @@ dp_result_t dpio_get(
 			DPRINT(("dpio_get: syn packet from unknown node; allocated h:%x\n", h));
 			/* Need to get pc now that dpio_openHdl created entry */
 			pc = (dpio_conn_t *)assoctab_subscript(dpio->conns, h);
+			}
 		}
 		if (!pc) {
 			DPRINT(("dpio_get: syn ack: no peer?\n"));
 			dpio_assertValid(dpio);
 			return dp_RES_BUG;
+		}
+		{
+			/* ctp2-redux: remember which handle this SYN belongs to, and the
+			 * addresses the node announced for itself in it. */
+			dpio->recentSynPktnum[dpio->recentSynIdx] = (sint32)SwapBytes2(pDat->pktnum);
+			dpio->recentSynHdl[dpio->recentSynIdx] = h;
+			dpio->recentSynIdx = (dpio->recentSynIdx + 1) % 4;
+			dpio_addAlias(dpio, h, (const char *)(pDat->data + 2));
+			if (pDat->len > (3 + dpio->myAdrLen * 2))
+				dpio_addAlias(dpio, h, (const char *)(pDat->data + 3 + dpio->myAdrLen * 2));
 		}
 		if (dpio->driverinfo->capabilities & comm_DRIVER_NO_BROADCAST) {
 
@@ -3664,7 +3830,9 @@ dp_result_t dpio_get(
 
 				if (memcmp(dpio->myAdr, destAdr, dpio->myAdrLen)) {
 					DPRINT(("dpio_get: SYN dest adr != myAdr!\n"));
-					if (dpio->publicAddressKnown) {
+					if (dpio->publicAddressKnown
+					&&  memcmp(dpio->myAdr2, destAdr, dpio->myAdrLen)
+					&&  !dpio_adrPortMatches(dpio, (const char *)dpio->myAdr, destAdr)) {
 						/* Got SYN from someone in session intended for
 						 * someone else with the same local address.
 						 */
@@ -3682,6 +3850,7 @@ dp_result_t dpio_get(
 						DPRINT((" with destAdr: "));
 						dpio_dprintAdr(destAdr, dpio->myAdrLen);
 						DPRINT(("\n"));
+						dpio_rememberMyAdr(dpio);
 						memcpy(dpio->myAdr, destAdr, dpio->myAdrLen);
 					} else {
 						/*
@@ -3717,6 +3886,7 @@ dp_result_t dpio_get(
 							 */
 							DPRINT(("dpio_get: Got a third address ... trouble!\n"));
 							DPRINT(("dpio_get: Overwriting myAdr!\n"));
+							dpio_rememberMyAdr(dpio);
 							memcpy(dpio->myAdr, destAdr, dpio->myAdrLen);
 						}
 					}
