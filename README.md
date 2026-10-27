@@ -1,21 +1,45 @@
-[![Build Status](https://travis-ci.com/civctp2/civctp2.svg?branch=master)](https://travis-ci.com/civctp2/civctp2)
+# ctp2-redux – Call to Power II for today's PCs
 
-## Apolyton Call to Power II Source Code Project
+This is a fork of the [Apolyton Call to Power II Source Code Project](https://github.com/civctp2/civctp2)
+with three goals:
 
-#### CivCTP2
-- Git SVN import of http://ctp2.darkdust.net/anonsvn/
-- Originally hosted at: https://ctp2.darkdust.net/
+1. **Runs on modern Windows PCs** out of the box: 64-bit build, current Visual
+   Studio toolchain, sensible defaults for high-resolution screens.
+2. **Multiplayer that works again**: LAN play and direct-IP internet play
+   without the long-gone Activision lobby servers.
+3. **Upscaled graphics and videos**: tools that upscale the original sprites,
+   tiles, UI pictures and Indeo videos on your own machine, plus the engine
+   changes needed to display them.
+
+The roadmap, findings from the code analysis and the current status live in
+[PLAN.md](PLAN.md). Work happens on the `modern-pc` branch, `master` mirrors
+upstream.
+
+### Status (October 2026)
+
+- Builds with Visual Studio 2022 Build Tools (MSVC 14.44) without admin
+  rights: `pwsh tools/win-build.ps1` → `ctp2_code/ctp/x64/ctp2.exe`.
+- Starts and plays the intro video through FFmpeg.
+- Multiplayer, upscaling: analysis done, implementation not started.
+
+### Game files and licence
+
+*Call to Power II* is not free software. Activision released the source code in
+2003 for personal, non-commercial use only (see [LICENSE.md](LICENSE.md)).
+The game data (graphics, videos, music, text) is **not** part of this
+repository and must come from your own copy of the game (GOG or CD). For the
+same reason this project never distributes upscaled versions of the original
+assets, only the scripts that create them locally from your own installation.
+
+### Upstream
+
+- Apolyton project: https://github.com/civctp2/civctp2
 - Forums: https://apolyton.net/forum/other-games/call-to-power-2/ctp2-source-code-project
+- Original readme files: [Activision](Activision%20CTP2%20Source%20Code_Readme.txt),
+  [Apolyton](Apolyton%20CTP2%20Source%20Code_Readme.txt)
+- Latest upstream release: [Apolyton Edition 2025-01-20](https://github.com/civctp2/civctp2/releases/tag/Apolyton-Edition-2025-01-20)
 
-### Original readme files
-- [Activision CTP2 Source Code_Readme.txt](https://github.com/civctp2/civctp2/blob/master/Activision%20CTP2%20Source%20Code_Readme.txt)
-- [Apolyton CTP2 Source Code_Readme.txt](https://github.com/civctp2/civctp2/blob/master/Apolyton%20CTP2%20Source%20Code_Readme.txt)
-
-## Latest release
-
-The latest release is the [Apolyton Edition 2025-01-20](https://github.com/civctp2/civctp2/releases/tag/Apolyton-Edition-2025-01-20). You have installation files for Windows and Linux. The Linux version does not support the CD, so if you have the CD-version and you want to enjoy the music and the videos yo have to install them. Instructions are in the section [Install the music and videos](#install-the-music-and-videos). If you have the GOG-version then don't worry everything is already in place.
-
-## About
+## About the code base
 
 This is the Apolyton version of the *Call to Power II* (CTP2) source code based on the released source code from Activision, that did not include the patch. The code has been stripped of comments, but is otherwise complete as far as Activision's code goes. It was originally built with Microsoft Visual Studio 6.0. In the mean time the Apolyton code was modified so that it works with later versions.
 This version also builds on Linux (i386 and x86_64), Ubuntu, Pandora, and Pyra.
@@ -82,6 +106,8 @@ shell> for i in `ls /media/cdrom/Setup/data/Max/ctp2_data/default/videos/`; do m
 This will also copy the videos to that directory.
 
 ## Building on Windows
+
+**Quick way (this fork):** run `pwsh tools/win-build.ps1` from the repository root. It needs the Visual Studio 2022 Build Tools with the C++ workload and a Windows SDK, extracts NASM itself and does not need administrator rights. The result is `ctp2_codepdp2.exe` (Final-SDL, x64). The manual steps below still apply if you want to work inside Visual Studio.
 
 CTP2 was originally built on Windows with Visual Studio 6. Today, the code compiles on Visual Studio 2017 and 2019 and probably also later. The code has not been compiled on Windows with any other compiler than the Visual Studio compiler. Beside a version of Visual Studio you need:
 
