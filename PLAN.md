@@ -91,21 +91,67 @@ Zielportprüfung statt exakter Adresse). Dazu in `dp2.c`: Sitzungsmaster wird
 über die getippte Adresse angesprochen, eigener Eintrag wird auch über
 frühere eigene Adressen erkannt.
 
+Stand 2026-10-27 (spät): **erstes Spiel über Direktverbindung läuft** (Debug-
+Build, zwei Instanzen auf einem PC): Beitritt, Start, Städte gegründet, mehrere
+Runden, Zugreihenfolge auf beiden Seiten gleich, Erträge beim Client, keine
+Heap- oder Datenbank-Abgleichsfehler. Behobene Ursachen: Netshell-`Message`
+ohne Kopierschutz (Doppelfreigabe beim Beitritt), fehlgeschlagene
+Verbindung wurde als verbunden behandelt (Hänger bei „TCP/IP LAN“ mit zwei
+Instanzen), Debug-only Pufferüberlauf beim Kartengenerator-Namen.
+Das angezeigte Jahr ist der Rundenzähler des jeweils eigenen Spielers; bei
+nacheinander laufenden Zügen weicht es um eine Runde ab, das ist normal.
+
 Plan:
-1. **Spielstart über Direktverbindung testen:** Host erstellt Spiel aus der
-   Lobby, Client tritt bei, Start, erste Runden. Dann Test mit LAN-Adresse
-   statt 127.0.0.1 und ein echter Test über zwei Anschlüsse.
-2. **Direkte IP – Rest:** eigene Adresse im Fenster zeigt die lokale
+1. **Release-Test:** dasselbe mit `ctp2.exe` (nicht Debug) über mehrere
+   Runden. Dann Test mit LAN-Adresse statt 127.0.0.1 und ein echter Test
+   über zwei Anschlüsse.
+2. **Direkt ins Spiel-Setup (Wunsch des Besitzers):** ohne Chat-Lobby. Host
+   „Spiel hosten“ → Profil → direkt Spiel-Setup (Spielsitzung sofort
+   anlegen); Client „Beitreten“ → Profil → direkt ins Spiel-Setup des Hosts
+   (erste Spielsitzung aus dem abonnierten Sitzungsverzeichnis). Serverweg
+   behält die Lobby.
+3. **Direkte IP – Rest:** eigene Adresse im Fenster zeigt die lokale
    Adresse; hinter einem Router muss der Host seine öffentliche IP selbst
    kennen (Hinweistext). Eigener Ping in der Lobby zeigt 2000 (kosmetisch).
-3. **Robustheit:** feste Pakettypen (sint32 statt long/bool/enum) in den
+4. **Robustheit:** feste Pakettypen (sint32 statt long/bool/enum) in den
    Netshell-Paketen; Interface-Wahl bei mehreren Adaptern; nur x64 ausliefern.
-4. **Optional Serverbrowser:** eigenen Anet-Server betreiben und in
+   „TCP/IP LAN“ mit zwei Instanzen auf einem PC scheitert am festen Port
+   21157 (zweite Instanz bekommt jetzt sauber einen Netzwerkfehler).
+5. **Optional Serverbrowser:** eigenen Anet-Server betreiben und in
    `bootserv.txt` eintragen; nötig nur, wenn Spiele öffentlich gelistet
    werden sollen. Alternative ohne Code: VPN mit Broadcast (ZeroTier/Radmin)
    + LAN-Modus.
-5. **Desync-Test:** gleiche Partie über viele Runden, `net_crc`-Prüfungen
+6. **Desync-Test:** gleiche Partie über viele Runden, `net_crc`-Prüfungen
    beobachten, SLIC-Stände von Host und Client gleich halten.
+
+## Phase 2b – Gleichzeitige Züge (nach Phase 2, Wunsch des Besitzers)
+
+Heute laufen Netzwerkspiele nacheinander (Spielart „Normal“, „Zeitrunden“,
+„Übernehmen“, „Städte-Zeitspiel“ unterscheiden sich nur im Zeitlimit). Im
+Code gibt es `k_GAME_STYLE_SIMULTANEOUS` (`net/general/network.h`), der Wert
+wird aber nirgends ausgewertet und hat keinen Knopf: nie fertig geworden.
+
+Ziel wie in modernen Civ-Teilen: alle Menschen ziehen gleichzeitig, die KI
+zieht gesammelt am Rundenende, danach gemeinsamer Rundenwechsel.
+
+Günstig: Das Netz ist schon host-autoritativ (Clients schicken Aktionen,
+Host führt aus und verteilt), Konflikte entscheidet der Host in
+Ankunftsreihenfolge. Jeder Spieler hat einen eigenen Rundenzähler; die
+Zeit-Spielarten bringen Timer und automatisches Rundenende mit.
+
+Schwierig: rund 265 Stellen fragen „wer ist dran“ (`GetCurPlayer()`);
+Produktion/Wachstum/Forschung laufen heute beim Zugbeginn je Spieler;
+Regeln für Angriffe und Diplomatie während der andere zieht; Absicherung
+gegen Desync über lange Partien.
+
+Vorgehen:
+1. Bestandsaufnahme aller `GetCurPlayer()`- und Zugbeginn-Stellen, je Stelle
+   Einordnung (unkritisch / muss umgebaut werden). Danach Aufwandsschätzung.
+2. Rundenmodell: gemeinsamer Rundenstart (Erträge aller Spieler), freie
+   Phase für alle Menschen, „fertig“-Status je Spieler, KI-Phase, Wechsel.
+3. Konfliktregeln (Kampf, Bewegung auf dasselbe Feld, Diplomatie).
+4. Neue Spielart „Gleichzeitig“ im Spiel-Setup, optional mit Zeitlimit.
+5. Lange automatisierte Testpartien mit CRC-Prüfung.
 
 ## Phase 3 – Hochskalierte Grafik
 
