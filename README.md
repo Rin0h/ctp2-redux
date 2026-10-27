@@ -107,7 +107,7 @@ This will also copy the videos to that directory.
 
 ## Building on Windows
 
-**Quick way (this fork):** run `pwsh tools/win-build.ps1` from the repository root. It needs the Visual Studio 2022 Build Tools with the C++ workload and a Windows SDK, extracts NASM itself and does not need administrator rights. The result is `ctp2_codepdp2.exe` (Final-SDL, x64). The manual steps below still apply if you want to work inside Visual Studio.
+**Quick way (this fork):** run `pwsh tools/win-build.ps1` from the repository root. It needs the Visual Studio 2022 Build Tools with the C++ workload and a Windows SDK, extracts NASM itself and does not need administrator rights. The result is `ctp2_code/ctp/x64/ctp2.exe` (Final-SDL, x64). The manual steps below still apply if you want to work inside Visual Studio.
 
 CTP2 was originally built on Windows with Visual Studio 6. Today, the code compiles on Visual Studio 2017 and 2019 and probably also later. The code has not been compiled on Windows with any other compiler than the Visual Studio compiler. Beside a version of Visual Studio you need:
 
