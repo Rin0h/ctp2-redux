@@ -226,3 +226,53 @@ This project includes several third party libraries, to whhich their respective 
 ## Converting old Linux save-games to new unified format
 
 The old format of Linux save-games was not compatible with that of windows save-games. The format is now unified such that each OS can open save-games from the other. However, due to this, old Linux save-games need to be converted to the new format if you want to continue with those under the new ctp2 version (after [22dd1804804](https://github.com/civctp2/civctp2/commit/22dd180480445561bbbcd3efc60f08d2fe5c53e5)). A [game-converter-version](https://github.com/civctp2/civctp2/releases/tag/GameConverter) was created for this purpose (see, [#77](https://github.com/civctp2/civctp2/pull/77)), which can load the old format but saves games to the new format.
+
+---
+
+## Deutsch
+
+**ctp2-redux** ist ein Fork des [Apolyton Call to Power II Source Code Project](https://github.com/civctp2/civctp2) mit drei Zielen:
+
+1. **Läuft auf heutigen Windows-PCs** ohne Bastelei: 64-Bit-Build, aktuelle
+   Visual-Studio-Werkzeuge, sinnvolle Voreinstellungen für hochauflösende
+   Bildschirme.
+2. **Multiplayer, der wieder funktioniert**: LAN-Spiele und Internet-Spiele
+   per direkter IP, ohne die längst abgeschalteten Activision-Lobbyserver.
+3. **Hochskalierte Grafik und Videos**: Werkzeuge, die Sprites, Kacheln,
+   Oberflächenbilder und die Indeo-Videos auf dem eigenen Rechner
+   hochskalieren, plus die nötigen Änderungen in der Engine. Das funktioniert
+   mit jeder Sprachfassung, auch mit der deutschen.
+
+Fahrplan, Erkenntnisse aus der Code-Analyse und der aktuelle Stand stehen in
+[PLAN.md](PLAN.md). Gearbeitet wird auf dem Branch `modern-pc`, `master`
+spiegelt das Upstream-Projekt.
+
+### Stand (Oktober 2026)
+
+- Baut mit den Visual Studio 2022 Build Tools (MSVC 14.44) ohne Adminrechte:
+  `pwsh tools/win-build.ps1` → `ctp2_code/ctp/x64/ctp2.exe`.
+- Startet und spielt das Intro-Video über FFmpeg ab.
+- Multiplayer und Hochskalierung: Analyse abgeschlossen, Umsetzung steht aus.
+
+### Spieldaten und Lizenz
+
+*Call to Power II* ist keine freie Software. Activision hat den Quellcode 2003
+ausschließlich für den persönlichen, nicht-kommerziellen Gebrauch
+freigegeben (siehe [LICENSE.md](LICENSE.md)). Die Spieldaten (Grafik, Videos,
+Musik, Texte) sind **nicht** Teil dieses Repositories und müssen aus der
+eigenen Kopie des Spiels stammen (GOG oder CD). Aus demselben Grund verteilt
+dieses Projekt keine hochskalierten Fassungen der Originaldateien, sondern nur
+die Skripte, die sie lokal aus der eigenen Installation erzeugen. Das gilt
+auch für die deutschen Videos: Wer die deutsche Fassung besitzt, erzeugt sich
+die hochskalierten Videos daraus selbst.
+
+### Bauen unter Windows (Kurzfassung)
+
+1. Visual Studio 2022 Build Tools mit C++-Workload und Windows SDK installieren.
+2. Repository klonen und die Spieldaten der eigenen Installation hineinkopieren
+   (Ordner `ctp2_data` und `Scenarios`, ohne vorhandene Dateien zu überschreiben).
+3. `pwsh tools/win-build.ps1` ausführen.
+4. `ctp2_code/ctp/x64/ctp2.exe` starten. Für den Fensterbetrieb eine
+   `userprofile.txt` neben der exe mit `WindowedMode=Yes` anlegen.
+
+Die ausführliche englische Anleitung steht oben.
