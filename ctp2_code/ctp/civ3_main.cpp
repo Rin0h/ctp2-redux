@@ -1927,6 +1927,11 @@ int SDLMessageHandler(void* userdata, SDL_Event* event)
 			SDL_Keycode key = event->key.keysym.sym;
 			Uint16 mod = event->key.keysym.mod;
 			WPARAM wp = '\0';
+			if (key == SDLK_PRINTSCREEN)
+			{
+				// ctp2-redux: Print Screen saves the current frame next to the exe
+				aui_SDLUI::RequestScreenshot("screenshot.bmp");
+			}
 			switch (key) {
 #define SDLKCONV(sdl_name, char) \
 			case (sdl_name): \

@@ -4025,6 +4025,37 @@ DP_API dp_result_t DP_APIX dpGetMyAddressString(
 }
 
 /*--------------------------------------------------------------------------
+ ctp2-redux: subscribe to the sessions hosted by a given node.
+--------------------------------------------------------------------------*/
+DP_API dp_result_t DP_APIX dpSetSessionSource(
+	dp_t *dp,
+	char *hostname)
+{
+	char adr[dp_MAX_ADR_LEN];
+	char key[1];
+	playerHdl_t h;
+	dp_result_t err;
+	precondition(dp != NULL);
+	precondition(dp->dpio != NULL);
+	if (!hostname || !*hostname)
+		return dp_RES_BAD;
+	if (dpResolveHostname(dp, hostname, adr) != dp_RES_OK)
+		return dp_RES_HOST_NOT_RESPONDING;
+	h = dpio_openHdl(dp->dpio, adr, NULL, NULL);
+	if (h == PLAYER_NONE || h == PLAYER_UNKNOWN || h == PLAYER_ME)
+		return dp_RES_HOST_NOT_RESPONDING;
+	err = dptab_addPeer(dp->dt, h);
+	if (err != dp_RES_OK && err != dp_RES_ALREADY)
+		return err;
+	key[0] = dp_KEY_MYSESSIONS;
+	err = dptab_addPublisher(dp->dt, dp->sessions, key, 1, h);
+	if (err == dp_RES_OK)
+		err = dptab_requestSubscription(dp->dt, key, 1, h, NULL, NULL);
+	DPRINT(("dpSetSessionSource: %s -> h:%x, err:%d\n", hostname, h, err));
+	return err;
+}
+
+/*--------------------------------------------------------------------------
  Convert an ASCII hostname into a binary address.
 --------------------------------------------------------------------------*/
 DP_API dp_result_t dpResolveHostname(
@@ -10003,6 +10034,12 @@ static dp_result_t dp_receive(
 	dpSwapEnv(env);
 	DPRINT(("dpReceive: t:%d tag:%2.2s src:%d dest:%d len:%d; karma:%d\n",
 		dp->now, buffer, env->src, env->dest, *size, env->sessKarma));
+	{	/* ctp2-redux debug: first bytes of the user payload */
+		int i; unsigned char *b = (unsigned char *)buffer;
+		DPRINT(("dpReceive: payload hex:"));
+		for (i = 0; i < 12 && i < (int)*size; i++) DPRINT((" %02x", b[i]));
+		DPRINT(("\n"));
+	}
 	/* Validate the source address and the envelope. */
 	if (pktsrc == PLAYER_NONE
 	|| pktsrc == PLAYER_UNKNOWN
@@ -10276,6 +10313,12 @@ DP_API dp_result_t dpSend(
 	env->dest = idTo;
 	env->sessKarma = dp->sess_karma;
 
+	{	/* ctp2-redux debug: first bytes of the user payload */
+		int i; unsigned char *b = (unsigned char *)buffer;
+		DPRINT(("dpSend: payload hex:"));
+		for (i = 0; i < 12 && i < (int)size; i++) DPRINT((" %02x", b[i]));
+		DPRINT(("\n"));
+	}
 	DPRINT(("dpSend: From=%d To=%d Tag=%c%c Len=%d time:%d flags=%x\n",
                 idFrom, idTo,
                 (((char *)buffer)[0]), (((char *)buffer)[1]), size,

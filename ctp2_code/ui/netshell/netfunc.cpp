@@ -38,6 +38,7 @@
 //----------------------------------------------------------------------------
 
 #include "c3.h"
+#include <time.h>
 #include "netfunc.h"
 #include "c3files.h"
 #include <algorithm>
@@ -303,6 +304,29 @@ NETFunc::Message::Message(void) {
 NETFunc::Message::~Message(void) {
 	if(m_newbody)
 		delete [] m_body;
+}
+
+NETFunc::Message::Message(const Message &o) : Key(o) {
+	m_newbody = true;
+	m_size = o.m_size;
+	m_sender = o.m_sender;
+	m_body = new char[m_size ? m_size : 1];
+	memcpy(m_body, o.m_body, m_size);
+}
+
+NETFunc::Message &NETFunc::Message::operator=(const Message &o) {
+	if(this != &o) {
+		char *body = new char[o.m_size ? o.m_size : 1];
+		memcpy(body, o.m_body, o.m_size);
+		if(m_newbody)
+			delete [] m_body;
+		Key::operator=(o);
+		m_newbody = true;
+		m_size = o.m_size;
+		m_sender = o.m_sender;
+		m_body = body;
+	}
+	return *this;
 }
 
 dp_packetType_t *NETFunc::Message::Get(void) {
@@ -2656,6 +2680,7 @@ NETFunc::STATUS NETFunc::SetDirectAddress(const char *address) {
 		s_servername[0] = 0;
 		EnumServers(false);
 		dpSetGameServerEx(s_dp, 0, s_GameType);
+		dpSetSessionSource(s_dp, s_directAddress);
 		s_status = READY;
 		return OK;
 	}
@@ -2664,6 +2689,19 @@ NETFunc::STATUS NETFunc::SetDirectAddress(const char *address) {
 
 bool NETFunc::IsDirect(void) {
 	return s_directHost || s_directAddress[0] != 0;
+}
+
+// Direct client: (re)subscribe to the host's session list every few
+// seconds. The subscription dies whenever the host closes a session.
+void NETFunc::RefreshDirectSource(void) {
+	static time_t s_last = 0;
+	if(!s_directAddress[0] || !s_dp || !s_connected)
+		return;
+	time_t now = time(NULL);
+	if(s_last != 0 && now - s_last < 3)
+		return;
+	s_last = now;
+	dpSetSessionSource(s_dp, s_directAddress);
 }
 
 // Own transport address as "host:port", shown to a host so he can pass it on.
@@ -2757,7 +2795,7 @@ NETFunc::STATUS NETFunc::Connect() {
 
 	if(s_status == READY) {
 
-		if(s_transport && s_transport->GetType() == Transport::INTERNET) {
+		if(s_transport && s_transport->GetType() == Transport::INTERNET && !IsDirect()) {
 			m_timer.Start(1000);
 			s_status = WAITDELAY;
 			m_nextStatus = OPENLOBBY;
@@ -3262,6 +3300,7 @@ void NETFunc::Execute(void) {
 #endif
 		break;
 	case OK:
+		RefreshDirectSource();
 		if(!m_session.IsServer() && m_session.IsLobby() && m_session.GetPlayers() == 1) {
 
 			Lobby *l = s_lobbies.FindBest();
@@ -3309,22 +3348,11 @@ void NETFunc::Execute(void) {
 			dpSetGameServerEx(s_dp, s_servername, s_GameType);
 			if(dpOpen(s_dp, 0, SessionCallBack, this) != dp_RES_OK)
 				s_status = OPENLOBBY;
-		} else if(s_directAddress[0]) {
-			// Direct connection: join the lobby hosted at the given address.
-			// The host answers with its session list, so games created by
-			// the host show up like in a LAN.
-			dp_session_t sess;
-			memset(&sess, 0, sizeof(sess));
-			sess.dwSize = sizeof(dp_session_t);
-			if(dpResolveHostname(s_dp, s_directAddress, (char *)sess.adrMaster) != dp_RES_OK) {
-				s_status = OPENLOBBY;
-			} else {
-				sess.sessionType = s_GameType;
-				sess.flags = dp_SESSION_FLAGS_ISLOBBY;
-				if(dpOpen(s_dp, &sess, SessionCallBack, this) != dp_RES_OK)
-					s_status = OPENLOBBY;
-			}
 		} else {
+			// Direct connection: the host's sessions arrive through the
+			// subscription (RefreshDirectSource), so a direct client behaves
+			// like a LAN client from here on.
+			RefreshDirectSource();
 
 			Lobby *l = s_lobbies.FindBest();
 			if(l) {

@@ -873,6 +873,16 @@ DP_API dp_result_t DP_APIX dpGetMyAddressString(
 	char *buf,
 	size_t buflen);
 
+/*--------------------------------------------------------------------------
+ Subscribe to the sessions hosted by the node at hostname ("host" or
+ "host:port"). Its lobby and game sessions then show up in our session
+ table like sessions found by broadcast on a LAN. Call it again from time
+ to time: the subscription dies when the host closes the connection.
+--------------------------------------------------------------------------*/
+DP_API dp_result_t DP_APIX dpSetSessionSource(
+	dp_t *dp,
+	char *hostname);
+
 /*------------------------------------------------------------------------
  When using an Internet driver, call this function with the ascii name of
  the server, and explicit requests for sessions will be sent to that server.

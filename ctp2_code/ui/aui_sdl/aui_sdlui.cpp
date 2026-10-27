@@ -344,6 +344,30 @@ aui_MovieManager* aui_SDLUI::CreateMovieManager( void )
 	return new aui_SDLMovieManager(m_SDLRenderer, m_SDLTexture, windowWidth, windowHeight);
 }
 
+static bool s_screenshotRequested = false;
+static char s_screenshotPath[1024] = "";
+
+void aui_SDLUI::RequestScreenshot( const char *path )
+{
+	if ( !path || !*path ) path = "screenshot.bmp";
+	strncpy( s_screenshotPath, path, sizeof(s_screenshotPath) - 1 );
+	s_screenshotPath[sizeof(s_screenshotPath) - 1] = 0;
+	s_screenshotRequested = true;
+}
+
+static void SDLSaveScreenshot( SDL_Renderer *renderer )
+{
+	int w = 0, h = 0;
+	if ( SDL_GetRendererOutputSize( renderer, &w, &h ) != 0 || w <= 0 || h <= 0 )
+		return;
+	SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat( 0, w, h, 32, SDL_PIXELFORMAT_ARGB8888 );
+	if ( !surface )
+		return;
+	if ( SDL_RenderReadPixels( renderer, NULL, SDL_PIXELFORMAT_ARGB8888, surface->pixels, surface->pitch ) == 0 )
+		SDL_SaveBMP( surface, s_screenshotPath );
+	SDL_FreeSurface( surface );
+}
+
 AUI_ERRCODE aui_SDLUI::SDLDrawScreen( void )
 {
 	Assert(m_primary);
@@ -363,6 +387,11 @@ AUI_ERRCODE aui_SDLUI::SDLDrawScreen( void )
 #if !defined(WIN32)
 	if (errcode < 0) std::cerr << "SDL error: " << SDL_GetError() << std::endl;
 #endif
+	if ( s_screenshotRequested )
+	{
+		s_screenshotRequested = false;
+		SDLSaveScreenshot( m_SDLRenderer );
+	}
 	SDL_RenderPresent(m_SDLRenderer);
 
 	if (errcode < 0)

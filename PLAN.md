@@ -161,6 +161,30 @@ KI-Hochskalierung für die Entwicklung läuft lokal in D:\AI (vorhandene
 Tools). Modelle und Lizenzen vor Nutzung prüfen (Real-ESRGAN: BSD-3), damit
 das Skript die Modelle beim Spieler nachladen darf.
 
+## Vanilla-Optik (Entscheidung 2026-10-27)
+
+Besitzer-Vorgabe: Das Spiel soll aussehen wie das Original (Titelbild,
+Menüs, Hinweistexte, Branding, Oberfläche), Apolyton-Bugfixes bleiben.
+Entschieden: **Optik vanilla, Regeln Apolyton.** KI-Verbesserungen und die
+Regeloptionen bleiben (Standardwerte sind seit 2009 ohnehin Original),
+Oberfläche und Branding gehen auf Originalstand. Unsere eigenen Ergänzungen
+(Direktverbindung) fügen sich in den Vanilla-Stil ein.
+
+Apolyton-Änderungen zur Orientierung (Analyse 2026-10-27): 66 von 74
+Regeldateien, alle 14 KI-Dateien, 102 neue Oberflächendateien geändert bzw.
+neu; neue Regeloptionen, 8 neue Völker, Mausrad, politische Minikarte,
+Bauanzeige, neue Diagramme, Apolyton-Titelbild und Disclaimer.
+Originalspielstände (Patch 1.1) lassen sich laden. Multiplayer gegen die
+Originalversion ist nicht möglich, alle brauchen denselben Build.
+
+Aufgaben:
+1. Liste der Apolyton-Oberflächenänderungen erstellen (Titelbild, Menü-
+   Layouts, Strings mit „Apolyton“, neue Fenster) und je Punkt entscheiden:
+   zurück auf Original oder behalten (reine Komfortfunktionen wie Mausrad
+   bleiben, sichtbares Branding geht).
+2. Originalgrafiken für Titel und Menüs aus der eigenen Installation nutzen
+   (nicht ins Repo), Layouts entsprechend anpassen.
+
 ## Offene Fragen an den Besitzer
 
 - GitHub-Login für den Fork (`gh auth login`).

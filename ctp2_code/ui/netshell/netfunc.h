@@ -337,6 +337,12 @@ public:
 
 	Message(void);
 
+	// ctp2-redux: deep copies. The compiler-generated copy shared m_body,
+	// so "message = Message(...)" sent freed memory and freed it twice.
+	Message(const Message &o);
+
+	Message &operator=(const Message &o);
+
 	Message(void *p, size_t s, dpid_t id, bool b = true);
 
 	virtual ~Message(void);
@@ -1345,6 +1351,8 @@ public:
 	STATUS SetDirectAddress(const char *address);
 
 	static bool IsDirect(void);
+
+	static void RefreshDirectSource(void);
 
 	bool GetMyAddress(char *buf, size_t len);
 
