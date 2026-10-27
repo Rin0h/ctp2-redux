@@ -439,6 +439,8 @@ public:
 	void		NextPlayer(void);
 	void		CopyVision();
 	const Vision		*GetLocalVision(void) const { return m_localVision; }
+	// ctp2-redux: call before the players (and their Vision) are deleted
+	void				ForgetLocalVision(void) { m_localVision = NULL; }
 	void		AddVisible(MapPoint& pos, double& radius) { m_localVision->AddVisible(pos, radius); };
 	void		RemoveVisible(MapPoint& pos, double& radius) { m_localVision->RemoveVisible(pos, radius); };
 

@@ -153,6 +153,9 @@ void NetGameSettings::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	g_theWorld->Reset(sint16(m_x), sint16(m_y), isYwrap, isXwrap);
 
 	sint32 i;
+	// ctp2-redux: the map view points to the old local player's Vision;
+	// CopyVision() further down would write into freed memory.
+	g_tiledMap->ForgetLocalVision();
 	for(i = 0; i < k_MAX_PLAYERS; i++) {
 		if(g_player[i]) {
 			delete g_player[i];

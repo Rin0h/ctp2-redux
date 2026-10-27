@@ -4814,7 +4814,8 @@ void TiledMap::CopyVision()
 	sint32  newPlayer   = g_selected_item->GetVisiblePlayer();
 	if (g_player[newPlayer])
 	{
-		m_localVision->SetAmOnScreen(false);
+		if (m_localVision)
+			m_localVision->SetAmOnScreen(false);
 		m_localVision = g_player[newPlayer]->m_vision;
 		m_oldPlayer   = newPlayer;
 		m_localVision->SetAmOnScreen(true);

@@ -86,8 +86,12 @@ TPacketData::TPacketData(uint16 id, sint32 flags, uint8 *buf,sint32 len,
 
 TPacketData::~TPacketData()
 {
-	delete [] m_actualBuf;
-	delete [] m_buf;
+	// ctp2-redux: after RemoveSplitInfo() m_buf points 6 bytes into
+	// m_actualBuf; freeing both freed the block twice (heap corruption).
+	if(m_actualBuf)
+		delete [] m_actualBuf;
+	else
+		delete [] m_buf;
 }
 
 void TPacketData::Append(uint8 *buf, sint32 len)
