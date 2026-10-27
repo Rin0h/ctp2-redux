@@ -54,8 +54,8 @@ Befund (Code-Analyse 2026-10-27):
 - Transporte sind DLLs, gebaut nach `x64\dll\net\`: `winets2.dll` = „Internet“
   (UDP, zufälliger Port 21100–21299), `wudplan.dll` = „TCP/IP LAN“ (UDP 21157,
   Broadcast), `wipx2.dll` = IPX (auf heutigem Windows nutzlos).
-  **Gesucht werden sie aber in `<exe>\anet\*.dll`** (`netfunc.cpp`, `s_DllPath`).
-  Für Tests liegen Kopien in `x64\anet\` (nicht im Git).
+  Gesucht werden sie zur Laufzeit in `<exe>\dll\net\` (`civapp.cpp` setzt
+  `NETFunc::s_DllPath`), der Build-Ausgabeort passt also.
 - LAN braucht keinen Server: ohne Antwort auf den Broadcast erstellt der
   Client selbst die Lobby-Sitzung.
 - Internet braucht zwingend einen Anet-Gameserver: Liste aus `bootserv.txt`
@@ -76,22 +76,19 @@ Befund (Code-Analyse 2026-10-27):
 Plan:
 1. **LAN-Ist-Test:** zwei Instanzen (dieser PC + zweiter PC/VM) mit
    `wudplan`; Windows-Firewall UDP 21157 eingehend. Ergebnis dokumentieren.
-2. **DLL-Pfad geraderücken:** Build legt Transporte direkt nach `<exe>\anet\`
-   (Post-Build) oder `s_DllPath` zeigt auf `dll/net`. Eine Wahrheit, kein
-   Kopieren von Hand.
-3. **Direkte IP (kleine Änderung):** Textfeld „Host-Adresse“ im
+2. **Direkte IP (kleine Änderung):** Textfeld „Host-Adresse“ im
    Server-Auswahlfenster (`serverselectwindow.cpp`); Client ruft
    `dpResolveHostname("ip:port")` + `dpOpen` mit `adrMaster`, überspringt
    `dpSetGameServerEx`. Host bindet festen Port (`Internet::SetPort(21157)`),
    damit Port-Weiterleitung möglich ist. Netshell muss eine vom Host erzeugte
    Lobby-Sitzung auch im Internet-Pfad akzeptieren (wie im LAN).
-4. **Robustheit:** feste Pakettypen (sint32 statt long/bool/enum) in den
+3. **Robustheit:** feste Pakettypen (sint32 statt long/bool/enum) in den
    Netshell-Paketen; Interface-Wahl bei mehreren Adaptern; nur x64 ausliefern.
-5. **Optional Serverbrowser:** eigenen Anet-Server betreiben und in
+4. **Optional Serverbrowser:** eigenen Anet-Server betreiben und in
    `bootserv.txt` eintragen; nötig nur, wenn Spiele öffentlich gelistet
    werden sollen. Alternative ohne Code: VPN mit Broadcast (ZeroTier/Radmin)
    + LAN-Modus.
-6. **Desync-Test:** gleiche Partie über viele Runden, `net_crc`-Prüfungen
+5. **Desync-Test:** gleiche Partie über viele Runden, `net_crc`-Prüfungen
    beobachten, SLIC-Stände von Host und Client gleich halten.
 
 ## Phase 3 – Hochskalierte Grafik

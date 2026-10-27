@@ -899,3 +899,6 @@ usercritmsgs.txt
 userkeymap.txt
 userprofile.txt
 
+
+# local build helpers (tools/win-build.ps1)
+_local/

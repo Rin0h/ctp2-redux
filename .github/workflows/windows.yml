@@ -1,0 +1,48 @@
+name: Windows build
+
+on:
+  push:
+    branches: [redux]
+    paths-ignore:
+      - '**.md'
+      - 'doc/**'
+  pull_request:
+    branches: [redux]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Final-SDL x64
+    runs-on: windows-2022
+    timeout-minutes: 90
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Build
+        shell: pwsh
+        run: pwsh tools/win-build.ps1 -Config Final-SDL -Platform x64
+
+      - name: Collect binaries
+        shell: pwsh
+        run: |
+          $src = 'ctp2_code/ctp/x64'
+          $dst = 'artifact/ctp2_code/ctp/x64'
+          New-Item -ItemType Directory -Force $dst | Out-Null
+          Copy-Item "$src/ctp2.exe", "$src/*.dll", "$src/civpaths.txt", "$src/anet.inf", "$src/appstr.txt", "$src/nguid.ctp" $dst
+          Copy-Item "$src/dll" "$dst/dll" -Recurse
+          Get-ChildItem $dst -Recurse -File | ForEach-Object { $_.FullName.Replace((Get-Location).Path, '') }
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctp2-redux-win-x64
+          path: artifact
+          if-no-files-found: error
+
+      - name: Upload build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: _local/*.log
