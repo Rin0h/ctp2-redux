@@ -123,41 +123,41 @@ static HINSTANCE hcommDLL = NULL;
   #define NO_COMMDLL_FUNCS  (sizeof(commfuncs) / sizeof(commfuncs[0]))
 
   // public comm function stubs
-  sint32 cdecl commNoOp(commNoOpReq_t *req, commNoOpResp_t *resp) {return (*pcommNoOp)(req, resp);}
+  sint32 cdecl commNoOp(commNoOpReq_t *req, commNoOpResp_t *resp COMM_3RDPARAM) {(void)commPtr; return (*pcommNoOp)(req, resp);}
 
-  sint32 cdecl commInit(commInitReq_t *req, commInitResp_t *resp) {return (*pcommInit)(req, resp);}
+  sint32 cdecl commInit(commInitReq_t *req, commInitResp_t *resp COMM_3RDPARAM) {(void)commPtr; return (*pcommInit)(req, resp);}
 
-  sint32 cdecl commTerm(commTermReq_t *req, commTermResp_t *resp) {return (*pcommTerm)(req, resp);}
+  sint32 cdecl commTerm(commTermReq_t *req, commTermResp_t *resp COMM_3RDPARAM) {(void)commPtr; return (*pcommTerm)(req, resp);}
 
-  sint32 cdecl commDriverInfo(commDriverInfoReq_t *req, commDriverInfoResp_t *resp) {return (*pcommDriverInfo)(req, resp);}
+  sint32 cdecl commDriverInfo(commDriverInfoReq_t *req, commDriverInfoResp_t *resp COMM_3RDPARAM) {(void)commPtr; return (*pcommDriverInfo)(req, resp);}
 
-  sint32 cdecl commPlayerInfo(commPlayerInfoReq_t *req, commPlayerInfoResp_t *resp) {return (*pcommPlayerInfo)(req, resp);}
+  sint32 cdecl commPlayerInfo(commPlayerInfoReq_t *req, commPlayerInfoResp_t *resp COMM_3RDPARAM) {(void)commPtr; return (*pcommPlayerInfo)(req, resp);}
 
-  sint32 cdecl commTxFull(commTxFullReq_t *req, commTxFullResp_t *resp) {return (*pcommTxFull)(req, resp);}
+  sint32 cdecl commTxFull(commTxFullReq_t *req, commTxFullResp_t *resp COMM_3RDPARAM) {(void)commPtr; return (*pcommTxFull)(req, resp);}
 
-  sint32 cdecl commTxPkt(commTxPktReq_t *req, commTxPktResp_t *resp) {return (*pcommTxPkt)(req, resp);}
+  sint32 cdecl commTxPkt(commTxPktReq_t *req, commTxPktResp_t *resp COMM_3RDPARAM) {(void)commPtr; return (*pcommTxPkt)(req, resp);}
 
-  sint32 cdecl commPeekPkt(commPeekPktReq_t *req, commPeekPktResp_t *resp) {return (*pcommPeekPkt)(req, resp);}
+  sint32 cdecl commPeekPkt(commPeekPktReq_t *req, commPeekPktResp_t *resp COMM_3RDPARAM) {(void)commPtr; return (*pcommPeekPkt)(req, resp);}
 
-  sint32 cdecl commRxPkt(commRxPktReq_t *req, commRxPktResp_t *resp) {return (*pcommRxPkt)(req, resp);}
+  sint32 cdecl commRxPkt(commRxPktReq_t *req, commRxPktResp_t *resp COMM_3RDPARAM) {(void)commPtr; return (*pcommRxPkt)(req, resp);}
 
-  sint32 cdecl commScanAddr(commScanAddrReq_t *req, commScanAddrResp_t *resp) {return (*pcommScanAddr)(req, resp);}
+  sint32 cdecl commScanAddr(commScanAddrReq_t *req, commScanAddrResp_t *resp COMM_3RDPARAM) {(void)commPtr; return (*pcommScanAddr)(req, resp);}
 
-  sint32 cdecl commPrintAddr(commPrintAddrReq_t *req, commPrintAddrResp_t *resp) {return (*pcommPrintAddr)(req, resp);}
+  sint32 cdecl commPrintAddr(commPrintAddrReq_t *req, commPrintAddrResp_t *resp COMM_3RDPARAM) {(void)commPtr; return (*pcommPrintAddr)(req, resp);}
 
-  sint32 cdecl commGroupAlloc(commGroupAllocReq_t *req, commGroupAllocResp_t *resp) {return (*pcommGroupAlloc)(req, resp);}
+  sint32 cdecl commGroupAlloc(commGroupAllocReq_t *req, commGroupAllocResp_t *resp COMM_3RDPARAM) {(void)commPtr; return (*pcommGroupAlloc)(req, resp);}
 
-  sint32 cdecl commGroupFree(commGroupFreeReq_t *req, commGroupFreeResp_t *resp) {return (*pcommGroupFree)(req, resp);}
+  sint32 cdecl commGroupFree(commGroupFreeReq_t *req, commGroupFreeResp_t *resp COMM_3RDPARAM) {(void)commPtr; return (*pcommGroupFree)(req, resp);}
 
-  sint32 cdecl commGroupAdd(commGroupAddReq_t *req, commGroupAddResp_t *resp) {return (*pcommGroupAdd)(req, resp);}
+  sint32 cdecl commGroupAdd(commGroupAddReq_t *req, commGroupAddResp_t *resp COMM_3RDPARAM) {(void)commPtr; return (*pcommGroupAdd)(req, resp);}
 
-  sint32 cdecl commSetParam(commSetParamReq_t *req, commSetParamResp_t *resp) {return (*pcommSetParam)(req, resp);}
+  sint32 cdecl commSetParam(commSetParamReq_t *req, commSetParamResp_t *resp COMM_3RDPARAM) {(void)commPtr; return (*pcommSetParam)(req, resp);}
 
-  sint32 cdecl commSayHi(commSayHiReq_t *req, commSayHiResp_t *resp) {return (*pcommSayHi)(req, resp);}
+  sint32 cdecl commSayHi(commSayHiReq_t *req, commSayHiResp_t *resp COMM_3RDPARAM) {(void)commPtr; return (*pcommSayHi)(req, resp);}
 
-  sint32 cdecl commSayBye(commSayByeReq_t *req, commSayByeResp_t *resp) {return (*pcommSayBye)(req, resp);}
+  sint32 cdecl commSayBye(commSayByeReq_t *req, commSayByeResp_t *resp COMM_3RDPARAM) {(void)commPtr; return (*pcommSayBye)(req, resp);}
 
-  sint32 cdecl commEnumPorts(commEnumPortsReq_t *req, commEnumPortsResp_t *resp) {return (*pcommEnumPorts)(req, resp);}
+  sint32 cdecl commEnumPorts(commEnumPortsReq_t *req, commEnumPortsResp_t *resp COMM_3RDPARAM) {(void)commPtr; return (*pcommEnumPorts)(req, resp);}
 #endif
 
 #if 0
@@ -390,7 +390,7 @@ DP_API dp_result_t DP_APIX dpEnumPorts(const dp_transport_t *transport, commPort
 	req.buf = ports;
 	req.reqLen = sizeof(req);
 
-	commEnumPorts(&req, &resp);
+	commEnumPorts(&req, &resp, NULL);
 	*pnPorts = resp.numports;
 
 	dpUnloadDLL(NULL);

@@ -202,7 +202,10 @@ typedef uint32	playerHdl_t;		/* Handle for a player or group */
 #define	PLAYER_ME        ((playerHdl_t) 0xfffffffe) /* -2 This player */
 #define	PLAYER_BROADCAST ((playerHdl_t) 0xffffffff) /* -1 All players within earshot */
 
-#if defined(UNIX) && !defined(COMM_INST)
+/* The dp core (DP_DLL) always passes the comm context pointer as third
+ * argument. The Windows transport DLLs keep the classic two-parameter
+ * signature, dpdllwin.c strips the extra argument when forwarding. */
+#if (defined(UNIX) || defined(DP_DLL)) && !defined(COMM_INST)
 #define COMM_INST
 #endif
 
