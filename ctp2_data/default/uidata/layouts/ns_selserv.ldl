@@ -152,6 +152,17 @@ serverselectwindow:nswindow {
 		int	srcwidthpix	312
 		int	srcheightpix	20
 	}
+	myaddress6statictext:nsstatictext {
+		int	xpix	73
+		int	ypix	192
+		int	widthpix	312
+		int	heightpix	20
+		string	text	""
+		int	srcxpix	73
+		int	srcypix	192
+		int	srcwidthpix	312
+		int	srcheightpix	20
+	}
 	closebutton:nsclosebutton {
 
 	}

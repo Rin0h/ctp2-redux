@@ -26,6 +26,9 @@ upstream.
   their profile to the game setup (nation, rules), no chat lobby. The
   network menu only offers what still works: direct connection, TCP/IP LAN,
   hotseat and e-mail (no IPX, no list of the long-gone Activision servers).
+  The direct connection also works over **IPv6** (e.g. `[2001:db8::1]:21157`),
+  for internet connections without a public IPv4 address (DS-Lite); the
+  window shows the own IPv6 address next to the IPv4 one.
 - **E-mail games**: after a turn the game offers to send the save game with
   the default mail program (Simple MAPI, e.g. Thunderbird or classic Outlook:
   a new mail with recipient, subject and the save game attached opens) or to
@@ -49,6 +52,7 @@ pwsh tools/mptest.ps1 -ShotEvery 5       # screenshot every 5th round (0 = none)
 pwsh tools/mptest.ps1 -Asan              # client built with AddressSanitizer
 pwsh tools/mptest.ps1 -Single -Turns 40  # single player run for comparison
 pwsh tools/mptest.ps1 -AnetLog           # network library with logging (dp.log)
+pwsh tools/mptest.ps1 -JoinAddress '[::1]:21157'   # client joins over IPv6
 ```
 
 It needs a Final-SDL x64 build (`tools/win-build.ps1`) and the game data in
@@ -350,7 +354,9 @@ spiegelt das Upstream-Projekt.
   Host und Client kommen vom Profil direkt ins Spiel-Setup (Nation, Regeln),
   ohne Chat-Lobby. Das Netzwerkmenü bietet nur noch an, was funktioniert:
   Direktverbindung, TCP/IP-LAN, Hotseat und E-Mail (kein IPX, keine Liste der
-  abgeschalteten Activision-Server).
+  abgeschalteten Activision-Server). Die Direktverbindung klappt auch über
+  **IPv6** (z.B. `[2001:db8::1]:21157`), für Anschlüsse ohne öffentliche
+  IPv4-Adresse (DS-Lite); das Fenster zeigt die eigene IPv6-Adresse mit an.
 - **E-Mail-Spiele**: Nach dem Zug bietet das Spiel an, den Spielstand mit dem
   Standard-Mailprogramm zu verschicken (Simple MAPI, z.B. Thunderbird oder
   klassisches Outlook: eine neue Mail mit Empfänger, Betreff und Spielstand
@@ -375,6 +381,7 @@ pwsh tools/mptest.ps1 -ShotEvery 5       # Bild jede 5. Runde (0 = keine)
 pwsh tools/mptest.ps1 -Asan              # Client mit AddressSanitizer
 pwsh tools/mptest.ps1 -Single -Turns 40  # Einzelspieler-Lauf zum Vergleich
 pwsh tools/mptest.ps1 -AnetLog           # Netzwerkbibliothek mit Protokoll (dp.log)
+pwsh tools/mptest.ps1 -JoinAddress '[::1]:21157'   # Client tritt über IPv6 bei
 ```
 
 Voraussetzung sind ein Final-SDL-x64-Build (`tools/win-build.ps1`) und die

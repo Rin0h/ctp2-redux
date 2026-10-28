@@ -29,6 +29,7 @@
 //----------------------------------------------------------------------------
 
 #include "c3.h"
+#include <string>
 
 #include "aui_ldl.h"
 #include "aui_uniqueid.h"
@@ -174,6 +175,14 @@ AUI_ERRCODE ServerSelectWindow::CreateControls( void )
 	if ( !AUI_NEWOK(control,errcode) ) return errcode;
 	m_controls[ CONTROL_MYADDRESSSTATICTEXT ] = control;
 
+	control = new c3_Static(
+		&errcode,
+		aui_UniqueId(),
+		"serverselectwindow.myaddress6statictext" );
+	Assert( AUI_NEWOK(control,errcode) );
+	if ( !AUI_NEWOK(control,errcode) ) return errcode;
+	m_controls[ CONTROL_MYADDRESS6STATICTEXT ] = control;
+
 	aui_Ldl::SetupHeirarchyFromRoot( "serverselectwindow" );
 
 
@@ -269,12 +278,87 @@ void ServerSelectWindow::Update( bool wait )
 // Shows the own address ("host:port") next to the host button, so the host
 // can tell the other players where to connect. Behind a router the player
 // has to replace the local address by the public one.
+#ifdef WIN32
+// ctp2-redux: the IPv6 address this machine uses towards the internet, for
+// players without a public IPv4 address (DS-Lite). A UDP socket "connected"
+// to a public IPv6 address tells which source address the system picks; no
+// packet is sent. winsock.h knows no IPv6, hence the local structure.
+namespace
+{
+	struct SockAddrIn6
+	{
+		unsigned short family;
+		unsigned short port;
+		unsigned long  flowinfo;
+		unsigned char  addr[16];
+		unsigned long  scope;
+	};
+
+	bool GetMyIPv6(char *buf, size_t size)
+	{
+		const int k_AF_INET6 = 23;
+		SOCKET s = socket(k_AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+		if (s == INVALID_SOCKET)
+			return false;
+
+		SockAddrIn6 remote;
+		memset(&remote, 0, sizeof(remote));
+		remote.family = k_AF_INET6;
+		remote.port   = htons(53);
+		static const unsigned char k_public[16] =   // 2001:4860:4860::8888
+			{ 0x20,0x01, 0x48,0x60, 0x48,0x60, 0,0, 0,0, 0,0, 0,0, 0x88,0x88 };
+		memcpy(remote.addr, k_public, 16);
+
+		SockAddrIn6 local;
+		memset(&local, 0, sizeof(local));
+		int len = sizeof(local);
+		bool ok = connect(s, (sockaddr *)&remote, sizeof(remote)) == 0
+		       && getsockname(s, (sockaddr *)&local, &len) == 0
+		       && local.family == k_AF_INET6
+		       && (local.addr[0] & 0xe0) == 0x20;          // global unicast 2000::/3
+		closesocket(s);
+		if (!ok)
+			return false;
+
+		// groups, longest run of zero groups as "::" (RFC 5952)
+		unsigned int g[8];
+		for (int i = 0; i < 8; i++)
+			g[i] = (local.addr[2*i] << 8) | local.addr[2*i + 1];
+		int bestStart = -1, bestLen = 1;
+		for (int i = 0; i < 8; )
+		{
+			int j = i;
+			while (j < 8 && g[j] == 0) j++;
+			if (j - i > bestLen) { bestStart = i; bestLen = j - i; }
+			i = (j == i) ? i + 1 : j;
+		}
+		std::string text;
+		char part[8];
+		for (int i = 0; i < 8; i++)
+		{
+			if (i == bestStart)
+			{
+				text += "::";
+				i += bestLen - 1;
+				continue;
+			}
+			if (!text.empty() && text[text.size() - 1] != ':')
+				text += ':';
+			sprintf(part, "%x", g[i]);
+			text += part;
+		}
+		snprintf(buf, size, "%s", text.c_str());
+		return true;
+	}
+}
+#endif
+
 void ServerSelectWindow::UpdateMyAddress( void )
 {
 	c3_Static *text = (c3_Static *)m_controls[ CONTROL_MYADDRESSSTATICTEXT ];
 	if ( !text || !g_netfunc ) return;
 
-	MBCHAR address[128];
+	MBCHAR address[128] = "";
 	if ( g_netfunc->GetMyAddress( address, sizeof(address) ) )
 	{
 		MBCHAR label[256];
@@ -284,6 +368,26 @@ void ServerSelectWindow::UpdateMyAddress( void )
 	else
 	{
 		text->SetText( "" );
+	}
+
+	// second line: the IPv6 address with the same port
+	c3_Static *text6 = (c3_Static *)m_controls[ CONTROL_MYADDRESS6STATICTEXT ];
+	if ( text6 )
+	{
+		MBCHAR v6[64];
+		const char *port = strrchr( address, ':' );
+#ifdef WIN32
+		if ( port && GetMyIPv6( v6, sizeof(v6) ) )
+		{
+			MBCHAR label[256];
+			sprintf( label, "IPv6: [%s]%s", v6, port );
+			text6->SetText( label );
+		}
+		else
+#endif
+		{
+			text6->SetText( "" );
+		}
 	}
 }
 

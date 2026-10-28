@@ -70,6 +70,9 @@ MSVC's warning level is set to 4.
 
 #include <assert.h>
 #include <stdio.h>
+#define _WINSOCK_DEPRECATED_NO_WARNINGS	/* the old IPv4 calls are fine here */
+#include <winsock2.h>	/* ctp2-redux: before windows.h, see wstcp.h */
+#include <ws2tcpip.h>
 #include <windows.h>
 
 #ifdef TCP_LAN
@@ -694,7 +697,46 @@ commScanAddr(
 	}
 	resp->status = TCP_RES_OK;
 
-	strcpy(hostname, req->printable);
+	strncpy(hostname, req->printable, sizeof(hostname) - 1);
+	hostname[sizeof(hostname) - 1] = '\0';
+
+	/* ctp2-redux IPv6 wrapper: "[v6]:port" or a bare v6 literal */
+	{
+		char *colon = strchr(hostname, ':');
+		BOOL v6 = FALSE;
+		if (hostname[0] == '[') {
+			char *end = strchr(hostname, ']');
+			if (!end) {
+				resp->status = TCP_RES_BAD;
+				return FALSE;
+			}
+			*end = '\0';
+			if (end[1] == ':' && end[2] != '\0')
+				port = (uint16) atoi(end + 2);
+			memmove(hostname, hostname + 1, strlen(hostname + 1) + 1);
+			v6 = TRUE;
+		} else if (colon && strchr(colon + 1, ':')) {
+			v6 = TRUE;	/* more than one ':' - IPv6 without port */
+		}
+		if (v6) {
+			struct sockaddr_in6 sa;
+			TCPPEER peer;
+			memset(&sa, 0, sizeof(sa));
+			sa.sin6_family = AF_INET6;
+			sa.sin6_port = htons(port);
+			if (inet_pton(AF_INET6, hostname, &sa.sin6_addr) != 1
+			||  !TCPWIN_V6Peer(pTcp, &sa, &peer)) {
+				DPRINT(("@TCP commScanAddr: no IPv6 for %s\n", hostname));
+				resp->status = TCP_RES_BAD;
+				return FALSE;
+			}
+			if (NULL != req->address)
+				*(TCPPEER *)req->address = peer;
+			resp->length = sizeof(TCPPEER);
+			return TRUE;
+		}
+	}
+
 	/* Strip port from req's string */
 	for(pc = hostname; *pc != '\0'; pc++) {
 		if(':' == *pc) {
@@ -709,16 +751,41 @@ commScanAddr(
 	/* Convert address if it's in numeric format (e.g., 255.255.255.255) */
 	adr = inet_addr(hostname);
 
-	/* Get address from name if not numeric */
-	/* WARNING: gethostbyname is not SOCKS5 compliant */
+	/* Get address from name if not numeric; ctp2-redux: getaddrinfo, a
+	 * name with only an IPv6 address gets a stand-in */
 	if (adr == INADDR_NONE) {
-		struct hostent *he;
-		he = gethostbyname(hostname);
-		if (!he) {
+		struct addrinfo hints, *res = NULL, *ai;
+		BOOL found = FALSE;
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = AF_UNSPEC;
+		hints.ai_socktype = SOCK_DGRAM;
+		if (getaddrinfo(hostname, NULL, &hints, &res) != 0 || !res) {
 			resp->status = TCP_RES_BAD;
 			return FALSE;
 		}
-		memcpy(&adr, he->h_addr, sizeof(u_long));
+		for (ai = res; ai && !found; ai = ai->ai_next)
+			if (ai->ai_family == AF_INET) {
+				adr = ((struct sockaddr_in *) ai->ai_addr)->sin_addr.s_addr;
+				found = TRUE;
+			}
+		for (ai = res; ai && !found; ai = ai->ai_next)
+			if (ai->ai_family == AF_INET6) {
+				struct sockaddr_in6 sa = *(struct sockaddr_in6 *) ai->ai_addr;
+				TCPPEER peer;
+				sa.sin6_port = htons(port);
+				if (TCPWIN_V6Peer(pTcp, &sa, &peer)) {
+					freeaddrinfo(res);
+					if (NULL != req->address)
+						*(TCPPEER *)req->address = peer;
+					resp->length = sizeof(TCPPEER);
+					return TRUE;
+				}
+			}
+		freeaddrinfo(res);
+		if (!found) {
+			resp->status = TCP_RES_BAD;
+			return FALSE;
+		}
 	}
 
 	/* Save and return */
@@ -767,23 +834,19 @@ commPrintAddr(
 		resp->status = comm_STATUS_BAD;
 		return FALSE;
 	}
-	/* Get printable version */
-	sprintf(strPort, ":%d", ntohs(((TCPPEER *)(req->address))->port));
-	inetAddr.s_addr = ((TCPPEER *)(req->address))->addr;
-	strAddr = inet_ntoa(inetAddr);
-	if (!strAddr)  {
+	/* Get printable version (ctp2-redux: IPv6 stand-ins as [v6]:port) */
+	if (!TCPWIN_PeerToString(pTcp, (TCPPEER *)(req->address), strPort, sizeof(strPort))) {
 		resp->status = comm_STATUS_BAD;
 		return FALSE;
 	}
 
 	/* Copy printable version to response */
 	if (req->printable != NULL) {
-		if (req->size < strlen(strAddr) + strlen(strPort) + 1) {
+		if (req->size < strlen(strPort) + 1) {
 			resp->status = TCP_RES_FULL;
 			return FALSE;
 		}
-		strcpy(req->printable, strAddr);
-		strcat(req->printable, strPort);
+		strcpy(req->printable, strPort);
 	}
 
 	/* Save status and return */

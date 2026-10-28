@@ -46,8 +46,13 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #ifndef _WSTCP_H_
 #define _WSTCP_H_ 1
 
+/* ctp2-redux: Winsock 2 for IPv6; must come before windows.h */
+#ifndef _WINSOCK_DEPRECATED_NO_WARNINGS
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#endif
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #include <windows.h>
-#include <winsock.h>
 
 #include "dictset.h"
 
@@ -98,6 +103,21 @@ typedef struct TCPEER2_s {
 /* Handle for a peer (used to identify a node in the package) */
 typedef dcst_key_t TCPHANDLE;
 
+/* ctp2-redux: IPv6 wrapper.  The rest of Anet only knows 6-byte addresses
+ * (IPv4 + port), so the internet driver uses a dual-stack socket and gives
+ * every IPv6 peer a stand-in IPv4 address from 240.0.0.0/8 (reserved, never
+ * used on the net).  A table maps the stand-ins back to the real IPv6
+ * addresses; IPv4 peers keep their real address.  Stand-ins are local to
+ * this node. */
+#define TCP_V6_FAKE_NET   0xF0000000UL	/* 240.0.0.0, host byte order */
+#define TCP_V6_FAKE_MASK  0xFF000000UL
+#define TCP_V6_MAX_PEERS  256
+
+typedef struct TCPV6PEER_s {
+	IN6_ADDR addr;
+	ULONG scope;		/* scope id, for link-local addresses */
+} TCPV6PEER;
+
 /* TCP Instance Struct (like C++ object's data) */
 typedef struct tcpInstance_s
 {
@@ -106,6 +126,9 @@ typedef struct tcpInstance_s
   dcst_t secondary;     /* TCPHANDLE<->TCPPEER secondary disctionary set */
   TCPHANDLE myHandle;			/* Handle for this node's address */
   TCPHANDLE broadcastHandle;	/* Handle for broadcast address */
+  int family;					/* AF_INET, or AF_INET6 for a dual-stack socket */
+  int nV6;						/* used entries in v6 */
+  TCPV6PEER v6[TCP_V6_MAX_PEERS];	/* stand-in 240.0.0.(i+1) -> v6[i] */
 }
 TCPINSTANCE;
 
@@ -189,5 +212,11 @@ sint32 TCPWIN_PutPacket(TCPINSTANCE *TCP, void *bufptr, size_t len, TCPHANDLE hd
  *
  */
 sint32 TCPWIN_GetPacket(TCPINSTANCE *TCP, void *bufptr, ULONG *len, TCPHANDLE *phSrc, TCPPEER *pSrcAddr);
+
+/* ctp2-redux IPv6 wrapper: the TCPPEER standing in for an IPv6 address
+   (FALSE if this instance has no IPv6 socket or the table is full), and
+   the printable form of a TCPPEER ("1.2.3.4:5" or "[2001:db8::1]:5"). */
+BOOL TCPWIN_V6Peer(TCPINSTANCE *TCP, const struct sockaddr_in6 *sa, TCPPEER *peer);
+BOOL TCPWIN_PeerToString(TCPINSTANCE *TCP, const TCPPEER *peer, char *buf, size_t size);
 
 #endif

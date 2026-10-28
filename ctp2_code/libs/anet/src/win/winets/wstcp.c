@@ -68,6 +68,9 @@ MSVC's warning level is set to 4.
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#define _WINSOCK_DEPRECATED_NO_WARNINGS	/* the old IPv4 calls are fine here */
+#include <winsock2.h>	/* ctp2-redux: before windows.h, see wstcp.h */
+#include <ws2tcpip.h>
 #include <windows.h>
 
 #include "wstcp.h"
@@ -121,6 +124,138 @@ getsockerror(void)
 }
 
 /*-------------------------------------------------------------------------
+ ctp2-redux IPv6 wrapper (see wstcp.h): conversion between the 6-byte
+ TCPPEER the rest of Anet uses and the socket addresses.
+-------------------------------------------------------------------------*/
+static BOOL peerIsV6StandIn(const TCPPEER *peer)
+{
+	return (ntohl(peer->addr) & TCP_V6_FAKE_MASK) == TCP_V6_FAKE_NET;
+}
+
+BOOL TCPWIN_V6Peer(TCPINSTANCE *pTcp, const struct sockaddr_in6 *sa, TCPPEER *peer)
+{
+	int i;
+
+	if (!pTcp || pTcp->family != AF_INET6 || !sa || !peer)
+		return FALSE;
+	if (IN6_IS_ADDR_V4MAPPED(&sa->sin6_addr)) {
+		memcpy(&peer->addr, &sa->sin6_addr.s6_addr[12], 4);
+		peer->port = sa->sin6_port;
+		return TRUE;
+	}
+	for (i = 0; i < pTcp->nV6; i++)
+		if (!memcmp(&pTcp->v6[i].addr, &sa->sin6_addr, sizeof(IN6_ADDR))
+		&&  pTcp->v6[i].scope == sa->sin6_scope_id)
+			break;
+	if (i == pTcp->nV6) {
+		if (pTcp->nV6 >= TCP_V6_MAX_PEERS)
+			return FALSE;
+		pTcp->v6[i].addr  = sa->sin6_addr;
+		pTcp->v6[i].scope = sa->sin6_scope_id;
+		pTcp->nV6++;
+	}
+	peer->addr = htonl(TCP_V6_FAKE_NET | (ULONG)(i + 1));
+	peer->port = sa->sin6_port;
+	return TRUE;
+}
+
+/* Socket address for a peer; 0 if it cannot be reached through this
+ * socket (broadcast on an IPv6 socket, unknown stand-in). */
+static int peerToSockaddr(TCPINSTANCE *pTcp, const TCPPEER *peer, SOCKADDR_STORAGE *ss)
+{
+	memset(ss, 0, sizeof(*ss));
+#ifndef TCP_LAN
+	if (pTcp->family == AF_INET6) {
+		struct sockaddr_in6 *s6 = (struct sockaddr_in6 *) ss;
+		s6->sin6_family = AF_INET6;
+		s6->sin6_port = peer->port;
+		if (peerIsV6StandIn(peer)) {
+			int i = (int) (ntohl(peer->addr) & ~TCP_V6_FAKE_MASK) - 1;
+			if (i < 0 || i >= pTcp->nV6)
+				return 0;
+			s6->sin6_addr = pTcp->v6[i].addr;
+			s6->sin6_scope_id = pTcp->v6[i].scope;
+		} else {
+			if (peer->addr == INADDR_BROADCAST)
+				return 0;
+			/* IPv4 through the dual-stack socket: ::ffff:a.b.c.d */
+			s6->sin6_addr.s6_addr[10] = 0xff;
+			s6->sin6_addr.s6_addr[11] = 0xff;
+			memcpy(&s6->sin6_addr.s6_addr[12], &peer->addr, 4);
+		}
+		return sizeof(struct sockaddr_in6);
+	}
+#endif
+	{
+		struct sockaddr_in *s4 = (struct sockaddr_in *) ss;
+		s4->sin_family = AF_INET;
+		s4->sin_port = peer->port;
+		s4->sin_addr.s_addr = peer->addr;
+		return sizeof(struct sockaddr_in);
+	}
+}
+
+static BOOL sockaddrToPeer(TCPINSTANCE *pTcp, const SOCKADDR_STORAGE *ss, TCPPEER *peer)
+{
+	if (ss->ss_family == AF_INET6)
+		return TCPWIN_V6Peer(pTcp, (const struct sockaddr_in6 *) ss, peer);
+	peer->addr = ((const struct sockaddr_in *) ss)->sin_addr.s_addr;
+	peer->port = ((const struct sockaddr_in *) ss)->sin_port;
+	return TRUE;
+}
+
+BOOL TCPWIN_PeerToString(TCPINSTANCE *pTcp, const TCPPEER *peer, char *buf, size_t size)
+{
+	char host[64];
+	int i;
+
+	if (!peer || !buf || size == 0)
+		return FALSE;
+	if (peerIsV6StandIn(peer) && pTcp
+	&&  (i = (int) (ntohl(peer->addr) & ~TCP_V6_FAKE_MASK) - 1) >= 0 && i < pTcp->nV6) {
+		if (!inet_ntop(AF_INET6, (void *) &pTcp->v6[i].addr, host, sizeof(host)))
+			return FALSE;
+		return _snprintf(buf, size, "[%s]:%d", host, ntohs(peer->port)) > 0;
+	}
+	{
+		struct in_addr a;
+		a.s_addr = peer->addr;
+		if (!inet_ntop(AF_INET, &a, host, sizeof(host)))
+			return FALSE;
+	}
+	return _snprintf(buf, size, "%s:%d", host, ntohs(peer->port)) > 0;
+}
+
+/* For debug prints. */
+static const char *peerStr(TCPINSTANCE *pTcp, const TCPPEER *peer)
+{
+	static char buf[80];
+	if (!TCPWIN_PeerToString(pTcp, peer, buf, sizeof(buf)))
+		strcpy(buf, "?");
+	return buf;
+}
+
+/* Bind the socket to port (host byte order) on all addresses. */
+static int bindPort(TCPINSTANCE *pTcp, u_short port)
+{
+	SOCKADDR_STORAGE ss;
+	memset(&ss, 0, sizeof(ss));
+#ifndef TCP_LAN
+	if (pTcp->family == AF_INET6) {
+		struct sockaddr_in6 *s6 = (struct sockaddr_in6 *) &ss;
+		s6->sin6_family = AF_INET6;
+		s6->sin6_addr = in6addr_any;
+		s6->sin6_port = htons(port);
+		return bind(pTcp->socket, (SOCKADDR *) &ss, sizeof(struct sockaddr_in6));
+	}
+#endif
+	((struct sockaddr_in *) &ss)->sin_family = AF_INET;
+	((struct sockaddr_in *) &ss)->sin_addr.s_addr = INADDR_ANY;
+	((struct sockaddr_in *) &ss)->sin_port = htons(port);
+	return bind(pTcp->socket, (SOCKADDR *) &ss, sizeof(struct sockaddr_in));
+}
+
+/*-------------------------------------------------------------------------
  Broadcast a packet with a unique identifier, and wait for it to come
  back.  Read the IP address from it. This may seem a long way of getting
  the host IP address, but it is necessary, as getsockname() will return
@@ -143,6 +278,10 @@ gethostaddr_ping(
 	ULONG cBytes;
 	ULONG result;
 	ULONG uniqueID;
+
+	/* ctp2-redux: no broadcast through a dual-stack IPv6 socket */
+	if (pTcp->family != AF_INET)
+		return FALSE;
 
 	/* Broadcast a packet containing a unique ID */
 	uniqueID = (ULONG) clock();
@@ -606,7 +745,25 @@ TCPWIN_Create(
 	/* Kluge to force broadcastHandle to have value 0 */
 	pTcp->broadcastHandle = dcstReplace(pTcp->handles, pTcp->broadcastHandle, &peer);
 
-	/* open a socket */
+	/* open a socket; ctp2-redux: the internet driver prefers a dual-stack
+	 * IPv6 socket (IPv4 peers arrive as ::ffff:a.b.c.d), see wstcp.h */
+	pTcp->socket = INVALID_SOCKET;
+	pTcp->family = AF_INET;
+#ifndef TCP_LAN
+	pTcp->socket = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+	if (pTcp->socket != INVALID_SOCKET) {
+		DWORD v6only = 0;
+		if (setsockopt(pTcp->socket, IPPROTO_IPV6, IPV6_V6ONLY, (char *) &v6only, sizeof(v6only)) == SOCKET_ERROR) {
+			DPRINT(("TCPWIN_Create: no dual-stack socket, using IPv4 only\n"));
+			closesocket(pTcp->socket);
+			pTcp->socket = INVALID_SOCKET;
+		} else {
+			pTcp->family = AF_INET6;
+			DPRINT(("TCPWIN_Create: dual-stack IPv6/IPv4 socket\n"));
+		}
+	}
+	if (pTcp->socket == INVALID_SOCKET)
+#endif
 	pTcp->socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (pTcp->socket == INVALID_SOCKET)
 	{
@@ -663,6 +820,7 @@ TCPWIN_Create(
 	}
 
 	/* enable broadcasting on the socket */
+	if (pTcp->family == AF_INET)
 	{
 		BOOL broadcast = TRUE;
 		err = setsockopt(pTcp->socket, SOL_SOCKET, SO_BROADCAST,
@@ -675,11 +833,8 @@ TCPWIN_Create(
 	}
 
 	/* bind the socket */
-	memset(&sockAddr, 0, sizeof(sockAddr));
-	sockAddr.sin_family = AF_INET;
-	sockAddr.sin_addr.S_un.S_addr = INADDR_ANY;
 	memset(&peer, 0, sizeof(peer));
-	peer.addr = sockAddr.sin_addr.S_un.S_addr;
+	peer.addr = INADDR_ANY;
 
 #define TCP_PORT_RANGE_START 21100
 #define TCP_PORT_RANGE_LEN   200
@@ -689,22 +844,15 @@ TCPWIN_Create(
 		 * number inside our range.
 		 */
 		uint16 randport = (eclock() % TCP_PORT_RANGE_LEN) + TCP_PORT_RANGE_START;
-		sockAddr.sin_port = htons(randport);
-		peer.port = sockAddr.sin_port;
-		DPRINT(("TCPWIN_Create: Binding to %s:%d from range %d...%d\n", inet_ntoa(sockAddr.sin_addr), randport, TCP_PORT_RANGE_START, TCP_PORT_RANGE_START + TCP_PORT_RANGE_LEN-1));
-
-		err = bind(pTcp->socket, (SOCKADDR *) &sockAddr, sizeof(sockAddr));
+		DPRINT(("TCPWIN_Create: Binding to port %d from range %d...%d\n", randport, TCP_PORT_RANGE_START, TCP_PORT_RANGE_START + TCP_PORT_RANGE_LEN-1));
+		err = bindPort(pTcp, randport);
 	}
 	if (SOCKET_ERROR == err)  {
 		/* If user specified anything else, or if our random port didn't
 		 * work, go with what he specified.
 		 */
-		sockAddr.sin_port = htons(*port);
-		peer.port = sockAddr.sin_port;
-
-		DPRINT(("TCPWIN_Create: Binding to %s:%d\n", inet_ntoa(sockAddr.sin_addr), *port));
-
-		err = bind(pTcp->socket, (SOCKADDR *) &sockAddr, sizeof(sockAddr));
+		DPRINT(("TCPWIN_Create: Binding to port %d\n", *port));
+		err = bindPort(pTcp, *port);
 	}
 #ifndef TCP_LAN
 	if (SOCKET_ERROR == err && *port != TCP_SOCKET_ANY)
@@ -717,10 +865,8 @@ TCPWIN_Create(
 		for (tries = 0; tries < 20 && SOCKET_ERROR == err; tries++)
 		{
 			uint16 randport = (uint16) (((eclock() + tries * 7919) % TCP_PORT_RANGE_LEN) + TCP_PORT_RANGE_START);
-			sockAddr.sin_port = htons(randport);
-			peer.port = sockAddr.sin_port;
 			DPRINT(("TCPWIN_Create: port %d busy, trying %d\n", *port, randport));
-			err = bind(pTcp->socket, (SOCKADDR *) &sockAddr, sizeof(sockAddr));
+			err = bindPort(pTcp, randport);
 		}
 	}
 #endif
@@ -737,15 +883,17 @@ TCPWIN_Create(
 	/* determine the actual port number (the requested one may have been
 	 * replaced by a random one above) */
 	{
-		sint32 addrlen = sizeof(sockAddr);
-		memset(&sockAddr, 0, sizeof(sockAddr));
-		err = getsockname(pTcp->socket, (LPSOCKADDR)&sockAddr, (sint32 FAR*)&addrlen);
+		SOCKADDR_STORAGE ss;
+		sint32 addrlen = sizeof(ss);
+		memset(&ss, 0, sizeof(ss));
+		err = getsockname(pTcp->socket, (LPSOCKADDR)&ss, (sint32 FAR*)&addrlen);
 		if (SOCKET_ERROR == err)
 		{
 			DPRINT(("TCPWIN_Create: could net get socket name\n"));
 			err = WSAGetLastError();
 		}
-		truePort = ntohs(sockAddr.sin_port);
+		truePort = ntohs(ss.ss_family == AF_INET6 ? ((struct sockaddr_in6 *) &ss)->sin6_port
+		                                          : ((struct sockaddr_in *) &ss)->sin_port);
 		*port = truePort;
 	}
 
@@ -1210,7 +1358,8 @@ TCPWIN_PutPacket(
 	sint32 cBytes;
 	TCPPEER* pPeer;
 	TCPPEER2 *pPeer2;
-	SOCKADDR_IN sockAddr;
+	SOCKADDR_STORAGE sockAddr;
+	int sockAddrLen;
 
 	assert(tcp != NULL);
 	assert(bufptr != NULL);
@@ -1229,20 +1378,20 @@ TCPWIN_PutPacket(
 		return TCP_RES_BAD;	/* Sending to unused handle */
 	}
 
-	/* send the packet */
-	sockAddr.sin_family = AF_INET;
-	sockAddr.sin_port = pPeer->port;
-	sockAddr.sin_addr.s_addr = pPeer->addr;
-	cBytes = sendto(tcp->socket, (char *) bufptr, (sint32) len, 0,
-				(struct sockaddr *) &sockAddr, sizeof(sockAddr));
-	if ((cBytes == 0) || (cBytes == SOCKET_ERROR)) {
-		getsockerror();
-		return(TCP_RES_FULL);
+	/* send the packet (ctp2-redux: unreachable through this socket, e.g.
+	 * broadcast on an IPv6 socket, means dropped) */
+	sockAddrLen = peerToSockaddr(tcp, pPeer, &sockAddr);
+	if (sockAddrLen) {
+		cBytes = sendto(tcp->socket, (char *) bufptr, (sint32) len, 0,
+					(struct sockaddr *) &sockAddr, sockAddrLen);
+		if ((cBytes == 0) || (cBytes == SOCKET_ERROR)) {
+			getsockerror();
+			return(TCP_RES_FULL);
+		}
 	}
 
-	DPRINT(("TCPWIN_PutPacket: PKT %c%c Tx To %s:%d ",
-		((char *) bufptr)[0], ((char *) bufptr)[1],
-		 (char *) inet_ntoa(sockAddr.sin_addr), ntohs(sockAddr.sin_port)));
+	DPRINT(("TCPWIN_PutPacket: PKT %c%c Tx To %s ",
+		((char *) bufptr)[0], ((char *) bufptr)[1], peerStr(tcp, pPeer)));
 
 	/* get ptr to peer2 address from peer handle */
 	pPeer2 = (TCPPEER2 *) dcstFindValue(tcp->secondary, hdest);
@@ -1282,16 +1431,16 @@ TCPWIN_PutPacket(
 #endif
 
 		/* fire off the packet */
-		sockAddr.sin_family = AF_INET;
-		sockAddr.sin_port = pPeer2->peer.port;
-		sockAddr.sin_addr.s_addr = pPeer2->peer.addr;
-		cBytes = sendto(tcp->socket, (char *) bufptr, (sint32) len, 0,	(struct sockaddr *) &sockAddr, sizeof(sockAddr));
-		if ((cBytes == 0) || (cBytes == SOCKET_ERROR))
-		{
-			getsockerror();
-			return(TCP_RES_FULL);
+		sockAddrLen = peerToSockaddr(tcp, &pPeer2->peer, &sockAddr);
+		if (sockAddrLen) {
+			cBytes = sendto(tcp->socket, (char *) bufptr, (sint32) len, 0,	(struct sockaddr *) &sockAddr, sockAddrLen);
+			if ((cBytes == 0) || (cBytes == SOCKET_ERROR))
+			{
+				getsockerror();
+				return(TCP_RES_FULL);
+			}
 		}
-		DPRINT(("and %s:%d ", (char *) inet_ntoa(sockAddr.sin_addr), ntohs(sockAddr.sin_port)));
+		DPRINT(("and %s ", peerStr(tcp, &pPeer2->peer)));
 #if 1
 		}
 #endif
@@ -1332,7 +1481,7 @@ TCPWIN_GetPacket(
 	sint32 addrlen;
 	ULONG cBytes;
 	TCPPEER addr;
-	SOCKADDR_IN sockAddr;
+	SOCKADDR_STORAGE sockAddr;
 
 	/* do sanity checks */
 	assert(tcp != NULL);
@@ -1355,11 +1504,11 @@ TCPWIN_GetPacket(
 	if ((cBytes > TCP_MAX_USERDATALEN) || (cBytes > *pLen))
 		return(TCP_RES_BAD);
 
-	/* set return info */
-	addr.addr = sockAddr.sin_addr.s_addr;
-	addr.port = sockAddr.sin_port;
+	/* set return info (ctp2-redux: IPv6 senders get their stand-in) */
+	if (!sockaddrToPeer(tcp, &sockAddr, &addr))
+		return(TCP_RES_EMPTY);
 
-	DPRINT(("TCPWIN_GetPacket(): Rx From %s:%d\n", (char *) inet_ntoa(sockAddr.sin_addr), ntohs(sockAddr.sin_port)));
+	DPRINT(("TCPWIN_GetPacket(): Rx From %s\n", peerStr(tcp, &addr)));
 	*pLen = cBytes;
 
 	/*

@@ -191,6 +191,24 @@ Plan:
 6. **Desync-Test:** gleiche Partie über viele Runden, `net_crc`-Prüfungen
    beobachten, SLIC-Stände von Host und Client gleich halten.
 
+### IPv6 (2026-10-28)
+
+Für Anschlüsse ohne öffentliche IPv4 (DS-Lite) kann jetzt über IPv6 gehostet
+und beigetreten werden. Umsetzung als Wrapper nur in der Internet-
+Transport-DLL (`libs/anet/src/win/winets/wstcp.c`, `wstcpdll.c`), weil Anet
+selbst feste 6-Byte-Adressen hat (`dp_MAX_ADR_LEN` 10, Schlüssel ≤ 12 Byte):
+Dual-Stack-Socket (IPv4 kommt als `::ffff:a.b.c.d`), jede IPv6-Gegenstelle
+bekommt eine Ersatzadresse 240.0.0.n (reserviert, im Netz nie vergeben),
+eine Tabelle übersetzt zurück. Eingabe `[2a02:…]:21157` oder ohne Port,
+Hostnamen über `getaddrinfo` (IPv4 bevorzugt). Das Verbindungsfenster zeigt
+unter der IPv4- auch die globale IPv6-Adresse (Quelladresse des Systems für
+IPv6-Internetverkehr). TCP/IP-LAN bleibt IPv4. Getestet mit `[::1]` und der
+globalen IPv6 dieses PCs (`mptest.ps1 -JoinAddress`), dp.log bestätigt den
+IPv6-Weg. Offen: echter Test über zwei Anschlüsse (Router muss UDP 21157
+auch für IPv6 freigeben, z.B. Fritzbox „Freigaben“); mit 3+ menschlichen
+Spielern prüfen, ob Clients direkt miteinander reden (die Ersatzadressen
+gelten nur auf dem eigenen Rechner).
+
 ### E-Mail-Spiele (2026-10-28)
 
 Original: nach dem Zug speichert das Spiel „CTP2 Email To <adresse> (Turn N).c2g“

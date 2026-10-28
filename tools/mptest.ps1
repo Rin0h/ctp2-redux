@@ -9,6 +9,7 @@
 #   pwsh tools/mptest.ps1 -ShotEvery 5         # screenshot every 5th round (0 = none)
 #   pwsh tools/mptest.ps1 -Idle                # test players only end their turns
 #   pwsh tools/mptest.ps1 -AnetLog             # network library with logging (dp.log)
+#   pwsh tools/mptest.ps1 -JoinAddress '[::1]:21157'   # client joins over IPv6
 #
 # By default the two test players play a simple turn (settle, walk, fill
 # build queues, pick research), so their actions go over the network.
@@ -35,7 +36,8 @@ param(
     [switch]$Idle,
     [switch]$Single,
     [switch]$AnetLog,
-    [string]$Port = '21157'
+    [string]$Port = '21157',
+    [string]$JoinAddress = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -133,7 +135,8 @@ $hostProc = Start-Process -FilePath (Join-Path $hostDir 'ctp2.exe') -WorkingDire
     -ArgumentList "$common autohost autoai=$AIPlayers autoname=AutoHost"
 Start-Sleep -Seconds 8
 
-$clientArgs = "$common autojoin=127.0.0.1:$Port autoname=AutoClient"
+if (-not $JoinAddress) { $JoinAddress = "127.0.0.1:$Port" }
+$clientArgs = "$common autojoin=$JoinAddress autoname=AutoClient"
 if ($Asan) {
     $env:ASAN_OPTIONS = 'alloc_dealloc_mismatch=0:continue_on_error=1'
     $clientProc = Start-Process -FilePath (Join-Path $clientDir $clientExe) -WorkingDirectory $clientDir -PassThru `
