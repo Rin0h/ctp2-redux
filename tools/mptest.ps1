@@ -32,6 +32,7 @@ param(
     [switch]$Show,
     [int]$ShotEvery = 1,
     [switch]$Idle,
+    [switch]$Single,
     [string]$Port = '21157'
 )
 
@@ -57,6 +58,43 @@ function Prepare-Instance([string]$name) {
     return $dir
 }
 
+# result file of one instance
+function Read-Result([string]$dir, [string]$who) {
+    $file = Join-Path $dir 'autotest_result.txt'
+    $r = @{ who = $who; ok = $false; text = '' }
+    if (-not (Test-Path $file)) {
+        $last = Get-Content (Join-Path $dir 'autotest_log.txt') -ErrorAction SilentlyContinue | Select-Object -Last 1
+        $r.text = "no result file (crashed, hung or timed out); last log line: $last"
+        return $r
+    }
+    $kv = @{}
+    Get-Content $file | ForEach-Object { if ($_ -match '^(\w+)=(.*)$') { $kv[$matches[1]] = $matches[2] } }
+    $r.ok = ($kv.result -eq 'ok') -and ([int]$kv.crc_errors -eq 0) -and ([int]$kv.resync_requests -eq 0)
+    $r.text = "result=$($kv.result) rounds=$($kv.rounds) crc_errors=$($kv.crc_errors) resync_requests=$($kv.resync_requests) resyncs_sent=$($kv.resyncs_sent) seconds=$($kv.seconds)"
+    return $r
+}
+
+$playArg = if ($Idle) { ' autoplay=0' } else { '' }
+$showArg = if ($Show) { ' autoshow' } else { '' }
+
+# --- single player comparison run: one instance, same profile, as many
+# civilisations as the network game (the second human becomes an AI)
+if ($Single) {
+    $dir = Prepare-Instance 'autotest_single'
+    Write-Host "Single player: $dir, rounds: $Turns"
+    $p = Start-Process -FilePath (Join-Path $dir 'ctp2.exe') -WorkingDirectory $dir -PassThru `
+        -ArgumentList "nointromovie autoturns=$Turns autoshots=$ShotEvery autoai=$AIPlayers autosingle$playArg$showArg"
+    if (-not $p.WaitForExit($TimeoutMinutes * 60 * 1000)) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+    $r = Read-Result $dir 'single'
+    Write-Host ("single  {0}  {1}" -f ($(if ($r.ok) { 'OK  ' } else { 'FAIL' })), $r.text)
+    $stats = Get-Content (Join-Path $dir 'autotest_log.txt') -ErrorAction SilentlyContinue | Select-String " stats round $Turns "
+    if ($stats) {
+        Write-Host "Game state in round ${Turns}:"
+        $stats | ForEach-Object { Write-Host ('  ' + ($_.Line -split ' player ')[1]) }
+    }
+    if ($r.ok) { exit 0 } else { exit 1 }
+}
+
 $hostDir   = Prepare-Instance 'autotest_host'
 $clientDir = Prepare-Instance 'autotest_client'
 
@@ -72,8 +110,6 @@ if ($Asan) {
     $clientExe = 'ctp2-asan.exe'
 }
 
-$showArg = if ($Show) { ' autoshow' } else { '' }
-$playArg = if ($Idle) { ' autoplay=0' } else { '' }
 $common = "nointromovie autoturns=$Turns autoshots=$ShotEvery$playArg$showArg"
 
 Write-Host "Host:   $hostDir"
@@ -111,21 +147,6 @@ while ((Get-Date) -lt $deadline -and (-not $hostProc.HasExited -or -not $clientP
 foreach ($p in $hostProc, $clientProc) { if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue } }
 
 # --- evaluate
-function Read-Result([string]$dir, [string]$who) {
-    $file = Join-Path $dir 'autotest_result.txt'
-    $r = @{ who = $who; ok = $false; text = '' }
-    if (-not (Test-Path $file)) {
-        $last = Get-Content (Join-Path $dir 'autotest_log.txt') -ErrorAction SilentlyContinue | Select-Object -Last 1
-        $r.text = "no result file (crashed, hung or timed out); last log line: $last"
-        return $r
-    }
-    $kv = @{}
-    Get-Content $file | ForEach-Object { if ($_ -match '^(\w+)=(.*)$') { $kv[$matches[1]] = $matches[2] } }
-    $r.ok = ($kv.result -eq 'ok') -and ([int]$kv.crc_errors -eq 0) -and ([int]$kv.resync_requests -eq 0)
-    $r.text = "result=$($kv.result) rounds=$($kv.rounds) crc_errors=$($kv.crc_errors) resync_requests=$($kv.resync_requests) resyncs_sent=$($kv.resyncs_sent) seconds=$($kv.seconds)"
-    return $r
-}
-
 $results = @( (Read-Result $hostDir 'host'), (Read-Result $clientDir 'client') )
 Write-Host ''
 foreach ($r in $results) { Write-Host ("{0,-7} {1}  {2}" -f $r.who, ($(if ($r.ok) { 'OK  ' } else { 'FAIL' })), $r.text) }
@@ -170,12 +191,28 @@ foreach ($key in $hostAi.Keys) {
         $mismatches += "  round $round player ${player}: host '$($hostAi[$key])' client '$($clientAi[$ckey])'"
     }
 }
+# terrain at the end (both write autotest_map_end.txt when they quit; the
+# environment flags may differ by the AI moves in between, terrain may not)
+$hm = Get-Content (Join-Path $hostDir 'autotest_map_end.txt') -ErrorAction SilentlyContinue
+$cm = Get-Content (Join-Path $clientDir 'autotest_map_end.txt') -ErrorAction SilentlyContinue
+$mapText = 'end maps missing'
+if ($hm -and $cm) {
+    $terrainDiff = 0
+    for ($i = 0; $i -lt [Math]::Min($hm.Count, $cm.Count); $i++) {
+        if ($hm[$i].Split(' ')[2] -ne $cm[$i].Split(' ')[2]) { $terrainDiff++ }
+    }
+    $mapText = "terrain of $($hm.Count) map cells identical"
+    if ($terrainDiff -or $hm.Count -ne $cm.Count) {
+        $mismatches += "  map: $terrainDiff of $($hm.Count) cells have a different terrain"
+    }
+}
+
 Write-Host ''
 if ($mismatches.Count) {
-    Write-Host "Desync check: $($mismatches.Count) of $compared AI values differ between host and client:"
+    Write-Host "Desync check: $($mismatches.Count) differences between host and client ($compared AI values compared):"
     $mismatches | Sort-Object | ForEach-Object { Write-Host $_ }
 } else {
-    Write-Host "Desync check: $compared AI values identical on host and client"
+    Write-Host "Desync check: $compared AI values identical on host and client, $mapText"
 }
 
 if ($Asan) {

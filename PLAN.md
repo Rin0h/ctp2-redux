@@ -128,7 +128,14 @@ Forschung wählen) über dieselben Aufrufe wie die Oberfläche, also auch
 Client→Host-Aktionen. Desync-Prüfung: KI-Werte Host Runde N = Client Runde
 N+1. Noch offen: Angriffe/Kämpfe, Diplomatie, Handel im Test; die
 KI-Ansätze für einen Client-Roboterspieler (`CtpAi::NetworkClientBeginTurn`)
-sind halb fertig, der KI-Planer läuft auf Clients nicht. Unsichtbar heißt: verstecktes Fenster,
+sind halb fertig, der KI-Planer läuft auf Clients nicht.
+
+Offene Beobachtung (2026-10-28): Im Netzwerkspiel entwickeln sich KI und
+Testspieler langsamer als im Einzelspieler mit gleichem Profil (Karte 48x96,
+Schwierigkeit 2, Steuersatz 50 %, gleiche Regierung): nach 28-40 Runden
+1-2 statt 2-3 Städte, kleinere Städte, weniger Forschung. Bauschleifen der
+KI funktionieren. Wird mit mehreren Läufen je Modus geprüft
+(`mptest.ps1 -Single` gegen `mptest.ps1`, Detailzeilen im Log). Unsichtbar heißt: verstecktes Fenster,
 Software-Renderer ohne Present, kein Rand-Scrollen (die Maus liegt außerhalb
 und `CivApp::ProcessUI` scrollte sonst endlos). Bekannt: der Host wartet in
 der Lobby auf den Client, weil ein Direkt-Client ein bereits angelegtes Spiel

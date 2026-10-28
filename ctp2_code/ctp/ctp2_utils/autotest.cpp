@@ -39,6 +39,8 @@
 #include "SelItem.h"            // g_selected_item
 #include "GameEventManager.h"   // g_gevManager
 #include "sci_advancescreen.h"
+#include "initialplaywindow.h"  // initialplayscreen_instantPress
+#include "profileDB.h"          // g_theProfileDB
 #include "Gold.h"
 #include "Advances.h"
 #include "UnitDynArr.h"
@@ -51,7 +53,8 @@
 #include "MapPoint.h"
 #include "UnitRecord.h"
 #include "BuildingRecord.h"
-#include "Globals.h"              // k_GAME_OBJ_TYPE_*
+#include "Globals.h"
+#include "GameSettings.h"        // g_theGameSettings              // k_GAME_OBJ_TYPE_*
 #include <random>
 #ifdef __AUI_USE_SDL__
 #include "aui_sdlui.h"          // aui_SDLUI::RequestScreenshot
@@ -59,7 +62,12 @@
 
 namespace
 {
-	enum Role { ROLE_NONE, ROLE_HOST, ROLE_JOIN };
+	enum Role { ROLE_NONE, ROLE_HOST, ROLE_JOIN, ROLE_SINGLE };
+
+	const char *RoleName(Role r)
+	{
+		return r == ROLE_HOST ? "host" : r == ROLE_JOIN ? "join" : "single";
+	}
 
 	Role        s_role          = ROLE_NONE;
 	std::string s_address;
@@ -186,6 +194,37 @@ namespace
 		autotest_Log("play: round %d settle %d move %d build %d", round, settles, moves, builds);
 	}
 
+	// terrain type and environment flags per cell, for comparing host and client
+	void DumpMap(const char *path)
+	{
+		FILE *f = g_theWorld ? fopen(path, "w") : NULL;
+		if (!f) return;
+		MapPoint pos;
+		for (pos.y = 0; pos.y < g_theWorld->GetYHeight(); pos.y++)
+			for (pos.x = 0; pos.x < g_theWorld->GetXWidth(); pos.x++)
+			{
+				Cell *c = g_theWorld->GetCell(pos);
+				fprintf(f, "%d %d %d %08x\n", (int)pos.x, (int)pos.y, (int)c->GetTerrain(), (unsigned)c->GetEnv());
+			}
+		fclose(f);
+	}
+
+	void LogGameInfo()
+	{
+		static bool done = false;
+		if (done || !g_theWorld) return;
+		done = true;
+		int land = 0;
+		MapPoint pos;
+		for (pos.x = 0; pos.x < g_theWorld->GetXWidth(); pos.x++)
+			for (pos.y = 0; pos.y < g_theWorld->GetYHeight(); pos.y++)
+				if (!g_theWorld->IsWater(pos)) land++;
+		autotest_Log("game: map %dx%d, land cells %d, difficulty %d, profile difficulty %d risk %d",
+		             (int)g_theWorld->GetXWidth(), (int)g_theWorld->GetYHeight(), land,
+		             g_theGameSettings ? (int)g_theGameSettings->GetDifficulty() : -1,
+		             (int)g_theProfileDB->GetDifficulty(), (int)g_theProfileDB->GetRiskLevel());
+	}
+
 	void LogStats(int round)
 	{
 		for (int i = 0; i < k_MAX_PLAYERS; i++)
@@ -201,6 +240,29 @@ namespace
 			             p->GetAllUnitList()   ? (int)p->GetAllUnitList()->Num()   : -1,
 			             p->m_gold             ? (int)p->m_gold->GetLevel()        : -1,
 			             known);
+
+			// what the civilisation is doing (not compared host/client)
+			int qlen = -1, qcat = -1, qtype = -1, store = -1, prod = -1, sci = 0, pop = 0;
+			double sciTax = -1.0;
+			p->GetScienceTaxRate(sciTax);
+			if (p->m_all_cities && p->m_all_cities->Num() > 0)
+			{
+				CityData *cd = p->m_all_cities->Access(0).GetCityData();
+				BuildQueue *q = cd->GetBuildQueue();
+				qlen  = q->GetLen();
+				if (q->GetHead()) { qcat = q->GetHead()->m_category; qtype = q->GetHead()->m_type; }
+				store = cd->GetStoredCityProduction();
+				prod  = cd->GetNetCityProduction();
+				for (sint32 c = 0; c < p->m_all_cities->Num(); c++)
+				{
+					sci += p->m_all_cities->Access(c).GetCityData()->GetScience();
+					pop += p->m_all_cities->Access(c).GetCityData()->PopCount();
+				}
+			}
+			autotest_Log("detail round %d player %d: queue %d head %d/%d stored %d prod %d science %d tax %.2f gov %d pop %d researching %d armies %d",
+			             round, i, qlen, qcat, qtype, store, prod, sci, sciTax, (int)p->GetGovernmentType(), pop,
+			             p->m_advances ? (int)p->m_advances->GetResearching() : -1,
+			             p->m_all_armies ? (int)p->m_all_armies->Num() : -1);
 		}
 	}
 }
@@ -219,6 +281,10 @@ void autotest_ParseCommandLine(const char *cmdLine)
 	{
 		s_role = ROLE_HOST;
 	}
+	else if (strstr(cmdLine, "autosingle"))
+	{
+		s_role = ROLE_SINGLE;
+	}
 	if (s_role == ROLE_NONE) return;
 
 	if (ReadValue(cmdLine, "autoturns=", v))  s_turns        = atoi(v.c_str());
@@ -229,13 +295,13 @@ void autotest_ParseCommandLine(const char *cmdLine)
 	if (ReadValue(cmdLine, "autoplay=", v))   s_play         = atoi(v.c_str()) != 0;
 	if (strstr(cmdLine, "autoshow"))          s_hidden       = false;
 	if (s_turns < 1) s_turns = 1;
-	if (s_name.empty()) s_name = (s_role == ROLE_HOST) ? "AutoHost" : "AutoClient";
+	if (s_name.empty()) s_name = (s_role == ROLE_HOST) ? "AutoHost" : (s_role == ROLE_JOIN) ? "AutoClient" : "AutoSingle";
 
 	remove("autotest_result.txt");
 	FILE *f = fopen("autotest_log.txt", "w");
 	if (f) fclose(f);
 	autotest_Log("autotest: role=%s address=%s turns=%d ai=%d humans=%d name=%s",
-	             s_role == ROLE_HOST ? "host" : "join", s_address.c_str(),
+	             RoleName(s_role), s_address.c_str(),
 	             s_turns, s_aiPlayers, s_humanPlayers, s_name.c_str());
 }
 
@@ -307,7 +373,7 @@ void autotest_Finish(const char *result)
 	if (f)
 	{
 		fprintf(f, "result=%s\n", result);
-		fprintf(f, "role=%s\n", s_role == ROLE_HOST ? "host" : "join");
+		fprintf(f, "role=%s\n", RoleName(s_role));
 		fprintf(f, "rounds=%d\n", s_lastRound);
 		fprintf(f, "resync_requests=%d\n", s_resyncRequests);
 		fprintf(f, "resyncs_sent=%d\n", s_resyncsSent);
@@ -332,16 +398,27 @@ void autotest_Process(bool gameLoaded)
 
 	if (!gameLoaded)
 	{
-		if (s_mainMenuSeen && autotest_Step("mainmenu-network"))
+		if (s_role == ROLE_SINGLE)
+		{
+			// as many civilisations as in the network test: the humans
+			// there are one human and AIs here (+1 for the barbarians)
+			if (s_mainMenuSeen && autotest_Step("mainmenu-single"))
+			{
+				g_theProfileDB->SetNPlayers(s_humanPlayers + s_aiPlayers + 1);
+				initialplayscreen_instantPress(NULL, AUI_BUTTON_ACTION_EXECUTE, 0, NULL);
+			}
+		}
+		else if (s_mainMenuSeen && autotest_Step("mainmenu-network"))
 		{
 			NetShell::Enter(k_NS_FLAGS_CREATE);
 		}
 		return;
 	}
 
-	if (!g_network.IsActive() || !g_selected_item || !g_player) return;
+	const bool single = (s_role == ROLE_SINGLE);
+	if ((!single && !g_network.IsActive()) || !g_selected_item || !g_player) return;
 
-	const int me = g_network.GetPlayerIndex();
+	const int me = single ? (int)g_selected_item->GetVisiblePlayer() : g_network.GetPlayerIndex();
 	if (me < 0 || !g_player[me]) return;
 
 	const int round = g_player[me]->GetCurRound();
@@ -349,6 +426,7 @@ void autotest_Process(bool gameLoaded)
 	{
 		s_lastRound = round;
 		autotest_Log("round %d", round);
+		LogGameInfo();   // once
 		LogStats(round);
 	}
 
@@ -356,16 +434,16 @@ void autotest_Process(bool gameLoaded)
 	// the host's round with the same number starts right after that turn
 	// (the client's counter runs one turn ahead), so the host quits then.
 	// Like that nobody waits for a player that has already left.
-	if (autotest_IsHost() ? round >= s_turns : (s_quitAt > 0.0 && Now() >= s_quitAt))
+	if ((autotest_IsHost() || single) ? round >= s_turns : (s_quitAt > 0.0 && Now() >= s_quitAt))
 	{
+		DumpMap("autotest_map_end.txt");
 		autotest_Finish("ok");
 		return;
 	}
 
 	const bool myTurn =
 		g_selected_item->GetCurPlayer() == g_selected_item->GetVisiblePlayer() &&
-		g_network.IsMyTurn() &&
-		(!g_network.IsHost() || g_network.ReadyToStart());
+		(single || (g_network.IsMyTurn() && (!g_network.IsHost() || g_network.ReadyToStart())));
 
 	static double s_lastDiag = 0.0;
 	if (Now() - s_lastDiag > 10.0)
@@ -426,7 +504,7 @@ void autotest_Process(bool gameLoaded)
 		autotest_Log("end turn (round %d)", round);
 		g_gevManager->EndTurnRequest();
 
-		if (!autotest_IsHost() && round >= s_turns && s_quitAt < 0.0)
+		if (s_role == ROLE_JOIN && round >= s_turns && s_quitAt < 0.0)
 			s_quitAt = Now() + 3.0;   // let the end of turn reach the host
 	}
 }

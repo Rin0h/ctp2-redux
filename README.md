@@ -40,6 +40,7 @@ pwsh tools/mptest.ps1 -Turns 50 -AIPlayers 3
 pwsh tools/mptest.ps1 -Show              # watch both game windows
 pwsh tools/mptest.ps1 -ShotEvery 5       # screenshot every 5th round (0 = none)
 pwsh tools/mptest.ps1 -Asan              # client built with AddressSanitizer
+pwsh tools/mptest.ps1 -Single -Turns 40  # single player run for comparison
 ```
 
 It needs a Final-SDL x64 build (`tools/win-build.ps1`) and the game data in
@@ -52,7 +53,8 @@ the working copy. The exit code is 0 if the test passed. A test passes when:
 - host and client log identical values (cities, units, gold, advances) for
   the AI civilisations. The client's round counter runs one turn ahead, so
   the host's round N is compared with the client's round N+1. Between those
-  two moments only the host itself moves.
+  two moments only the host itself moves;
+- the terrain of every map cell is the same on host and client at the end.
 
 **What you get:**
 - a summary in the console, including cities, units, gold and advances per
@@ -60,7 +62,9 @@ the working copy. The exit code is 0 if the test passed. A test passes when:
 - the folders `ctp2_code/ctp/autotest_host` and `ctp2_code/ctp/autotest_client`
   (copies of the build, git-ignored), each containing:
   - `autotest_log.txt`: steps, rounds, a stats line per player and round,
-    resync and CRC events;
+    a detail line (build queue, production, science, tax, government,
+    population, research), resync and CRC events;
+  - `autotest_map_end.txt`: terrain and flags of every map cell at the end;
   - `autotest_result.txt`: the machine-readable result;
   - `autotest_round_<nnn>.png`: a screenshot of the own turn start, taken
     even while the window is hidden.
@@ -78,6 +82,7 @@ implemented in `ctp2_code/ctp/ctp2_utils/autotest.cpp`:
 | `autoname=<name>` | player profile name |
 | `autoshots=<n>` | screenshot every n rounds (default 1, 0 = none) |
 | `autoplay=0` | test player only ends its turns (default: plays, see below) |
+| `autosingle` | single player game (instant start) with as many civilisations, for comparison |
 | `autoshow` | keep the window visible (hidden by default) |
 
 The network windows press the same buttons a player would press. In the
@@ -350,6 +355,7 @@ pwsh tools/mptest.ps1 -Turns 50 -AIPlayers 3
 pwsh tools/mptest.ps1 -Show              # beide Spielfenster ansehen
 pwsh tools/mptest.ps1 -ShotEvery 5       # Bild jede 5. Runde (0 = keine)
 pwsh tools/mptest.ps1 -Asan              # Client mit AddressSanitizer
+pwsh tools/mptest.ps1 -Single -Turns 40  # Einzelspieler-Lauf zum Vergleich
 ```
 
 Voraussetzung sind ein Final-SDL-x64-Build (`tools/win-build.ps1`) und die
@@ -364,7 +370,8 @@ bestanden, wenn:
 - Host und Client für die KI-Völker dieselben Werte protokollieren (Städte,
   Einheiten, Gold, Fortschritte). Der Rundenzähler des Clients läuft einen
   Zug voraus, deshalb wird Runde N des Hosts mit Runde N+1 des Clients
-  verglichen. Zwischen diesen beiden Momenten zieht nur der Host selbst.
+  verglichen. Zwischen diesen beiden Momenten zieht nur der Host selbst;
+- am Ende jedes Kartenfeld bei Host und Client dasselbe Gelände hat.
 
 **Was man bekommt:**
 - eine Zusammenfassung in der Konsole, mit Städten, Einheiten, Gold und
@@ -372,7 +379,9 @@ bestanden, wenn:
 - die Ordner `ctp2_code/ctp/autotest_host` und `ctp2_code/ctp/autotest_client`
   (Kopien des Builds, von git ignoriert), jeweils mit:
   - `autotest_log.txt`: Schritte, Runden, eine Statuszeile je Spieler und
-    Runde, Neuabgleich- und CRC-Ereignisse;
+    Runde, eine Detailzeile (Bauschleife, Produktion, Forschung, Steuer,
+    Regierung, Bevölkerung, Forschungsziel), Neuabgleich- und CRC-Ereignisse;
+  - `autotest_map_end.txt`: Gelände und Flags jedes Kartenfelds am Ende;
   - `autotest_result.txt`: das Ergebnis in maschinenlesbarer Form;
   - `autotest_round_<nnn>.png`: ein Bild vom eigenen Zugbeginn, auch bei
     verstecktem Fenster.
