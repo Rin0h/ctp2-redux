@@ -46,8 +46,8 @@ AUI_ERRCODE TipWindow::FitWindowToText( void )
 		rect.right += 10;
 		rect.bottom += 10;
 
-		if ( rect.right > m_surface->Width() ) rect.right = m_surface->Width();
-		if ( rect.bottom > m_surface->Height() ) rect.bottom = m_surface->Height();
+		if ( rect.right > m_surface->LogicalWidth() ) rect.right = m_surface->LogicalWidth();
+		if ( rect.bottom > m_surface->LogicalHeight() ) rect.bottom = m_surface->LogicalHeight();
 
 		Resize( rect.right, rect.bottom );
 	}

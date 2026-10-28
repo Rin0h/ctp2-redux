@@ -52,7 +52,7 @@ AUI_ERRCODE Pattern::Draw( aui_Surface *pDestSurf, RECT *pDestRect )
 {
 	if (!m_surface) return AUI_ERRCODE_OK;
 
-	RECT rect = { 0, 0, m_surface->Width(), m_surface->Height() };
+	RECT rect = { 0, 0, m_surface->LogicalWidth(), m_surface->LogicalHeight() };
 	return g_c3ui->TheBlitter()->TileBlt(
 		pDestSurf,
 		pDestRect,
@@ -79,7 +79,7 @@ AUI_ERRCODE Pattern::Draw( aui_Surface *pDestSurf, RECT *pDestRect, RECT *pSrcRe
 
 AUI_ERRCODE Pattern::DrawDither( aui_Surface *pDestSurf, RECT *pDestRect, BOOL flag )
 {
-	RECT rect = { 0, 0, m_surface->Width(), m_surface->Height() };
+	RECT rect = { 0, 0, m_surface->LogicalWidth(), m_surface->LogicalHeight() };
 	return g_c3ui->TheBlitter()->TileBlt(
 		pDestSurf,
 		pDestRect,
@@ -98,7 +98,7 @@ AUI_ERRCODE Pattern::DrawDither(
 	sint32 darken
 	)
 {
-	RECT rect = { 0, 0, m_surface->Width(), m_surface->Height() };
+	RECT rect = { 0, 0, m_surface->LogicalWidth(), m_surface->LogicalHeight() };
 	return g_c3ui->TheBlitter()->TileBlt(
 		pDestSurf,
 		pDestRect,

@@ -214,7 +214,7 @@ AUI_ERRCODE aui_Window::Resize( sint32 width, sint32 height )
 	if ( m_surface )
 	{
 		reallocSurface =
-			( width > m_surface->Width() || height > m_surface->Height() );
+			( width > m_surface->LogicalWidth() || height > m_surface->LogicalHeight() );
 
 		if ( reallocSurface )
 		{
