@@ -112,6 +112,15 @@ public:
 	void Up(bool confirmSwitch = false);
 	void Remove(bool confirmSwitch = false);
 
+	// Image and description of an item (also used by the classic city window)
+	static void SetItemDescription(
+			const IconRecord  * icon,
+			SlicContext       & context,
+			ctp2_Static       * imageBox,
+			ctp2_HyperTextBox * hyperTextBox,
+			aui_Region        * parent,
+			ctp2_Button       * imageButton);
+
 private:
 	static AUI_ERRCODE Initialize();
 	static AUI_ERRCODE Display();
@@ -170,13 +179,6 @@ private:
 	static void ClearMessageCallback(bool response, Cookie data);
 	static void ConfirmOverwrite    (bool response, Cookie data);
 
-	static void SetItemDescription(
-			const IconRecord  * icon,
-			SlicContext       & context,
-			ctp2_Static       * imageBox,
-			ctp2_HyperTextBox * hyperTextBox,
-			aui_Region        * parent,
-			ctp2_Button       * imageButton);
 	static void DoFocusList(ctp2_ListBox * list, bool focus);
 	static void ToggleTab(ctp2_ListBox * list, ctp2_Button * button, bool show);
 

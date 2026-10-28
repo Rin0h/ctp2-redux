@@ -55,6 +55,7 @@ class aui_Surface;
 class IconRecord;
 class SlicContext;
 class ctp2_HyperTextBox;
+class ctp2_HyperTextBox;
 class ctp2_Button;
 class aui_Image;
 class aui_Region;
@@ -164,7 +165,7 @@ private:
 	void Project();
 
 	static void SetItemIconOnly(const IconRecord *icon, SlicContext &sc, ctp2_Static *imageBox, aui_Region *parent,
-								   ctp2_Button *itemButton = NULL);
+								   ctp2_Button *itemButton = NULL, ctp2_HyperTextBox *description = NULL);
 
 	void FillHappinessList();
 	void FillPollutionList();

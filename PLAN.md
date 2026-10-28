@@ -384,7 +384,20 @@ aus der Apolyton-Fassung, nur die geänderten Fenster ersetzt):
   eigene Karte (Schieberegler).
 - Die kleinen Magenta-Ecken der Knöpfe gab es im Original genauso (kein
   Farbschlüssel für diese Bilder), bleiben daher.
-Nächstes Fenster: Stadtfenster, dann die übrigen In-Game-Fenster.
+Stadtfenster (`classic\default\uidata\layouts\citywindow.ldl`, erzeugt aus
+dem Original-Layout): wieder das kompakte Fenster mit den fünf Reitern
+Produktion, Inventar, Experten, Status, Einheiten. Apolyton hatte 2009 die
+Reiter entfernt und alles auf eine große Fläche gelegt (Commit 324159212),
+dabei alle Pfade umbenannt. Der Code nutzt weiter die Apolyton-Namen;
+`cw_Path` in citywindow.cpp sucht ein fehlendes Steuerelement im passenden
+Reiter des Originals (Tabelle `s_classicPlaces`), so laufen beide Layouts.
+Apolyton-Ergänzungen im Originalstil: Reichsmanager-Knopf unten, im Reiter
+Experten „Optimiere Spezialisten“ und Nahrung/Produktion/Gold aus Handel,
+im Reiter Status Runden bis Wachstum, Kriminalität, Bekehrungsverlust und
+Lizenzgebühren. Zurückgeholt aus dem Original: die Beschreibung des
+Bauobjekts und des gewählten Gebäudes mit Links in die Bibliothek
+(`EditQueue::SetItemDescription`, jetzt öffentlich).
+Nächstes: die übrigen In-Game-Fenster.
 
 Werkzeug: Bildschirmtour im Testmodus (`tools\mptest.ps1 -Single -Tour`:
 erst Hauptmenü, Einzelspieler-Menü, Neues Spiel und seine Fenster als

@@ -61,11 +61,15 @@
 // - Replaced old const database by new one. (5-Aug-2007 Martin Gühmann)
 // - Completely redesigned the window. Removed all the tabs, and added them
 //	 to sections of the window that are always visible. (28-Mar-2009 Maq)
+// - ctp2-redux classic interface: controls are also found in the tabs of
+//   the original layout (cw_Path).
 //
 //----------------------------------------------------------------------------
 
 #include "c3.h"
 #include "citywindow.h"
+
+#include <string>
 
 #include "ctp2_Window.h"
 #include "citydata.h"
@@ -144,6 +148,82 @@ extern C3UI                         *g_c3ui;
 
 static CityWindow                   *s_cityWindow = NULL;
 static const MBCHAR                 *s_cityWindowBlock = "CityWindow";
+
+// ctp2-redux classic interface: the original city window keeps the controls
+// in tabs, the Apolyton Edition in sections that are always visible. The
+// code uses the Apolyton names; a control not found there is looked up in
+// the tabs that have it in the original layout.
+namespace
+{
+	struct cw_ClassicPlace
+	{
+		char const * section;   // Apolyton section, "" for the window itself
+		char const * classic;   // where the original layout has its controls
+	};
+
+	cw_ClassicPlace const s_classicPlaces[] =
+	{
+		{ "ProductionSection", "Tabs.QueueTab.TabPanel"     },
+		{ "InventorySection",  "Tabs.InventoryTab.TabPanel" },
+		{ "StatisticsSection", "Tabs.Statistics.TabPanel"   },
+		{ "GarrisonSection",   "Tabs.Units.TabPanel"        },
+		{ "GarrisonSection",   "Tabs.QueueTab.TabPanel"     }, // ItemProgress
+		{ "GarrisonSection",   "Tabs.InventoryTab.TabPanel" }, // ItemImage
+		{ "Globals",           "Tabs.Specialists.TabPanel"  }, // citizens, efficiency, trade
+		{ "Globals",           "Tabs.Specialists.TabPanel.WorkerBox" }, // specialists
+		{ "",                  "Tabs.Specialists.TabPanel"  }, // OptimizeSpecialistButton
+	};
+
+	std::string cw_Path(MBCHAR const * name)
+	{
+		std::string const direct = std::string(s_cityWindowBlock) + "." + name;
+		if (aui_Ldl::GetObject(direct.c_str())) return direct;
+
+		for (cw_ClassicPlace const & place : s_classicPlaces)
+		{
+			size_t const len = strlen(place.section);
+			std::string  rest;
+			if (len == 0)
+				rest = std::string(".") + name;
+			else if (strncmp(name, place.section, len) == 0 && (name[len] == '\0' || name[len] == '.'))
+				rest = name + len;
+			else
+				continue;
+
+			std::string const path = std::string(s_cityWindowBlock) + "." + place.classic + rest;
+			if (aui_Ldl::GetObject(path.c_str())) return path;
+		}
+
+		return direct;
+	}
+
+	void * cw_GetObject(MBCHAR const * name)
+	{
+		return aui_Ldl::GetObject(cw_Path(name).c_str());
+	}
+
+	AUI_ERRCODE cw_SetActionFuncAndCookie(MBCHAR const * name, aui_Control::ControlActionCallback * actionFunc, Cookie cookie = nullptr)
+	{
+		return aui_Ldl::SetActionFuncAndCookie(cw_Path(name).c_str(), actionFunc, cookie);
+	}
+
+	// The tabs of the original layout describe the selected item; a link in
+	// the text opens the Great Library.
+	char const * const k_buildDescription     = "ProductionSection.ItemDescription";
+	char const * const k_inventoryDescription = "InventorySection.ItemDescription";
+
+	void cw_HyperLink(aui_Control * control, uint32 action, uint32 data, Cookie cookie)
+	{
+		if (action != (uint32)CTP2_HYPERLINK_ACTION_EXECUTE) return;
+
+		ctp2_HyperLink * link = ((ctp2_HyperTextBox *)control)->GetSelectedHyperLink();
+		if (link)
+		{
+			open_GreatLibrary();
+			g_greatLibrary->SetLibrary(link->m_index, (DATABASE)link->m_db);
+		}
+	}
+}
 static const MBCHAR                 *s_cityStatsBlock  = "CityStatisticsWindow"; // Advisor window
 
 static sint32 s_isBuilding = 1;
@@ -219,115 +299,120 @@ CityWindow::CityWindow(AUI_ERRCODE *err)
 	*err = aui_Ldl::SetActionFuncAndCookie(buttonBlock, CityWindow::PreviousCity, nullptr);
 	Assert(*err == AUI_ERRCODE_OK);
 
-	*err = aui_Ldl::SetActionFuncAndCookie(s_cityWindowBlock, "GovernorBox.Toggle", CityWindow::GovernorToggle, nullptr);
+	*err = cw_SetActionFuncAndCookie("GovernorBox.Toggle", CityWindow::GovernorToggle, nullptr);
 	Assert(*err == AUI_ERRCODE_OK);
 
-	*err = aui_Ldl::SetActionFuncAndCookie(s_cityWindowBlock, "GovernorBox.Pulldown", CityWindow::GovernorPriority, nullptr);
+	*err = cw_SetActionFuncAndCookie("GovernorBox.Pulldown", CityWindow::GovernorPriority, nullptr);
 	Assert(*err == AUI_ERRCODE_OK);
 
-	*err = aui_Ldl::SetActionFuncAndCookie(s_cityWindowBlock, "CityList.Pulldown", CityWindow::SelectCity, nullptr);
+	*err = cw_SetActionFuncAndCookie("CityList.Pulldown", CityWindow::SelectCity, nullptr);
 	Assert(*err == AUI_ERRCODE_OK);
 
-	m_popSpinners[POP_ENTERTAINER] = (ctp2_Spinner *)aui_Ldl::GetObject(s_cityWindowBlock, "Globals.EntertainersSpinner");
+	m_popSpinners[POP_ENTERTAINER] = (ctp2_Spinner *)cw_GetObject("Globals.EntertainersSpinner");
 	m_popSpinners[POP_ENTERTAINER]->SetSpinnerCallback(CityWindow::WorkerSpinnerCallback,
 													   m_popSpinners[POP_ENTERTAINER]);
 
-	m_popSpinners[POP_SCIENTIST] = (ctp2_Spinner *)aui_Ldl::GetObject(s_cityWindowBlock, "Globals.ScientistsSpinner");
+	m_popSpinners[POP_SCIENTIST] = (ctp2_Spinner *)cw_GetObject("Globals.ScientistsSpinner");
 	m_popSpinners[POP_SCIENTIST]->SetSpinnerCallback(CityWindow::WorkerSpinnerCallback,
 													 m_popSpinners[POP_SCIENTIST]);
 
-	m_popSpinners[POP_FARMER] = (ctp2_Spinner *)aui_Ldl::GetObject(s_cityWindowBlock, "Globals.FarmersSpinner");
+	m_popSpinners[POP_FARMER] = (ctp2_Spinner *)cw_GetObject("Globals.FarmersSpinner");
 	m_popSpinners[POP_FARMER]->SetSpinnerCallback(CityWindow::WorkerSpinnerCallback,
 												  m_popSpinners[POP_FARMER]);
 
-	m_popSpinners[POP_LABORER] = (ctp2_Spinner *)aui_Ldl::GetObject(s_cityWindowBlock, "Globals.LaborersSpinner");
+	m_popSpinners[POP_LABORER] = (ctp2_Spinner *)cw_GetObject("Globals.LaborersSpinner");
 	m_popSpinners[POP_LABORER]->SetSpinnerCallback(CityWindow::WorkerSpinnerCallback,
 												   m_popSpinners[POP_LABORER]);
 
-	m_popSpinners[POP_MERCHANT] = (ctp2_Spinner *)aui_Ldl::GetObject(s_cityWindowBlock, "Globals.MerchantsSpinner");
+	m_popSpinners[POP_MERCHANT] = (ctp2_Spinner *)cw_GetObject("Globals.MerchantsSpinner");
 	m_popSpinners[POP_MERCHANT]->SetSpinnerCallback(CityWindow::WorkerSpinnerCallback,
 													m_popSpinners[POP_MERCHANT]);
 
-	*err = aui_Ldl::SetActionFuncAndCookie(s_cityWindowBlock, "EditQueueButton", CityWindow::EditQueue, nullptr);
+	*err = cw_SetActionFuncAndCookie("EditQueueButton", CityWindow::EditQueue, nullptr);
 	Assert(*err == AUI_ERRCODE_OK);
 
-	if (aui_Ldl::GetObject(s_cityWindowBlock, "NationalManagerButton"))
+	if (cw_GetObject("NationalManagerButton"))
 	{
-		*err = aui_Ldl::SetActionFuncAndCookie(s_cityWindowBlock, "NationalManagerButton", CityWindow::OpenNationalManager, nullptr);
+		*err = cw_SetActionFuncAndCookie("NationalManagerButton", CityWindow::OpenNationalManager, nullptr);
 		Assert(*err == AUI_ERRCODE_OK);
 	}
 
-	if (aui_Ldl::GetObject(s_cityWindowBlock, "OptimizeSpecialistButton"))
+	if (cw_GetObject("OptimizeSpecialistButton"))
 	{
 		// Added by Martin Gühmann for specialist optimization option:
-		*err = aui_Ldl::SetActionFuncAndCookie(s_cityWindowBlock, "OptimizeSpecialistButton", CityWindow::OptimizeSpecialists, nullptr);
+		*err = cw_SetActionFuncAndCookie("OptimizeSpecialistButton", CityWindow::OptimizeSpecialists, nullptr);
 		Assert(*err == AUI_ERRCODE_OK);
 	}
 	// else No action: this button is not guaranteed to exist in mods.
 
-	*err = aui_Ldl::SetActionFuncAndCookie(s_cityWindowBlock, "ProductionSection.List", CityWindow::BuildListSelect, nullptr);
+	*err = cw_SetActionFuncAndCookie("ProductionSection.List", CityWindow::BuildListSelect, nullptr);
 	Assert(*err == AUI_ERRCODE_OK);
 
-	*err = aui_Ldl::SetActionFuncAndCookie(s_cityWindowBlock, "InventorySection.List", CityWindow::InventoryListSelect, nullptr);
+	*err = cw_SetActionFuncAndCookie("InventorySection.List", CityWindow::InventoryListSelect, nullptr);
 
-	*err = aui_Ldl::SetActionFuncAndCookie(s_cityWindowBlock, "ProductionSection.RushBuyButton", CityWindow::Buy, nullptr);
+	*err = cw_SetActionFuncAndCookie("ProductionSection.RushBuyButton", CityWindow::Buy, nullptr);
 	Assert(*err == AUI_ERRCODE_OK);
 
-	*err = aui_Ldl::SetActionFuncAndCookie(s_cityWindowBlock, "InventorySection.SellButton", CityWindow::Sell, nullptr);
+	*err = cw_SetActionFuncAndCookie("InventorySection.SellButton", CityWindow::Sell, nullptr);
+
+	if (cw_GetObject(k_buildDescription))
+		cw_SetActionFuncAndCookie(k_buildDescription, cw_HyperLink);
+	if (cw_GetObject(k_inventoryDescription))
+		cw_SetActionFuncAndCookie(k_inventoryDescription, cw_HyperLink);
 
 
 
 
-	m_growthBar = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "Globals.GrowthBar");
+	m_growthBar = (ctp2_Static *)cw_GetObject("Globals.GrowthBar");
 	if(m_growthBar) {
 		m_growthBar->SetDrawCallbackAndCookie(CityWindow::DrawGrowthBar, nullptr);
 	}
 
-	m_growthDelta = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "Globals.GrowthDelta");
+	m_growthDelta = (ctp2_Static *)cw_GetObject("Globals.GrowthDelta");
 
-	m_happinessBar = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "Globals.HappinessBar");
+	m_happinessBar = (ctp2_Static *)cw_GetObject("Globals.HappinessBar");
 	if(m_happinessBar) {
 		m_happinessBar->SetDrawCallbackAndCookie(CityWindow::DrawHappinessBar, nullptr);
 	}
-	m_happinessValue = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "Globals.HappinessValue");
+	m_happinessValue = (ctp2_Static *)cw_GetObject("Globals.HappinessValue");
 
-	m_conversionLossValue = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "StatisticsSection.ConversionLossValue");
-	m_franchiseLossValue = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "StatisticsSection.FranchiseLossValue");
+	m_conversionLossValue = (ctp2_Static *)cw_GetObject("StatisticsSection.ConversionLossValue");
+	m_franchiseLossValue = (ctp2_Static *)cw_GetObject("StatisticsSection.FranchiseLossValue");
 
-	m_growthTurns = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "StatisticsSection.GrowthTurnsValue");
+	m_growthTurns = (ctp2_Static *)cw_GetObject("StatisticsSection.GrowthTurnsValue");
 
-	*err = aui_Ldl::SetActionFuncAndCookie(s_cityWindowBlock, "GarrisonSection.ItemProgress.IconBorder.IconButton", CityWindow::EditQueue, nullptr);
+	*err = cw_SetActionFuncAndCookie("GarrisonSection.ItemProgress.IconBorder.IconButton", CityWindow::EditQueue, nullptr);
 	Assert(*err == AUI_ERRCODE_OK);
 
-	*err = aui_Ldl::SetActionFuncAndCookie(s_cityWindowBlock, "GarrisonSection.ItemProgress.IconBorder.IconButton.RadialButton", CityWindow::EditQueue, nullptr);
+	*err = cw_SetActionFuncAndCookie("GarrisonSection.ItemProgress.IconBorder.IconButton.RadialButton", CityWindow::EditQueue, nullptr);
 	Assert(*err == AUI_ERRCODE_OK);
 
-	m_buildProgressBar = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "GarrisonSection.ItemProgress.IconBorder.IconButton.ProgressBarParent.ProgressBar");
+	m_buildProgressBar = (ctp2_Static *)cw_GetObject("GarrisonSection.ItemProgress.IconBorder.IconButton.ProgressBarParent.ProgressBar");
 	if(m_buildProgressBar) {
 		m_buildProgressBar->SetDrawCallbackAndCookie(CityWindow::DrawBuildBar, nullptr);
 	}
 
-	m_globalBox = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "Globals");
-	m_globalFood = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "Globals.FoodValue");
-	m_globalProduction = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "Globals.ProductionValue");
-	m_globalScience = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "Globals.ScienceValue");
-	m_globalTrade = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "Globals.TradeValue");
-	m_globalTradeFood = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "Globals.FoodTradeValue");
-	m_globalTradeProduction = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "Globals.ProductionTradeValue");
-	m_globalTradeGold = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "Globals.GoldTradeValue");
-	m_globalPopulation = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "Globals.PopulationValue");
+	m_globalBox = (ctp2_Static *)cw_GetObject("Globals");
+	m_globalFood = (ctp2_Static *)cw_GetObject("Globals.FoodValue");
+	m_globalProduction = (ctp2_Static *)cw_GetObject("Globals.ProductionValue");
+	m_globalScience = (ctp2_Static *)cw_GetObject("Globals.ScienceValue");
+	m_globalTrade = (ctp2_Static *)cw_GetObject("Globals.TradeValue");
+	m_globalTradeFood = (ctp2_Static *)cw_GetObject("Globals.FoodTradeValue");
+	m_globalTradeProduction = (ctp2_Static *)cw_GetObject("Globals.ProductionTradeValue");
+	m_globalTradeGold = (ctp2_Static *)cw_GetObject("Globals.GoldTradeValue");
+	m_globalPopulation = (ctp2_Static *)cw_GetObject("Globals.PopulationValue");
 
-	ctp2_Static *efficiencyBar = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "Globals.EfficiencyBar");
+	ctp2_Static *efficiencyBar = (ctp2_Static *)cw_GetObject("Globals.EfficiencyBar");
 	if(efficiencyBar) {
 		efficiencyBar->SetDrawCallbackAndCookie(CityWindow::DrawEfficiencyBar, nullptr);
 	}
 
-	ctp2_Static *mapStatic = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "Globals.ResourceMap");
+	ctp2_Static *mapStatic = (ctp2_Static *)cw_GetObject("Globals.ResourceMap");
 	if(mapStatic) {
 		mapStatic->SetDrawCallbackAndCookie(CityWindow::DrawResourceMap, nullptr);
 	}
 
-	ctp2_DropDown *dd = (ctp2_DropDown *)aui_Ldl::GetObject(s_cityWindowBlock, "GovernorBox.Pulldown");
+	ctp2_DropDown *dd = (ctp2_DropDown *)cw_GetObject("GovernorBox.Pulldown");
 	Assert(dd);
 	if(dd) {
 		dd->Clear();
@@ -346,35 +431,35 @@ CityWindow::CityWindow(AUI_ERRCODE *err)
 		}
 	}
 
-	m_resVal[CW_RES_HAPPY] = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "Globals.HappyWorkerValue");
-	m_resVal[CW_RES_FOOD] = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "Globals.FoodWorkerValue");
-	m_resVal[CW_RES_PROD] = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "Globals.ProductionWorkerValue");
-	m_resVal[CW_RES_TRADE] = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "Globals.TradeWorkerValue");
-	m_resVal[CW_RES_SCI] = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "Globals.ScienceWorkerValue");
+	m_resVal[CW_RES_HAPPY] = (ctp2_Static *)cw_GetObject("Globals.HappyWorkerValue");
+	m_resVal[CW_RES_FOOD] = (ctp2_Static *)cw_GetObject("Globals.FoodWorkerValue");
+	m_resVal[CW_RES_PROD] = (ctp2_Static *)cw_GetObject("Globals.ProductionWorkerValue");
+	m_resVal[CW_RES_TRADE] = (ctp2_Static *)cw_GetObject("Globals.TradeWorkerValue");
+	m_resVal[CW_RES_SCI] = (ctp2_Static *)cw_GetObject("Globals.ScienceWorkerValue");
 
-	m_tabPanels[CW_PANEL_STATISTICS] = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "StatisticsSection");
-	m_tabPanels[CW_PANEL_GARRISON] = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "GarrisonSection");
+	m_tabPanels[CW_PANEL_STATISTICS] = (ctp2_Static *)cw_GetObject("StatisticsSection");
+	m_tabPanels[CW_PANEL_GARRISON] = (ctp2_Static *)cw_GetObject("GarrisonSection");
 
-	m_queueList = (ctp2_ListBox *)aui_Ldl::GetObject(s_cityWindowBlock, "ProductionSection.List");
-	m_inventoryList = (ctp2_ListBox *)aui_Ldl::GetObject(s_cityWindowBlock, "InventorySection.List");
+	m_queueList = (ctp2_ListBox *)cw_GetObject("ProductionSection.List");
+	m_inventoryList = (ctp2_ListBox *)cw_GetObject("InventorySection.List");
 
 	m_queueList->SetForceSelect(TRUE);
 	m_inventoryList->SetForceSelect(TRUE);
 
-	m_pollutionList = (ctp2_ListBox *)aui_Ldl::GetObject(s_cityWindowBlock, "StatisticsSection.PollutionList");
+	m_pollutionList = (ctp2_ListBox *)cw_GetObject("StatisticsSection.PollutionList");
 	Assert(m_pollutionList);
-	m_happinessList = (ctp2_ListBox *)aui_Ldl::GetObject(s_cityWindowBlock, "StatisticsSection.HappinessList");
+	m_happinessList = (ctp2_ListBox *)cw_GetObject("StatisticsSection.HappinessList");
 	Assert(m_happinessList);
 
 	m_pollutionList->SetAbsorbancy(FALSE);
 	m_happinessList->SetAbsorbancy(FALSE);
 
-	m_rushBuyButton = (ctp2_Button *)aui_Ldl::GetObject(s_cityWindowBlock, "ProductionSection.RushBuyButton");
-	m_sellButton = (ctp2_Button *)aui_Ldl::GetObject(s_cityWindowBlock, "InventorySection.SellButton");
+	m_rushBuyButton = (ctp2_Button *)cw_GetObject("ProductionSection.RushBuyButton");
+	m_sellButton = (ctp2_Button *)cw_GetObject("InventorySection.SellButton");
 
-	aui_Ldl::SetActionFuncAndCookie(s_cityWindowBlock, "GarrisonSection", BuildTabCallback, (void *)CW_PANEL_GARRISON);
+	cw_SetActionFuncAndCookie("GarrisonSection", BuildTabCallback, (void *)CW_PANEL_GARRISON);
 
-	*err = aui_Ldl::SetActionFuncAndCookie(s_cityWindowBlock, "ShowStatisticsButton", ShowStatistics, nullptr);//advisor window button
+	*err = cw_SetActionFuncAndCookie("ShowStatisticsButton", ShowStatistics, nullptr);//advisor window button
 	Assert(*err == AUI_ERRCODE_OK);
 
 	sint32 x,y;
@@ -383,7 +468,7 @@ CityWindow::CityWindow(AUI_ERRCODE *err)
 		for(x = 0; x < 4; x++) {
 			char buf[256];
 			sprintf(buf, "GarrisonSection.UnitButtons.b%c%c.IconBorder.Button", char(x + '0'), char(y + '0'));
-			m_unitButtons[unitButton] = (ctp2_Button *)aui_Ldl::GetObject(s_cityWindowBlock, buf);
+			m_unitButtons[unitButton] = (ctp2_Button *)cw_GetObject(buf);
 			Assert(m_unitButtons[unitButton]);
 			if(m_unitButtons[unitButton]) {
 				m_unitButtons[unitButton]->Enable(FALSE);
@@ -394,10 +479,10 @@ CityWindow::CityWindow(AUI_ERRCODE *err)
 		}
 	}
 
-	m_activateButton = (ctp2_Button *)aui_Ldl::GetObject(s_cityWindowBlock, "GarrisonSection.ActivateButton");
-	aui_Ldl::SetActionFuncAndCookie(s_cityWindowBlock, "GarrisonSection.ActivateButton", ActivateUnitCallback, nullptr);
+	m_activateButton = (ctp2_Button *)cw_GetObject("GarrisonSection.ActivateButton");
+	cw_SetActionFuncAndCookie("GarrisonSection.ActivateButton", ActivateUnitCallback, nullptr);
 
-	m_disbandButton = (ctp2_Button *)aui_Ldl::GetObject(s_cityWindowBlock, "GarrisonSection.DisbandButton");
+	m_disbandButton = (ctp2_Button *)cw_GetObject("GarrisonSection.DisbandButton");
 	m_disbandButton->SetActionFuncAndCookie(DisbandUnitCallback, nullptr);
 }
 
@@ -440,7 +525,7 @@ CityWindow::~CityWindow()
 
 	ctp2_DropDown *	const	dropdown	=
 		static_cast<ctp2_DropDown *>
-			(aui_Ldl::GetObject(s_cityWindowBlock, "GovernorBox.Pulldown"));
+			(cw_GetObject("GovernorBox.Pulldown"));
 	if (dropdown)			// container + reference
 	{
 		dropdown->Clear();
@@ -581,7 +666,7 @@ void CityWindow::Update()
 
 	m_updating = true;
 
-	ctp2_DropDown *cityDD = (ctp2_DropDown *)aui_Ldl::GetObject("CityWindow.CityList.Pulldown");
+	ctp2_DropDown *cityDD = (ctp2_DropDown *)cw_GetObject("CityList.Pulldown");
 	if(cityDD) {
 		UnitDynamicArray *cityList = g_player[g_selected_item->GetVisiblePlayer()]->m_all_cities;
 
@@ -613,20 +698,20 @@ void CityWindow::Update()
 	}
 
 	CityData * cityData = m_city.GetCityData();
-	ctp2_Static *text = (ctp2_Static *)aui_Ldl::GetObject("CityWindow.Globals.WorkersCount");
+	ctp2_Static *text = (ctp2_Static *)cw_GetObject("Globals.WorkersCount");
 	char value[1024];
 	if(text) {
 		sprintf(value, "%d", cityData->WorkerCount());
 		text->SetText(value);
 	}
 
-	text = (ctp2_Static *)aui_Ldl::GetObject("CityWindow.Globals.SlaveCount");
+	text = (ctp2_Static *)cw_GetObject("Globals.SlaveCount");
 	if(text) {
 		sprintf(value, "%d", cityData->SlaveCount());
 		text->SetText(value);
 	}
 
-	text = (ctp2_Static *)aui_Ldl::GetObject("CityWindow.Globals.TotalCount");
+	text = (ctp2_Static *)cw_GetObject("Globals.TotalCount");
 	if(text) {
 		sprintf(value, "%d", cityData->PopCount());
 		text->SetText(value);
@@ -695,10 +780,10 @@ void CityWindow::Update()
 	}
 	UpdateBuildTabs();
 
-	ctp2_Button *button = (ctp2_Button *)aui_Ldl::GetObject(s_cityWindowBlock, "GovernorBox.Toggle");
+	ctp2_Button *button = (ctp2_Button *)cw_GetObject("GovernorBox.Toggle");
 	Assert(button);
 
-	ctp2_DropDown *dd = (ctp2_DropDown *)aui_Ldl::GetObject(s_cityWindowBlock, "GovernorBox.Pulldown");
+	ctp2_DropDown *dd = (ctp2_DropDown *)cw_GetObject("GovernorBox.Pulldown");
 	Assert(dd);
 
 	if(button) {
@@ -865,7 +950,7 @@ void CityWindow::UpdateBuildTabs()
 	}
 
 	CityData * cityData = m_city.GetCityData();
-	ctp2_Button *turnCountButton = (ctp2_Button *)aui_Ldl::GetObject(s_cityWindowBlock, "GarrisonSection.ItemProgress.IconBorder.IconButton.RadialButton");
+	ctp2_Button *turnCountButton = (ctp2_Button *)cw_GetObject("GarrisonSection.ItemProgress.IconBorder.IconButton.RadialButton");
 	MBCHAR buf[20];
 	if(turnCountButton) {
 		sint32 turns = cityData->AlreadyBoughtFront() ? -1 : cityData->HowMuchLonger();
@@ -1001,8 +1086,8 @@ void CityWindow::UpdateCostsGives()
 {
 	CityData * cityData = m_city->GetCityData();
 
-	ctp2_Static *costsValue = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "ProductionSection.CostsValue");
-	ctp2_Static *givesValue = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "InventorySection.GivesValue");
+	ctp2_Static *costsValue = (ctp2_Static *)cw_GetObject("ProductionSection.CostsValue");
+	ctp2_Static *givesValue = (ctp2_Static *)cw_GetObject("InventorySection.GivesValue");
 	Assert(costsValue);
 	Assert(givesValue);
 
@@ -1021,8 +1106,8 @@ void CityWindow::UpdateCostsGives()
 		costsValue->SetText(buf);
 	}
 
-	ctp2_Static *tabpanel = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "ProductionSection");
-	ctp2_Static *tabpanel2 = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "GarrisonSection");
+	ctp2_Static *tabpanel = (ctp2_Static *)cw_GetObject("ProductionSection");
+	ctp2_Static *tabpanel2 = (ctp2_Static *)cw_GetObject("GarrisonSection");
 	Assert(tabpanel);
 	if(tabpanel) {
 		tabpanel->ShouldDraw(TRUE);
@@ -1032,7 +1117,7 @@ void CityWindow::UpdateCostsGives()
 		tabpanel2->ShouldDraw(TRUE);
 	}
 
-	ctp2_ListBox *lb = (ctp2_ListBox *)aui_Ldl::GetObject(s_cityWindowBlock, "InventorySection.List");
+	ctp2_ListBox *lb = (ctp2_ListBox *)cw_GetObject("InventorySection.List");
 
 	Assert(lb);
 	if(lb) {
@@ -1400,11 +1485,11 @@ void CityWindow::BuildListSelect(aui_Control *control, uint32 action, uint32 dat
 		ctp2_ListItem *item = (ctp2_ListItem *)lb->GetSelectedItem();
 		SlicContext sc;
 
-		ctp2_Button *imageButton = (ctp2_Button *)aui_Ldl::GetObject(s_cityWindowBlock, "GarrisonSection.ItemProgress.IconBorder.IconButton");
+		ctp2_Button *imageButton = (ctp2_Button *)cw_GetObject("GarrisonSection.ItemProgress.IconBorder.IconButton");
 
 		if(!item) {
 			SetItemIconOnly(NULL, sc, NULL, s_cityWindow->m_tabPanels[CW_PANEL_GARRISON],
-							   imageButton);
+							   imageButton, (ctp2_HyperTextBox *)cw_GetObject(k_buildDescription));
 
 			s_cityWindow->UpdateBuildTabButtons();
 			return;
@@ -1455,13 +1540,12 @@ void CityWindow::BuildListSelect(aui_Control *control, uint32 action, uint32 dat
 		}
 
 		SetItemIconOnly(icon, sc, NULL, s_cityWindow->m_tabPanels[CW_PANEL_GARRISON],
-						   imageButton);
+						   imageButton, (ctp2_HyperTextBox *)cw_GetObject(k_buildDescription));
 	}
 	s_cityWindow->UpdateBuildTabButtons();
 
 	//Added by Martin Gühmann to update the turn count display of the image button
-	ctp2_Button *	turnCountButton = (ctp2_Button *) aui_Ldl::GetObject
-		(s_cityWindowBlock, "GarrisonSection.ItemProgress.IconBorder.IconButton.RadialButton");
+	ctp2_Button *	turnCountButton = (ctp2_Button *) cw_GetObject("GarrisonSection.ItemProgress.IconBorder.IconButton.RadialButton");
 
 	if (lb && turnCountButton)
 	{
@@ -1504,10 +1588,11 @@ void CityWindow::InventoryListSelect(aui_Control *control, uint32 action, uint32
 		ctp2_ListItem *item = (ctp2_ListItem *)lb->GetSelectedItem();
 		SlicContext sc;
 
-		ctp2_Button *imageButton = (ctp2_Button *)aui_Ldl::GetObject(s_cityWindowBlock, "GarrisonSection.ItemImage.IconBorder.IconButton");
+		ctp2_Button *imageButton = (ctp2_Button *)cw_GetObject("GarrisonSection.ItemImage.IconBorder.IconButton");
 
 		if(!item) {
-			SetItemIconOnly(NULL, sc, NULL, s_cityWindow->m_tabPanels[CW_PANEL_GARRISON], imageButton);
+			SetItemIconOnly(NULL, sc, NULL, s_cityWindow->m_tabPanels[CW_PANEL_GARRISON], imageButton,
+			                (ctp2_HyperTextBox *)cw_GetObject(k_inventoryDescription));
 
 			s_cityWindow->UpdateBuildTabButtons();
 			return;
@@ -1524,7 +1609,8 @@ void CityWindow::InventoryListSelect(aui_Control *control, uint32 action, uint32
 			sc.AddWonder(info->m_type);
 		}
 
-		SetItemIconOnly(icon, sc, NULL, s_cityWindow->m_tabPanels[CW_PANEL_GARRISON], imageButton);
+		SetItemIconOnly(icon, sc, NULL, s_cityWindow->m_tabPanels[CW_PANEL_GARRISON], imageButton,
+		                (ctp2_HyperTextBox *)cw_GetObject(k_inventoryDescription));
 	}
 	s_cityWindow->UpdateBuildTabButtons();
 }
@@ -1997,10 +2083,17 @@ AUI_ERRCODE CityWindow::DrawResourceMap(ctp2_Static *control,
 	return AUI_ERRCODE_OK;
 }
 
-void CityWindow::SetItemIconOnly(const IconRecord *icon, SlicContext &sc, ctp2_Static *imageBox, aui_Region *parent, ctp2_Button *imageButton)
+void CityWindow::SetItemIconOnly(const IconRecord *icon, SlicContext &sc, ctp2_Static *imageBox, aui_Region *parent, ctp2_Button *imageButton, ctp2_HyperTextBox *description)
 {
 	Assert(imageBox || imageButton);
 	if(!imageBox && !imageButton) return;
+
+	// ctp2-redux classic interface: with a description box like the original
+	if (description)
+	{
+		EditQueue::SetItemDescription(icon, sc, imageBox, description, parent, imageButton);
+		return;
+	}
 
 	if(icon) {
 		MBCHAR dammit[1024];
@@ -2062,7 +2155,7 @@ void CityWindow::FillHappinessList()
 	cw_HappyData  happies[HAPPY_REASON_MAX];
 
 	//note: this label was/is not used.
-	ctp2_Static *happinessLabel = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "StatisticsSection.HappinessTotalLabel");
+	ctp2_Static *happinessLabel = (ctp2_Static *)cw_GetObject("StatisticsSection.HappinessTotalLabel");
 	if (happinessLabel)
 	{
 		const char *    format = g_theStringDB->GetNameStr("str_code_CityWinTotalHappinessFormat");
@@ -2228,7 +2321,7 @@ void CityWindow::FillPollutionList()
 	const COLORREF colorNorm = RGB(50,50,50);
 	const COLORREF colorCritical = g_colorSet->GetColorRef(COLOR_RED);
 
-	ctp2_Static *pollutionLabel2 = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "StatisticsSection.PollutionTotal");
+	ctp2_Static *pollutionLabel2 = (ctp2_Static *)cw_GetObject("StatisticsSection.PollutionTotal");
 	if(pollutionLabel2) {
 		sint32 pollution = cityData->GetPollution();
 		char buf[k_MAX_NAME_LEN];
@@ -2353,7 +2446,7 @@ void CityWindow::FillStatsLists()
 	FillHappinessList();
 	FillPollutionList();
 
-	ctp2_Static *crimeBox2 = (ctp2_Static *)aui_Ldl::GetObject(s_cityWindowBlock, "StatisticsSection.CrimePercentage");
+	ctp2_Static *crimeBox2 = (ctp2_Static *)cw_GetObject("StatisticsSection.CrimePercentage");
 	if(crimeBox2) {
 		MBCHAR buf[k_MAX_NAME_LEN];
 		sprintf(buf, g_theStringDB->GetNameStr("str_ldl_CityWinSpecTabCrimeFormat"),

@@ -53,6 +53,8 @@
 #include "sciencevictorydialog.h"
 #include "aui_ldl.h"
 #include "c3ui.h"
+#include "ctp2_TabGroup.h"
+#include "ctp2_Tab.h"
 extern C3UI *g_c3ui;
 #include "initialplaywindow.h"
 #include "spnewgamewindow.h"
@@ -83,6 +85,18 @@ namespace
 
 	void OpenCity()       { Unit c = FirstCity(); if (c.IsValid()) CityWindow::Display(c); }
 	void CloseCity()      { CityWindow::Hide(); }
+	// The tabs of the classic city window (the Apolyton window has none)
+	void OpenCityTab(const char *tab)
+	{
+		OpenCity();
+		ctp2_TabGroup *group = (ctp2_TabGroup *)aui_Ldl::GetObject("CityWindow.Tabs");
+		ctp2_Tab *     page  = (ctp2_Tab *)aui_Ldl::GetObject("CityWindow.Tabs", tab);
+		if (group && page) group->SelectTab(page);
+	}
+	void OpenCityInventory()   { OpenCityTab("InventoryTab"); }
+	void OpenCitySpecialists() { OpenCityTab("Specialists"); }
+	void OpenCityStatistics()  { OpenCityTab("Statistics"); }
+	void OpenCityUnits()       { OpenCityTab("Units"); }
 	void OpenCityStatus() { open_CityStatus(); }
 	void OpenCivStatus()  { open_CivStatus(); }
 	void OpenScience()    { open_ScienceStatus(); }
@@ -143,6 +157,10 @@ namespace
 	{
 		{ "map",          Nothing,        Nothing        },
 		{ "city",         OpenCity,       CloseCity      },
+		{ "city_inventory",   OpenCityInventory,   CloseCity },
+		{ "city_specialists", OpenCitySpecialists, CloseCity },
+		{ "city_statistics",  OpenCityStatistics,  CloseCity },
+		{ "city_units",       OpenCityUnits,       CloseCity },
 		{ "citystatus",   OpenCityStatus, close_CityStatus },
 		{ "civstatus",    OpenCivStatus,  close_CivStatus  },
 		{ "science",      OpenScience,    CloseScience   },
