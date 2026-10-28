@@ -276,11 +276,17 @@ void aui_SDLMouse::ActivateCursor(aui_Cursor *cursor)
 			POINT hotspot;
 			cursor->GetHotspot(hotspot);
 
-			// ctp2-redux: the cursor as large as the game pixels
+			// ctp2-redux: the cursor as large as the game pixels; an HD cursor
+			// (upscaling script) already is, only its hotspot is converted
 			SDL_Surface *image = sdlCursorSurface->GetSDLSurface();
 			SDL_Surface *scaled = NULL;
 			const sint32 scale = g_ui ? g_ui->Scale() : 1;
-			if (scale > 1)
+			if (cursorSurface->Scale() > 1)
+			{
+				hotspot.x *= cursorSurface->Scale();
+				hotspot.y *= cursorSurface->Scale();
+			}
+			else if (scale > 1)
 			{
 				scaled = SDL_CreateRGBSurfaceWithFormat(0, image->w * scale, image->h * scale,
 				                                        image->format->BitsPerPixel, image->format->format);

@@ -136,8 +136,13 @@ using System.Runtime.InteropServices;
 
 public static class Ctp2Assets
 {
-    // magenta, the transparent color of the game
-    static bool IsKey(int r, int g, int b) { return r >= 248 && g <= 7 && b >= 248; }
+    // the transparent color: magenta, black for the mouse cursors
+    public static bool BlackKey = false;
+    static bool IsKey(int r, int g, int b)
+    {
+        if (BlackKey) return r == 0 && g == 0 && b == 0;
+        return r >= 248 && g <= 7 && b >= 248;
+    }
 
     // --- reading ---------------------------------------------------------------
 
@@ -277,11 +282,28 @@ public static class Ctp2Assets
         }
     }
 
-    // the original (with the transparent areas) and the image for the upscaler
+    public const string MaskSuffix = "__maske";
+
+    // the original (with the transparent areas) and the image for the
+    // upscaler; with transparent areas also their mask (white = visible),
+    // which goes through the upscaler too: it turns the pixel steps of the
+    // outlines into clean lines
     public static void Export(byte[] rgb, int width, int height, string name, string inDir, string origDir)
     {
         SavePng(rgb, width, height, Path.Combine(origDir, name + ".png"));
         SavePng(FillTransparent(rgb, width, height), width, height, Path.Combine(inDir, name + ".png"));
+
+        byte[] mask = new byte[rgb.Length];
+        bool anyKey = false, anyVisible = false;
+        for (int i = 0; i < width * height; i++)
+        {
+            bool key = IsKey(rgb[i * 3], rgb[i * 3 + 1], rgb[i * 3 + 2]);
+            byte v = key ? (byte)0 : (byte)255;
+            mask[i * 3] = v; mask[i * 3 + 1] = v; mask[i * 3 + 2] = v;
+            if (key) anyKey = true; else anyVisible = true;
+        }
+        if (anyKey && anyVisible)
+            SavePng(mask, width, height, Path.Combine(inDir, name + MaskSuffix + ".png"));
     }
 
     // --- after the upscaling ---------------------------------------------------
@@ -365,7 +387,21 @@ public static class Ctp2Assets
         byte[] orig = LoadPng(original, out ow, out oh);
         int tw = ow * scale, th = oh * scale;
         if (w != tw || h != th) throw new Exception("unerwartete Groesse " + w + "x" + h);
-        bool[] key = ScaleMask(orig, ow, oh, scale);
+
+        // the transparent areas: the upscaled mask cut at one half, else
+        // the mask of the original sampled smoothly
+        bool[] key;
+        string maskPath = Path.Combine(Path.GetDirectoryName(upscaled),
+                                       Path.GetFileNameWithoutExtension(upscaled) + MaskSuffix + ".png");
+        int mw = 0, mh = 0;
+        byte[] mask = File.Exists(maskPath) ? LoadPng(maskPath, out mw, out mh) : null;
+        if (mask != null && mw == tw && mh == th)
+        {
+            key = new bool[tw * th];
+            for (int i = 0; i < key.Length; i++) key[i] = mask[i * 3 + 1] < 128;
+        }
+        else
+            key = ScaleMask(orig, ow, oh, scale);
 
         byte[] tga = new byte[18 + tw * th * 2];
         tga[2] = 2;
@@ -378,13 +414,14 @@ public static class Ctp2Assets
             {
                 int p;
                 if (key[y * tw + x])
-                    p = (31 << 10) | 31;
+                    p = BlackKey ? 0 : (31 << 10) | 31;
                 else
                 {
                     int i = (y * tw + x) * 3;
                     p = ((up[i] >> 3) << 10) | ((up[i + 1] >> 3) << 5) | (up[i + 2] >> 3);
                     // keep upscaled pixels from turning into the transparent color
-                    if (p == ((31 << 10) | 31)) p = (31 << 10) | 30;
+                    if (!BlackKey && p == ((31 << 10) | 31)) p = (31 << 10) | 30;
+                    if (BlackKey && p == 0) p = (1 << 10) | (1 << 5) | 1;
                 }
                 BitConverter.GetBytes((ushort)p).CopyTo(tga, 18 + ((th - 1 - y) * tw + x) * 2);
             }
@@ -425,6 +462,13 @@ foreach ($name in $rims.Keys) {
     $sources[$key] = @{ rim = $rims[$name] }
 }
 foreach ($name in $loose.Keys) { $sources[$name] = @{ tga = $loose[$name] } }
+# the mouse cursors (black is their transparent color)
+foreach ($dir in @('default', $language)) {
+    $base = Join-Path $data "$dir\graphics\cursors"
+    if (Test-Path $base) {
+        foreach ($f in Get-ChildItem -Path $base -Filter '*.tga') { $sources[$f.BaseName.ToLower()] = @{ tga = $f.FullName; black = $true } }
+    }
+}
 Say "Bilder gefunden: $($sources.Count)"
 
 # --- export (only what is not done yet) -----------------------------------------
@@ -437,6 +481,7 @@ foreach ($name in $sources.Keys) {
         if ($src.rim) { $rgb = [Ctp2Assets]::DecodeRim($src.rim, [ref]$w, [ref]$h) }
         else          { $rgb = [Ctp2Assets]::DecodeTga([IO.File]::ReadAllBytes($src.tga), [ref]$w, [ref]$h) }
         if ($w -lt 1 -or $h -lt 1) { continue }
+        [Ctp2Assets]::BlackKey = [bool]$src.black
         [Ctp2Assets]::Export($rgb, $w, $h, $name, $inDir, $origDir)
         $todo += $name
     } catch {
@@ -472,6 +517,7 @@ foreach ($name in $todo) {
     $up = Join-Path $outDir "$name.png"
     if (-not (Test-Path $up)) { Say "  fehlt: $name"; continue }
     try {
+        [Ctp2Assets]::BlackKey = [bool]$sources[$name].black
         [Ctp2Assets]::Import($up, (Join-Path $origDir "$name.png"), $Scale, (Join-Path $target "$name.tga"))
         $ok++
     } catch {
