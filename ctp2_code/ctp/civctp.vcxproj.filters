@@ -278,6 +278,9 @@
     <ClCompile Include="ctp2_utils\appstrings.cpp">
       <Filter>CTP\ctp2_utils</Filter>
     </ClCompile>
+    <ClCompile Include="ctp2_utils\autotest.cpp">
+      <Filter>CTP\ctp2_utils</Filter>
+    </ClCompile>
     <ClCompile Include="ctp2_utils\c3cmdline.cpp">
       <Filter>CTP\ctp2_utils</Filter>
     </ClCompile>
@@ -2531,6 +2534,9 @@
       <Filter>CTP\ctp2_utils</Filter>
     </ClInclude>
     <ClInclude Include="ctp2_utils\BitMask.h">
+      <Filter>CTP\ctp2_utils</Filter>
+    </ClInclude>
+    <ClInclude Include="ctp2_utils\autotest.h">
       <Filter>CTP\ctp2_utils</Filter>
     </ClInclude>
     <ClInclude Include="ctp2_utils\c3cmdline.h">

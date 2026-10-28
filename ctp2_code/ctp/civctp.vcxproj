@@ -18599,6 +18599,7 @@
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">Disabled</Optimization>
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|ARM'">Disabled</Optimization>
     </ClCompile>
+    <ClCompile Include="ctp2_utils\autotest.cpp" />
     <ClCompile Include="ctp2_utils\c3cmdline.cpp">
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\ai\personality;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug-SDL|Win32'">..\ai\personality;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -20334,6 +20335,7 @@
     <ClInclude Include="ctp2_utils\appstrings.h" />
     <ClInclude Include="ctp2_utils\AvlTree.h" />
     <ClInclude Include="ctp2_utils\BitMask.h" />
+    <ClInclude Include="ctp2_utils\autotest.h" />
     <ClInclude Include="ctp2_utils\c3cmdline.h" />
     <ClInclude Include="ctp2_utils\c3debug.h" />
     <ClInclude Include="ctp2_utils\c3debugstl.h" />

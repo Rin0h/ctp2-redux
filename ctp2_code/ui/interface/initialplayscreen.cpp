@@ -63,6 +63,7 @@
 #include "screenutils.h"
 #include <string>               // std::basic_string
 #include "UIUtils.h"
+#include "autotest.h"                   // ctp2-redux test mode
 
 extern  C3UI				*g_c3ui;
 extern  CivApp				*g_civApp;
@@ -81,6 +82,7 @@ sint32	initialplayscreen_displayMyWindow()
     sint32 retval = (s_initplayWindow) ? 0 : initialplayscreen_Initialize();
 
 	g_c3ui->AddWindow(s_initplayWindow);
+	autotest_NoteMainMenu();
 
 	return retval;
 }

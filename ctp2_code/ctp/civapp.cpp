@@ -274,6 +274,7 @@
 
 #include <thread>
 #include <chrono>
+#include "autotest.h"
 
 extern ScreenManager *          g_screenManager;
 extern OzoneDatabase            *g_theUVDB;
@@ -2536,6 +2537,8 @@ sint32 CivApp::Process(void)
 	ProcessNet(target_milliseconds, used_milliseconds);
 
 	ProcessUI(target_milliseconds, used_milliseconds);
+
+	autotest_Process(m_gameLoaded);
 
 	if(g_attractWindow)
 		g_attractWindow->AppIdle();

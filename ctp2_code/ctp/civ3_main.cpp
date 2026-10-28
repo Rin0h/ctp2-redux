@@ -90,6 +90,7 @@
 #include "c3blitter.h"
 #include "c3cmdline.h"
 #include "c3debug.h"                    // c3debug_ExceptionStackTrace
+#include "autotest.h"                   // ctp2-redux test mode
 #include "c3errors.h"
 #include "c3memmap.h"
 #include "c3ui.h"
@@ -608,7 +609,9 @@ bool ui_CheckForScroll(void)
 
 	s_scrollcurtick	 = GetTickCount();
 
-	if (!g_c3ui->TheMouse())
+	// ctp2-redux: a hidden test window has the mouse somewhere outside, which
+	// would scroll the map forever (CivApp::ProcessUI loops while scrolling).
+	if (!g_c3ui->TheMouse() || (autotest_Active() && autotest_Hidden()))
 		return false;
 
 	sint32 x = g_c3ui->TheMouse()->X();
@@ -1113,6 +1116,13 @@ void ParseCommandLine(PSTR szCmdLine)
 		g_useIntroMovie = !(NULL != strstr(szCmdLine, "nointromovie"));
 	g_noAssertDialogs = (NULL != strstr(szCmdLine, "noassertdialogs"));
 	g_runInBackground = (NULL != strstr(szCmdLine, "runinbackground"));
+	autotest_ParseCommandLine(szCmdLine);
+	if (autotest_Active())
+	{
+		g_runInBackground = TRUE;
+		g_useIntroMovie   = FALSE;
+		g_noAssertDialogs = TRUE;
+	}
 	g_runSpriteEditor = (NULL != strstr(szCmdLine, "runspriteeditor"));
 
 #if defined(__AUI_USE_SDL__)

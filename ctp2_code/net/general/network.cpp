@@ -135,6 +135,7 @@ extern StringDB			*g_theStringDB;
 #include "AgeRecord.h"
 #include "CivilisationRecord.h"
 #include "GameEventManager.h"
+#include "autotest.h"                   // ctp2-redux test mode
 #include "ctpai.h"
 #include "chatlist.h"
 #include "soundmanager.h"
@@ -3698,6 +3699,7 @@ void Network::SendNewHostMessage(MBCHAR *name, sint32 player)
 
 void Network::Resync(sint32 playerIndex)
 {
+	autotest_NoteResyncSent(playerIndex);
 	if(!m_playerData[playerIndex]) {
 		return;
 	}
@@ -3805,6 +3807,7 @@ void Network::AckResync(sint32 index)
 
 void Network::RequestResync(RESYNC_REASON reason)
 {
+	autotest_NoteResyncRequest((int)reason);
 	Assert(m_iAmClient);
 	if(!m_iAmClient)
 		return;

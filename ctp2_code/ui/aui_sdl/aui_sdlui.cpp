@@ -45,6 +45,7 @@
 #include "aui_sdlmoviemanager.h"
 #include "civapp.h"
 #include "profileDB.h"                  // g_theProfileDB
+#include "autotest.h"                   // ctp2-redux test mode
 
 extern BOOL                 g_exclusiveMode;
 extern CivApp*              g_civApp;
@@ -123,6 +124,15 @@ AUI_ERRCODE aui_SDLUI::CreateNativeScreen( BOOL useExclusiveMode )
 
 	// Windows are right now not resizable, the content is also be shrunken, which should not happen.
 	uint32 sdl_flags = g_theProfileDB->IsWindowedMode() ? SDL_WINDOW_ALLOW_HIGHDPI /*| SDL_WINDOW_RESIZABLE*/ : SDL_WINDOW_FULLSCREEN_DESKTOP;
+	// ctp2-redux: unattended tests run with a hidden window and a software
+	// renderer; SDLDrawScreen skips the present (it blocks for a window that
+	// is never shown).
+	const bool hidden = autotest_Active() && autotest_Hidden();
+	if (hidden)
+	{
+		sdl_flags = SDL_WINDOW_HIDDEN | SDL_WINDOW_SKIP_TASKBAR;
+		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
+	}
 
 	m_SDLWindow = SDL_CreateWindow("Call To Power 2", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
 	                               m_width, m_height, sdl_flags);
@@ -373,6 +383,9 @@ AUI_ERRCODE aui_SDLUI::SDLDrawScreen( void )
 	Assert(m_primary);
 	Assert(m_SDLTexture);
 	Assert(m_SDLRenderer);
+	if (autotest_Active() && autotest_Hidden())
+		return AUI_ERRCODE_OK;   // nobody looks at it
+
 	int errcode;
 	errcode= SDL_UpdateTexture(m_SDLTexture, NULL, m_primary->Buffer(), m_primary->Pitch());
 #if !defined(WIN32)

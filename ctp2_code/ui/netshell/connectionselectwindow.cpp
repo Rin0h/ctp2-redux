@@ -46,6 +46,7 @@ extern CivApp *g_civApp;
 #include "ns_customlistbox.h"
 
 #include "connectionselectwindow.h"
+#include "autotest.h"                   // ctp2-redux test mode
 #include "playerselectwindow.h"
 #include "passwordscreen.h"
 #include "serverselectwindow.h"
@@ -234,6 +235,26 @@ AUI_ERRCODE ConnectionSelectWindow::Idle( void )
 		}
 
 		delete m;
+	}
+
+	// ctp2-redux test mode: choose "Internet" and continue
+	if (autotest_Active() && g_netfunc->GetStatus() == NETFunc::START)
+	{
+		aui_ListBox *list = (aui_ListBox *)FindControl( CONTROL_CONNECTIONTYPELISTBOX );
+		for (sint32 i = 0; list && i < list->NumItems(); i++)
+		{
+			ns_TransportItem *item = (ns_TransportItem *)list->GetItemByIndex( i );
+			if (item && item->GetNetShellObject()->GetNETFuncObject()->GetType() == NETFunc::Transport::INTERNET)
+			{
+				if (autotest_Step("transport-internet"))
+				{
+					list->SelectItem( i );
+					aui_Control *ok = FindControl( CONTROL_OKBUTTON );
+					ok->GetAction()->Execute( ok, AUI_BUTTON_ACTION_EXECUTE, 0 );
+				}
+				break;
+			}
+		}
 	}
 
 	if (g_netfunc->GetStatus() == NETFunc::READY)

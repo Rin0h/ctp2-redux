@@ -47,6 +47,7 @@
 #include "ns_customlistbox.h"
 
 #include "serverselectwindow.h"
+#include "autotest.h"                   // ctp2-redux test mode
 #include "playerselectwindow.h"
 #include "passwordscreen.h"
 #include "dialogboxwindow.h"
@@ -318,6 +319,25 @@ AUI_ERRCODE ServerSelectWindow::Idle( void )
 			}
 
 			delete m;
+		}
+
+		// ctp2-redux test mode: direct host or direct join
+		if (autotest_Active() && g_netfunc->GetStatus() == NETFunc::PRECONNECT)
+		{
+			if (autotest_IsHost())
+			{
+				if (autotest_Step("direct-host"))
+				{
+					aui_Control *b = m_controls[ CONTROL_DIRECTHOSTBUTTON ];
+					b->GetAction()->Execute( b, AUI_BUTTON_ACTION_EXECUTE, 0 );
+				}
+			}
+			else if (autotest_Step("direct-join"))
+			{
+				((aui_TextField *)m_controls[ CONTROL_DIRECTTEXTFIELD ])->SetFieldText( autotest_Address() );
+				aui_Control *b = m_controls[ CONTROL_DIRECTJOINBUTTON ];
+				b->GetAction()->Execute( b, AUI_BUTTON_ACTION_EXECUTE, 0 );
+			}
 		}
 
 		if(g_netfunc->GetStatus() == NETFunc::START)

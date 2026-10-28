@@ -902,3 +902,7 @@ userprofile.txt
 
 # local build helpers (tools/win-build.ps1)
 _local/
+
+# unattended multiplayer test folders (tools/mptest.ps1)
+ctp2_code/ctp/autotest_host/
+ctp2_code/ctp/autotest_client/

@@ -111,6 +111,20 @@ Lesefehler laut ASan: ThroneDB-Tokenizer, Chat-Textfeld, Karten-Icon-Encoder.
 ASan-Build: `civctp.vcxproj` mit `-p:EnableASAN=true`, Ausgabe nach
 `_local/asan/out`, Start über `_local/asan/start-client-asan.bat`.
 
+Stand 2026-10-28: **Automatischer Multiplayer-Test** `tools/mptest.ps1`.
+Startet Host und Client unsichtbar auf diesem PC (Kopien des Builds in
+`ctp2_code/ctp/autotest_host` und `autotest_client`, ohne Ton), beide
+klicken sich selbst durch Netshell und Spiel-Setup, beenden ihre Züge und
+schreiben `autotest_result.txt`. Bestanden = beide erreichen die Runde, kein
+Absturz/Hänger, keine CRC-Fehler, keine Resync-Anforderung.
+`-Turns N -AIPlayers K -Show -Asan`. Spielseitig: Schalter `autohost`,
+`autojoin=<adresse>`, `autoturns=`, `autoai=`, `autoname=`, `autoshow`
+(`ctp/ctp2_utils/autotest.cpp`). Unsichtbar heißt: verstecktes Fenster,
+Software-Renderer ohne Present, kein Rand-Scrollen (die Maus liegt außerhalb
+und `CivApp::ProcessUI` scrollte sonst endlos). Bekannt: der Host wartet in
+der Lobby auf den Client, weil ein Direkt-Client ein bereits angelegtes Spiel
+nicht sieht (wird mit „direkt ins Spiel-Setup“ gelöst).
+
 Plan:
 1. **Weitere Tests:** LAN-Adresse statt 127.0.0.1, dann ein echter Test über
    zwei Anschlüsse (Port 21157 UDP weiterleiten).

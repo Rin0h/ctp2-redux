@@ -44,6 +44,7 @@
 #include "ns_customlistbox.h"
 
 #include "playerselectwindow.h"
+#include "autotest.h"                   // ctp2-redux test mode
 #include "lobbywindow.h"
 #include "playereditwindow.h"
 #include "passwordscreen.h"
@@ -257,6 +258,16 @@ void PlayerSelectWindow::Update(void)
 
 AUI_ERRCODE PlayerSelectWindow::Idle( void )
 {
+	// ctp2-redux test mode: use (or create) the test profile
+	if (autotest_Active() && g_netfunc->GetStatus() == NETFunc::READY &&
+	    autotest_Step("profile"))
+	{
+		((aui_TextField *)FindControl( CONTROL_PLAYERNAMETEXTFIELD ))->SetFieldText( autotest_PlayerName() );
+		aui_Control *ok = FindControl( CONTROL_OKBUTTON );
+		ok->GetAction()->Execute( ok, AUI_BUTTON_ACTION_EXECUTE, 0 );
+		return AUI_ERRCODE_OK;
+	}
+
 	while (NETFunc::Message * m = g_netfunc->GetMessage())
     {
 		g_netfunc->HandleMessage(m);

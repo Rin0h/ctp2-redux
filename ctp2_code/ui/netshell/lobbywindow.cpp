@@ -32,6 +32,8 @@
 
 #include "c3.h"
 #include "lobbywindow.h"
+#include <time.h>
+#include "autotest.h"                   // ctp2-redux test mode
 
 #include "aui_ldl.h"
 #include "aui_uniqueid.h"
@@ -431,6 +433,46 @@ void LobbyWindow::Update(BOOL init)
 
 AUI_ERRCODE LobbyWindow::Idle( void )
 {
+	// ctp2-redux test mode: host creates a game, client joins the first one
+	if (autotest_Active())
+	{
+		static time_t s_lastLog = 0;
+		if (time(NULL) - s_lastLog >= 5)
+		{
+			s_lastLog = time(NULL);
+			aui_ListBox *g = (aui_ListBox *)FindControl( CONTROL_GAMESLISTBOX );
+			aui_ListBox *pl = (aui_ListBox *)FindControl( CONTROL_PLAYERSLISTBOX );
+			autotest_Log("lobby: netfunc status %d, games %d, players %d", (int)g_netfunc->GetStatus(), g ? (int)g->NumItems() : -1, pl ? (int)pl->NumItems() : -1);
+		}
+	}
+	if (autotest_Active() && g_netfunc->GetStatus() == NETFunc::OK)
+	{
+		if (autotest_IsHost())
+		{
+			// wait until the other humans are in the lobby: a direct client that
+			// arrives later does not see games created before (see PLAN.md)
+			aui_ListBox *players = (aui_ListBox *)FindControl( CONTROL_PLAYERSLISTBOX );
+			if (players && players->NumItems() >= autotest_HumanPlayers() &&
+			    autotest_Step("lobby-create"))
+			{
+				aui_Control *b = FindControl( CONTROL_CREATEBUTTON );
+				b->GetAction()->Execute( b, AUI_BUTTON_ACTION_EXECUTE, 0 );
+				return AUI_ERRCODE_OK;
+			}
+		}
+		else
+		{
+			aui_ListBox *games = (aui_ListBox *)FindControl( CONTROL_GAMESLISTBOX );
+			if (games && games->NumItems() > 0 && autotest_Step("lobby-join"))
+			{
+				games->SelectItem( (sint32)0 );
+				aui_Control *b = FindControl( CONTROL_JOINBUTTON );
+				b->GetAction()->Execute( b, AUI_BUTTON_ACTION_EXECUTE, 0 );
+				return AUI_ERRCODE_OK;
+			}
+		}
+	}
+
 	if(m_wait)
 	{
 		if ( !s_dbw )

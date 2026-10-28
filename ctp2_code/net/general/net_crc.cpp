@@ -91,6 +91,7 @@
 
 #include "civapp.h"
 #include "c3_utilitydialogbox.h"
+#include "autotest.h"                   // ctp2-redux test mode
 
 extern StringDB                *g_theStringDB;
 extern ProfileDB               *g_theProfileDB;
@@ -370,6 +371,7 @@ void NetCRC::Error(const char *buf)
 	extern void network_AbortCallback( sint32 type );
 
 	DPRINTF(k_DBG_NET, ("NetCRC: %s\n", buf));
+	autotest_NoteCRCError(buf);
 	const char *str = g_theStringDB->GetNameStr("str_ldl_mp_dbase_out_of_synch");
 	char nonConstStr[1024];
 	if (str) {

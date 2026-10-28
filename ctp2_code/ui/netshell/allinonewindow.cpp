@@ -98,6 +98,7 @@
 #include "textradio.h"
 #include "textswitch.h"
 #include "texttab.h"
+#include "autotest.h"                   // ctp2-redux test mode
 
 extern CivScenarios *g_civScenarios;
 extern Exclusions *g_exclusions;
@@ -1691,6 +1692,32 @@ void AllinoneWindow::SetupNewScenario()
 
 AUI_ERRCODE AllinoneWindow::Idle( void )
 {
+	// ctp2-redux test mode: host adds AI civilisations and starts as soon
+	// as all humans are in; the client declares itself ready.
+	if (autotest_Active() && g_netfunc->GetStatus() == NETFunc::OK &&
+	    !g_playersetup.IsReadyToLaunch())
+	{
+		aui_Control *ok = FindControl( CONTROL_OKBUTTON );
+		if (autotest_IsHost())
+		{
+			if ((m_mode == CREATE || m_mode == CONTINUE_CREATE) && autotest_Step("add-ai"))
+			{
+				for (int i = 0; i < autotest_AIPlayers(); i++)
+					AddAIPlayer();
+			}
+			else if (CurNumHumanPlayers() >= autotest_HumanPlayers() &&
+			         ((aui_ListBox *)FindControl( CONTROL_GPLAYERSLISTBOX ))->NumItems() > 1 &&
+			         autotest_Step("host-start"))
+			{
+				ok->GetAction()->Execute( ok, AUI_BUTTON_ACTION_EXECUTE, 0 );
+			}
+		}
+		else if (g_netfunc->GotGameSetup() && autotest_Step("client-ready"))
+		{
+			ok->GetAction()->Execute( ok, AUI_BUTTON_ACTION_EXECUTE, 0 );
+		}
+	}
+
 	if ( m_mode == CREATE ||
 		 m_mode == CONTINUE_CREATE )
 	{
