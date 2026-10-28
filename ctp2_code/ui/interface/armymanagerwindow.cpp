@@ -82,6 +82,13 @@ extern C3UI *g_c3ui;
 static ArmyManagerWindow *s_armyWindow = NULL;
 static const MBCHAR *s_armyWindowBlock = "ArmyManager";
 
+// ctp2-redux classic interface: the original layout has small unit buttons
+// for the small icons, the Apolyton Edition large ones for the large icons
+static char * am_UnitIcon(const IconRecord *irec, const ctp2_Switch *button)
+{
+	return (char *)(button->Width() >= 50 ? irec->GetLargeIcon() : irec->GetIcon());
+}
+
 ArmyManagerWindow::ArmyManagerWindow(AUI_ERRCODE *err)
 {
 	m_armies = new PointerList<ArmyListNode>;
@@ -315,8 +322,8 @@ void ArmyManagerWindow::Update()
 
 				inCellSwitch->Enable(TRUE);
 				inCellSwitch->SetState(0);
-				inCellSwitch->SetImage((char *)irec->GetLargeIcon(), 0);
-				inCellSwitch->SetImage((char *)irec->GetLargeIcon(), 1);
+				inCellSwitch->SetImage(am_UnitIcon(irec, inCellSwitch), 0);
+				inCellSwitch->SetImage(am_UnitIcon(irec, inCellSwitch), 1);
 				inCellSwitch->ShouldDraw(TRUE);
 			}
 		}
@@ -348,8 +355,8 @@ void ArmyManagerWindow::Update()
 			Assert(inArmySwitch);
 			if(inArmySwitch) {
 				inArmySwitch->SetState(0);
-				inArmySwitch->SetImage((char *)irec->GetLargeIcon(), 0);
-				inArmySwitch->SetImage((char *)irec->GetLargeIcon(), 1);
+				inArmySwitch->SetImage(am_UnitIcon(irec, inArmySwitch), 0);
+				inArmySwitch->SetImage(am_UnitIcon(irec, inArmySwitch), 1);
 				inArmySwitch->Enable(TRUE);
 				inArmySwitch->ShouldDraw(TRUE);
 			}
