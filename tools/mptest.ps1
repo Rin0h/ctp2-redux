@@ -11,6 +11,7 @@
 #   pwsh tools/mptest.ps1 -AnetLog             # network library with logging (dp.log)
 #   pwsh tools/mptest.ps1 -Single -Tour        # screenshots of all game windows (autotest_ui_*.png)
 #   pwsh tools/mptest.ps1 -Single -Tour -Apolyton   # the same with the Apolyton interface
+#   pwsh tools/mptest.ps1 -Single -Tour -Scale 3   # frame at 3x (HD path)
 #   pwsh tools/mptest.ps1 -JoinAddress '[::1]:21157'   # client joins over IPv6
 #
 # By default the two test players play a simple turn (settle, walk, fill
@@ -29,6 +30,7 @@
 # the AI civilisations (cities, units, gold, advances).
 
 param(
+    [int]$Scale = 0,           # DisplayScale of the test profiles (frame in monitor pixels), 0 = 1
     [int]$Turns = 20,
     [int]$AIPlayers = 2,
     [int]$TimeoutMinutes = 30,
@@ -74,7 +76,7 @@ function Prepare-Instance([string]$name) {
         WindowedMode = 'Yes'; ScreenResWidth = '1024'; ScreenResHeight = '768'; TryWindowsResolution = 'No'
         FullScreenMovies = 'No'; SfxVolume = '0'; VoiceVolume = '0'; MusicVolume = '0'
         ClassicInterface = $(if ($Apolyton) { 'No' } else { 'Yes' })
-        DisplayScale = '1'
+        DisplayScale = $(if ($Scale -gt 0) { "$Scale" } else { '1' })
     }
     $shared = Join-Path $ctpDir 'userprofile.txt'
     $profile = @(if (Test-Path $shared) { Get-Content $shared -Encoding latin1 | Where-Object { $_ -notmatch "^($($settings.Keys -join '|'))=" } })

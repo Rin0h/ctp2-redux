@@ -33,6 +33,7 @@
 #include "aui_blitter.h"
 
 #include <algorithm>          // std::fill, std::max, std::min
+#include <vector>
 #include "aui_surface.h"
 #include "aui_dirtylist.h"
 #include "aui_pixel.h"
@@ -78,10 +79,10 @@ AUI_ERRCODE aui_Blitter::Blt(
 
 	clippedSrcRect.left -= dx;
 	clippedSrcRect.top -= dy;
-	if ( clippedSrcRect.right > srcSurf->Width() )
-		clippedSrcRect.right = srcSurf->Width();
-	if ( clippedSrcRect.bottom > srcSurf->Height() )
-		clippedSrcRect.bottom = srcSurf->Height();
+	if ( clippedSrcRect.right > srcSurf->LogicalWidth() )
+		clippedSrcRect.right = srcSurf->LogicalWidth();
+	if ( clippedSrcRect.bottom > srcSurf->LogicalHeight() )
+		clippedSrcRect.bottom = srcSurf->LogicalHeight();
 
 	if ( clippedSrcRect.left >= clippedSrcRect.right
 	||   clippedSrcRect.top >= clippedSrcRect.bottom )
@@ -99,8 +100,8 @@ AUI_ERRCODE aui_Blitter::Blt(
 
 	sint32 leftClip     = std::min<sint32>(destRect.left, 0);
 	sint32 topClip      = std::min<sint32>(destRect.top, 0);
-	sint32 rightClip    = std::max<sint32>(destRect.right - destSurf->Width(), 0);
-	sint32 bottomClip   = std::max<sint32>(destRect.bottom - destSurf->Height(), 0);
+	sint32 rightClip    = std::max<sint32>(destRect.right - destSurf->LogicalWidth(), 0);
+	sint32 bottomClip   = std::max<sint32>(destRect.bottom - destSurf->LogicalHeight(), 0);
 
 	destRect.left -= leftClip;
 	destRect.top -= topClip;
@@ -115,6 +116,9 @@ AUI_ERRCODE aui_Blitter::Blt(
 	clippedSrcRect.top -= topClip;
 	clippedSrcRect.right -= rightClip;
 	clippedSrcRect.bottom -= bottomClip;
+
+	if ( bytesPerPixel == 2 && ( destSurf->Scale() != 1 || srcSurf->Scale() != 1 ) )
+		return ScaledBlt16( destSurf, &destRect, srcSurf, &clippedSrcRect, flags );
 
 	switch ( bytesPerPixel )
 	{
@@ -267,6 +271,98 @@ AUI_ERRCODE aui_Blitter::Blt8To8(
 	}
 
 	return retcode;
+}
+
+//----------------------------------------------------------------------------
+//
+// Name       : aui_Blitter::ScaledBlt16
+//
+// Description: ctp2-redux: 16 bit blit between surfaces of different scale
+//              (pixels per game pixel). The rectangles are in game pixels;
+//              every target pixel takes the nearest source pixel, so a 1x
+//              source is enlarged by whole pixels and equal scales copy 1:1.
+//              Copy, chroma key and blend as in Blt16To16.
+//
+//----------------------------------------------------------------------------
+AUI_ERRCODE aui_Blitter::ScaledBlt16(
+	aui_Surface *destSurf,
+	RECT *destRect,
+	aui_Surface *srcSurf,
+	RECT *srcRect,
+	uint32 flags )
+{
+	const sint32 ds = destSurf->Scale();
+	const sint32 ss = srcSurf->Scale();
+
+	const sint32 left   = destRect->left   * ds;
+	const sint32 top    = destRect->top    * ds;
+	const sint32 width  = ( destRect->right  - destRect->left ) * ds;
+	const sint32 height = ( destRect->bottom - destRect->top  ) * ds;
+	const sint32 srcLeft = srcRect->left * ss;
+	const sint32 srcTop  = srcRect->top  * ss;
+	if ( width <= 0 || height <= 0 ) return AUI_ERRCODE_OK;
+
+	uint16 *destBase = (uint16 *)destSurf->Buffer();
+	const bool destLocked = destBase != NULL;
+	if ( !destLocked && destSurf->Lock( NULL, (LPVOID *)&destBase, 0 ) != AUI_ERRCODE_OK )
+		return AUI_ERRCODE_SURFACELOCKFAILED;
+
+	uint16 *srcBase = (uint16 *)srcSurf->Buffer();
+	const bool srcLocked = srcBase != NULL;
+	if ( !srcLocked && srcSurf->Lock( NULL, (LPVOID *)&srcBase, 0 ) != AUI_ERRCODE_OK )
+	{
+		if ( !destLocked ) destSurf->Unlock( destBase );
+		return AUI_ERRCODE_SURFACELOCKFAILED;
+	}
+
+	const sint32 destPitch = destSurf->Pitch() / 2;
+	const sint32 srcPitch  = srcSurf->Pitch() / 2;
+	const bool   chromakey = ( flags & k_AUI_BLITTER_FLAG_CHROMAKEY ) != 0;
+	const bool   blend     = ( flags & k_AUI_BLITTER_FLAG_BLEND ) != 0;
+	const uint16 key       = (uint16)srcSurf->GetChromaKey();
+	const bool   is555     = destSurf->PixelFormat() == AUI_SURFACE_PIXELFORMAT_555;
+	const uint32 blendValue = 16;
+
+	// source column of every target column
+	std::vector<sint32> column( width );
+	for ( sint32 x = 0; x < width; ++x )
+		column[x] = srcLeft + ( x * ss ) / ds;
+
+	sint32 lastSrcY = -1;
+	for ( sint32 y = 0; y < height; ++y )
+	{
+		const sint32 srcY = srcTop + ( y * ss ) / ds;
+		uint16 *dest = destBase + ( top + y ) * destPitch + left;
+		const uint16 *src = srcBase + srcY * srcPitch;
+
+		if ( !chromakey && !blend )
+		{
+			if ( srcY == lastSrcY )
+				memcpy( dest, dest - destPitch, width * sizeof(uint16) );
+			else if ( ss == ds )
+				memcpy( dest, src + srcLeft, width * sizeof(uint16) );
+			else
+				for ( sint32 x = 0; x < width; ++x )
+					dest[x] = src[column[x]];
+		}
+		else
+		{
+			for ( sint32 x = 0; x < width; ++x )
+			{
+				const uint16 pixel = src[column[x]];
+				if ( chromakey && pixel == key ) continue;
+				dest[x] = !blend ? pixel
+				        : is555  ? aui_Pixel::Blend555( dest[x], pixel, blendValue )
+				        :          aui_Pixel::Blend565( dest[x], pixel, blendValue );
+			}
+		}
+		lastSrcY = srcY;
+	}
+
+	if ( !srcLocked )  srcSurf->Unlock( srcBase );
+	if ( !destLocked ) destSurf->Unlock( destBase );
+
+	return AUI_ERRCODE_OK;
 }
 
 AUI_ERRCODE aui_Blitter::Blt16To16(
@@ -1470,14 +1566,21 @@ AUI_ERRCODE aui_Blitter::ColorBlt(
 
 	clippedDestRect.left -= dx;
 	clippedDestRect.top -= dy;
-	if ( clippedDestRect.right > destSurf->Width() )
-		clippedDestRect.right = destSurf->Width();
-	if ( clippedDestRect.bottom > destSurf->Height() )
-		clippedDestRect.bottom = destSurf->Height();
+	if ( clippedDestRect.right > destSurf->LogicalWidth() )
+		clippedDestRect.right = destSurf->LogicalWidth();
+	if ( clippedDestRect.bottom > destSurf->LogicalHeight() )
+		clippedDestRect.bottom = destSurf->LogicalHeight();
 
 	if ( clippedDestRect.left >= clippedDestRect.right
 	||   clippedDestRect.top >= clippedDestRect.bottom )
 		return AUI_ERRCODE_OK;
+
+	// ctp2-redux: game pixels to pixels of the surface
+	const sint32 scale = destSurf->Scale();
+	clippedDestRect.left   *= scale;
+	clippedDestRect.top    *= scale;
+	clippedDestRect.right  *= scale;
+	clippedDestRect.bottom *= scale;
 
 	switch ( destSurf->BytesPerPixel() )
 	{

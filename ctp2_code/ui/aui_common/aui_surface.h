@@ -97,6 +97,14 @@ public:
 
 	sint32 Width( void ) const { return m_width; }
 	sint32 Height( void ) const { return m_height; }
+
+	// ctp2-redux: pixels of the surface per game pixel. Width and Height are
+	// the pixels of the buffer, the logical size is in game pixels; the
+	// blitter takes rectangles in game pixels and converts them.
+	sint32 Scale( void ) const { return m_scale; }
+	void SetScale( sint32 scale ) { m_scale = scale > 0 ? scale : 1; }
+	sint32 LogicalWidth( void ) const { return m_width / m_scale; }
+	sint32 LogicalHeight( void ) const { return m_height / m_scale; }
 	sint32 BitsPerPixel( void ) const { return m_bpp; }
 	sint32 BytesPerPixel( void ) const { return m_Bpp; }
 	sint32 Bytewidth( void ) const { return m_bytewidth; }
@@ -141,6 +149,7 @@ protected:
 
 	sint32	m_width;
 	sint32	m_height;
+	sint32	m_scale;
 	sint32	m_bpp;
 	sint32	m_Bpp;
 	sint32	m_bytewidth;

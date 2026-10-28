@@ -46,8 +46,8 @@ aui_SDLMouse::aui_SDLMouse(
 
 	int x = 0, y = 0;
 	SDL_GetMouseState(&x, &y);
-	m_data.position.x = x;
-	m_data.position.y = y;
+	m_data.position.x = x / (g_ui ? g_ui->Scale() : 1);
+	m_data.position.y = y / (g_ui ? g_ui->Scale() : 1);
 
 	if (!m_mouseRefCount++)
 	{
@@ -113,9 +113,10 @@ void aui_SDLMouse::GetInput(SDL_Event* event)
 	{
 		case SDL_MOUSEMOTION:
 		{
+			// ctp2-redux: monitor pixels of the frame to game pixels
 			m_data.time = event->motion.timestamp;
-			m_data.position.x = event->motion.x;
-			m_data.position.y = event->motion.y;
+			m_data.position.x = event->motion.x / g_ui->Scale();
+			m_data.position.y = event->motion.y / g_ui->Scale();
 			m_data.lbutton = ((event->motion.state & SDL_BUTTON_LMASK) != 0);
 			m_data.rbutton = ((event->motion.state & SDL_BUTTON_RMASK) != 0);
 			m_data.mbutton = ((event->motion.state & SDL_BUTTON_MMASK) != 0);
@@ -128,8 +129,8 @@ void aui_SDLMouse::GetInput(SDL_Event* event)
 		case SDL_MOUSEBUTTONUP:
 		{
 			m_data.time = event->button.timestamp;
-			m_data.position.x = event->button.x;
-			m_data.position.y = event->button.y;
+			m_data.position.x = event->button.x / g_ui->Scale();
+			m_data.position.y = event->button.y / g_ui->Scale();
 
 			switch(event->button.button)
 			{
@@ -274,7 +275,33 @@ void aui_SDLMouse::ActivateCursor(aui_Cursor *cursor)
 		{
 			POINT hotspot;
 			cursor->GetHotspot(hotspot);
-			SDL_Cursor *sdlCursor = SDL_CreateColorCursor(sdlCursorSurface->GetSDLSurface(), hotspot.x, hotspot.y);
+
+			// ctp2-redux: the cursor as large as the game pixels
+			SDL_Surface *image = sdlCursorSurface->GetSDLSurface();
+			SDL_Surface *scaled = NULL;
+			const sint32 scale = g_ui ? g_ui->Scale() : 1;
+			if (scale > 1)
+			{
+				scaled = SDL_CreateRGBSurfaceWithFormat(0, image->w * scale, image->h * scale,
+				                                        image->format->BitsPerPixel, image->format->format);
+				if (scaled)
+				{
+					Uint32 key;
+					if (SDL_GetColorKey(image, &key) == 0)
+						SDL_SetColorKey(scaled, SDL_TRUE, key);
+					SDL_BlendMode mode;
+					SDL_GetSurfaceBlendMode(image, &mode);
+					SDL_SetSurfaceBlendMode(image, SDL_BLENDMODE_NONE);
+					SDL_BlitScaled(image, NULL, scaled, NULL);
+					SDL_SetSurfaceBlendMode(image, mode);
+					image = scaled;
+					hotspot.x *= scale;
+					hotspot.y *= scale;
+				}
+			}
+			SDL_Cursor *sdlCursor = SDL_CreateColorCursor(image, hotspot.x, hotspot.y);
+			if (scaled)
+				SDL_FreeSurface(scaled);
 			if (sdlCursor != NULL)
 			{
 				SDL_Cursor *currentSDLCursor = SDL_GetCursor();

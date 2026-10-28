@@ -27,6 +27,7 @@ extern "C" {
 #include <SDL2/SDL.h>
 #include "profileDB.h"
 #include "aui_sdlsurface.h"
+#include "aui_ui.h"                 // g_ui
 
 #define MAX_QUEUE_SIZE (15 * 1024 * 1024)
 #define MIN_FRAMES 25
@@ -2036,8 +2037,10 @@ AUI_ERRCODE aui_SDLMovie::Open(uint32 flags, aui_Surface *surface, RECT *rect)
 	}
 	else
 	{
-		screen_width = rect->right - rect->left;
-		screen_height = rect->bottom - rect->top;
+		// ctp2-redux: the rectangle in game pixels, the renderer in pixels
+		// of the frame (see aui_Surface::Scale)
+		screen_width = (rect->right - rect->left) * g_ui->Scale();
+		screen_height = (rect->bottom - rect->top) * g_ui->Scale();
 		background = m_background;
 	}
 
@@ -2045,8 +2048,8 @@ AUI_ERRCODE aui_SDLMovie::Open(uint32 flags, aui_Surface *surface, RECT *rect)
 	m_videoState = stream_open(m_filename, g_theProfileDB->GetSFXVolume() * 10);
 	if (m_videoState && !(m_flags & k_AUI_MOVIE_PLAYFLAG_ONSCREEN))
 	{
-		m_videoState->xleft = rect->left;
-		m_videoState->ytop = rect->top;
+		m_videoState->xleft = rect->left * g_ui->Scale();
+		m_videoState->ytop = rect->top * g_ui->Scale();
 	}
 	return m_videoState ? AUI_ERRCODE_OK : AUI_ERRCODE_MOVIEFAILED;
 #else // USE_SDL_FFMPEG

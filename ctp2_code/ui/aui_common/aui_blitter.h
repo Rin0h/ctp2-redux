@@ -53,6 +53,14 @@ public:
 
 	virtual RobustBltFunc Blt;
 
+	// ctp2-redux: 16 bit blit between surfaces of different scale
+	AUI_ERRCODE ScaledBlt16(
+		aui_Surface *destSurf,
+		RECT *destRect,
+		aui_Surface *srcSurf,
+		RECT *srcRect,
+		uint32 flags );
+
 	virtual NakedBltFunc Blt8To8;
 	virtual NakedBltFunc Blt16To16;
 	virtual NakedBltFunc Blt24To24;

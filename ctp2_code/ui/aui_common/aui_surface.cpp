@@ -128,6 +128,7 @@ AUI_ERRCODE aui_Surface::InitCommon( sint32 width, sint32 height, sint32 bpp, BO
 {
 	m_pixelFormat = AUI_SURFACE_PIXELFORMAT_UNKNOWN,
 	m_chromaKey = 0x00000000,
+	m_scale = 1,
 	m_isPrimary = isPrimary,
 	m_buffer = NULL,
 #ifdef __AUI_USE_DIRECTX__

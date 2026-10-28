@@ -203,10 +203,12 @@ public:
 		return m_blitter->ColorBlt(m_secondary, destRect, color, flags);
 	};
 
-	sint32 PrimaryHeight()  { return m_primary->Height(); };
-	sint32 PrimaryWidth()   { return m_primary->Width(); };
-	sint32 SecondaryHeight(){ return m_secondary->Height(); };
-	sint32 SecondaryWidth() { return m_secondary->Width(); };
+	sint32 PrimaryHeight()  { return m_primary->LogicalHeight(); };
+	sint32 PrimaryWidth()   { return m_primary->LogicalWidth(); };
+	sint32 SecondaryHeight(){ return m_secondary->LogicalHeight(); };
+	sint32 SecondaryWidth() { return m_secondary->LogicalWidth(); };
+	// ctp2-redux: monitor pixels per game pixel of the frame (see aui_Surface)
+	sint32 Scale()          { return m_primary ? m_primary->Scale() : 1; };
 	bool HasPrimary()       { return m_primary   != NULL; };
 	bool HasSecondary()     { return m_secondary != NULL; };
 

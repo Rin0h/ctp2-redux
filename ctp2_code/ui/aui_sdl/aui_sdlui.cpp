@@ -135,9 +135,10 @@ AUI_ERRCODE aui_SDLUI::CreateNativeScreen( BOOL useExclusiveMode )
 		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
 	}
 
-	// ctp2-redux: the window holds the picture enlarged by g_displayScale
+	// ctp2-redux: with scaling the frame has the pixels of the monitor
+	// (game pixels times g_displayScale); the game keeps its resolution
 	extern sint32 g_displayScale;
-	sint32 const  scale = (g_displayScale > 0 && !hidden) ? g_displayScale : 1;
+	sint32 const  scale = g_displayScale > 0 ? g_displayScale : 1;
 
 	m_SDLWindow = SDL_CreateWindow("Call To Power 2", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
 	                               m_width * scale, m_height * scale, sdl_flags);
@@ -156,28 +157,30 @@ AUI_ERRCODE aui_SDLUI::CreateNativeScreen( BOOL useExclusiveMode )
 		c3errors_FatalDialog("aui_SDLUI", "SDL renderer creation failed:\n%s\n", SDL_GetError());
 	}
 
-	// sharp whole-pixel enlarging with scaling, else smooth stretching
+	// the frame shown 1:1 with scaling, else stretched smoothly
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, g_displayScale > 0 ? "nearest" : "linear");
-	SDL_RenderSetLogicalSize(m_SDLRenderer, m_width, m_height);
+	SDL_RenderSetLogicalSize(m_SDLRenderer, m_width * scale, m_height * scale);
 	if (g_displayScale > 0)
 		SDL_RenderSetIntegerScale(m_SDLRenderer, SDL_TRUE);
 	m_SDLTexture = SDL_CreateTexture(m_SDLRenderer, aui_SDLSurface::TransformSurfacePixelFormatToSDL(m_pixelFormat),
-		SDL_TEXTUREACCESS_STREAMING, m_width, m_height);
+		SDL_TEXTUREACCESS_STREAMING, m_width * scale, m_height * scale);
 
 	if (!m_SDLTexture)
 	{
 		c3errors_FatalDialog("aui_SDLUI", "SDL texture creation failed:\n%s\n", SDL_GetError());
 	}
 
-	m_primary = new aui_SDLSurface(&errcode, m_width, m_height, m_bpp, NULL, TRUE);
+	m_primary = new aui_SDLSurface(&errcode, m_width * scale, m_height * scale, m_bpp, NULL, TRUE);
 	Assert( AUI_NEWOK(m_primary,errcode) );
 	if ( !AUI_NEWOK(m_primary,errcode) ) return AUI_ERRCODE_MEMALLOCFAILED;
+	m_primary->SetScale(scale);
 
 	if(!m_secondary)
 	{
-		m_secondary = new aui_SDLSurface(&errcode, m_width, m_height, m_bpp, NULL, FALSE);
+		m_secondary = new aui_SDLSurface(&errcode, m_width * scale, m_height * scale, m_bpp, NULL, FALSE);
 		Assert( AUI_NEWOK(m_secondary,errcode) );
 		if ( !AUI_NEWOK(m_secondary,errcode) ) return AUI_ERRCODE_MEMALLOCFAILED;
+		m_secondary->SetScale(scale);
 	}
 
 	m_pixelFormat = m_primary->PixelFormat();
@@ -407,7 +410,7 @@ AUI_ERRCODE aui_SDLUI::SDLDrawScreen( void )
 		{
 			s_screenshotRequested = false;
 			SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormatFrom(
-				m_primary->Buffer(), m_width, m_height, m_bpp, m_primary->Pitch(),
+				m_primary->Buffer(), m_primary->Width(), m_primary->Height(), m_bpp, m_primary->Pitch(),
 				aui_SDLSurface::TransformSurfacePixelFormatToSDL(m_pixelFormat) );
 			if ( surface )
 			{
