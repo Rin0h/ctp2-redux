@@ -125,10 +125,15 @@ AUI_ERRCODE aui_Window::CreateSurface( void )
 	Assert( m_surface == NULL );
 	if ( !m_surface )
 	{
-		m_surface = aui_Factory::new_Surface(errcode, m_width, m_height);
+		// ctp2-redux: windows are drawn in the pixels of the frame (sharp
+		// text, later HD images); the background with the map stays in game
+		// pixels, the map code draws into it directly
+		const sint32 scale = ( g_ui && m_type != AUI_WINDOW_TYPE_BACKGROUND ) ? g_ui->Scale() : 1;
+		m_surface = aui_Factory::new_Surface(errcode, m_width * scale, m_height * scale);
 
 		Assert( AUI_NEWOK(m_surface,errcode) );
 		if ( !AUI_NEWOK(m_surface,errcode) ) return errcode;
+		m_surface->SetScale( scale );
 	}
 
 	if(m_stencil) {

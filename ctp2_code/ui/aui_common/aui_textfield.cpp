@@ -551,8 +551,9 @@ AUI_ERRCODE aui_TextField::DrawThis( aui_Surface *surface, sint32 x, sint32 y )
 	size_t  selStart = (m_selStart > m_viewStart) ? m_selStart - m_viewStart : 0;
 	size_t  selEnd   = (m_selEnd   > m_viewStart) ? m_selEnd   - m_viewStart : 0;
 
-	// Fill background
-	SDL_Rect r1 = { rect.left, rect.top, rect.right-rect.left, rect.bottom-rect.top };
+	// Fill background (ctp2-redux: SDL takes pixels of the surface)
+	const sint32 scale = surface->Scale();
+	SDL_Rect r1 = { rect.left * scale, rect.top * scale, (rect.right-rect.left) * scale, (rect.bottom-rect.top) * scale };
 	SDL_FillRect(SDLsurf, &r1, SDL_MapRGB(SDLsurf->format, GetRValue(winColor), GetGValue(winColor), GetBValue(winColor)));
 
 	m_Font->DrawString(surface, &rect, &rect, text,
@@ -569,7 +570,7 @@ AUI_ERRCODE aui_TextField::DrawThis( aui_Surface *surface, sint32 x, sint32 y )
 	// Draw blinking caret
 	if (m_blink && GetKeyboardFocus() == this)
 	{
-		SDL_Rect r2 = { rect.left + offset - 1, rect.top + 2, 2, rect.bottom - rect.top - 4 };
+		SDL_Rect r2 = { (rect.left + offset - 1) * scale, (rect.top + 2) * scale, 2 * scale, (rect.bottom - rect.top - 4) * scale };
 		SDL_FillRect(SDLsurf, &r2, SDL_MapRGB(SDLsurf->format, GetRValue(winTextColor), GetGValue(winTextColor), GetBValue(winTextColor)));
 	}
 #endif

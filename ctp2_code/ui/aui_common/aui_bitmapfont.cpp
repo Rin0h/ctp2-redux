@@ -126,6 +126,10 @@ AUI_ERRCODE aui_BitmapFont::InitCommon( const MBCHAR *descriptor )
 	m_pointSize = 0;
 	m_bold = 0;
 	m_italic = 0;
+	m_scaledFont = NULL;
+	m_scaledFontScale = 0;
+	m_inPixels = false;
+	m_isScaledTwin = false;
 
 	DescriptorToAttributes(
 		m_descriptor,
@@ -213,6 +217,26 @@ aui_BitmapFont::~aui_BitmapFont()
 	}
 }
 
+
+aui_BitmapFont *aui_BitmapFont::ScaledFont( sint32 scale )
+{
+	if ( m_scaledFont && m_scaledFontScale == scale ) return m_scaledFont;
+
+	MBCHAR descriptor[ k_AUI_BITMAPFONT_MAXDESCLEN + 1 ];
+	AttributesToDescriptor( descriptor, m_ttffile, m_pointSize * scale, m_bold, m_italic );
+	// an entry of its own in the font cache (the parser ignores the rest)
+	strcat( descriptor, "|scaled" );
+
+	// kept by the font cache of the UI until the end
+	aui_BitmapFont *font = g_ui->LoadBitmapFont( descriptor );
+	if ( font )
+	{
+		font->m_isScaledTwin = true;
+		m_scaledFont      = font;
+		m_scaledFontScale = scale;
+	}
+	return font;
+}
 
 AUI_ERRCODE aui_BitmapFont::SetFilename( const MBCHAR * descriptor )
 {
@@ -776,6 +800,48 @@ AUI_ERRCODE aui_BitmapFont::DrawString(
 
 	if ( !surface ) surface = g_ui->Secondary();
 
+	// ctp2-redux: on a surface with a scale the text is set by the same font
+	// at that many times the size, in pixels of the surface, so it is sharp
+	if ( !m_inPixels && !m_isScaledTwin && surface->Scale() > 1 )
+	{
+		const sint32 scale = surface->Scale();
+		aui_BitmapFont *scaled = ScaledFont( scale );
+		if ( scaled )
+		{
+			RECT scaledBound, scaledClip;
+			if ( bound )
+			{
+				scaledBound.left   = bound->left   * scale;
+				scaledBound.top    = bound->top    * scale;
+				scaledBound.right  = bound->right  * scale;
+				scaledBound.bottom = bound->bottom * scale;
+			}
+			if ( clip )
+			{
+				scaledClip.left   = clip->left   * scale;
+				scaledClip.top    = clip->top    * scale;
+				scaledClip.right  = clip->right  * scale;
+				scaledClip.bottom = clip->bottom * scale;
+			}
+
+			scaled->m_inPixels = true;
+			errcode = scaled->DrawString(
+				surface,
+				bound ? &scaledBound : NULL,
+				clip ? &scaledClip : NULL,
+				string,
+				flags,
+				color,
+				underline * scale,
+				selStart,
+				selEnd,
+				highLightColorFG,
+				highLightColorBG );
+			scaled->m_inPixels = false;
+			return errcode;
+		}
+	}
+
 	RECT localRect = { 0, 0, surface->Width(), surface->Height() };
 	if ( !bound )
 		bound = &localRect;
@@ -1127,7 +1193,7 @@ AUI_ERRCODE aui_BitmapFont::RenderLine(
 						surface,
 						&bgRect,
 						highLightColorBG,
-						0);
+						m_inPixels ? k_AUI_BLITTER_FLAG_PIXELS : 0);
 				}
 
 				AUI_ERRCODE errcode = RenderGlyph(
@@ -1196,6 +1262,31 @@ AUI_ERRCODE aui_BitmapFont::GetLineInfo(
 	bool midWordBreaks,
 	bool midWordBreaksOnly )
 {
+	// ctp2-redux: with windows in the pixels of the frame the text is set by
+	// the font at that many times the size; measure with it as well, so the
+	// text fits where it is placed (rounded up to whole game pixels)
+	const sint32 scale = g_ui ? g_ui->Scale() : 1;
+	aui_BitmapFont *scaled = ( !m_inPixels && !m_isScaledTwin && scale > 1 ) ? ScaledFont( scale ) : NULL;
+	if ( scaled )
+	{
+		RECT scaledWrap;
+		if ( wrap )
+		{
+			scaledWrap.left   = wrap->left   * scale;
+			scaledWrap.top    = wrap->top    * scale;
+			scaledWrap.right  = wrap->right  * scale;
+			scaledWrap.bottom = wrap->bottom * scale;
+		}
+		POINT scaledPen = { penPos->x * scale, penPos->y * scale };
+		AUI_ERRCODE errcode = scaled->GetLineInfo( wrap ? &scaledWrap : NULL, &scaledPen, ascend, descend,
+		                                           start, stop, midWordBreaks, midWordBreaksOnly );
+		penPos->x = ( scaledPen.x + scale - 1 ) / scale;
+		penPos->y = ( scaledPen.y + scale - 1 ) / scale;
+		if ( ascend )  *ascend  = ( *ascend  + scale - 1 ) / scale;
+		if ( descend ) *descend = ( *descend + scale - 1 ) / scale;
+		return errcode;
+	}
+
 	return RenderLine(
 		NULL,
 		wrap,
@@ -1223,6 +1314,12 @@ sint32 aui_BitmapFont::GetStringWidth( const MBCHAR * a_String )
 {
 	Assert(a_String);
 	if (!a_String ) return 0;
+
+	// ctp2-redux: measured with the font that sets the text (see GetLineInfo)
+	const sint32 scale = g_ui ? g_ui->Scale() : 1;
+	aui_BitmapFont *scaled = ( !m_inPixels && !m_isScaledTwin && scale > 1 ) ? ScaledFont( scale ) : NULL;
+	if ( scaled )
+		return ( scaled->GetStringWidth( a_String ) + scale - 1 ) / scale;
 
 	POINT penPos = { 0, 0 };
 
@@ -1268,7 +1365,7 @@ AUI_ERRCODE aui_BitmapFont::RenderGlyph(
 				destSurf,
 				&underlineRect,
 				color,
-				0 );
+				m_inPixels ? k_AUI_BLITTER_FLAG_PIXELS : 0 );
 			Assert( AUI_SUCCESS(errcode) );
 			if ( !AUI_SUCCESS(errcode) ) return errcode;
 		}

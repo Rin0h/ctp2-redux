@@ -38,6 +38,9 @@
 #include "primitives.h"
 #include "aui_control.h"
 #include "tilecontrol.h"
+#include "aui_ui.h"
+#include "aui_blitter.h"
+#include "aui_factory.h"
 #include "GoodActor.h"
 #include "ResourceRecord.h"
 #include "profileDB.h"
@@ -114,6 +117,29 @@ AUI_ERRCODE TileControl::DrawThis(aui_Surface * surface, sint32 x, sint32 y)
 	RECT rect = { 0, 0, m_width, m_height };
 	OffsetRect(&rect, m_x + x, m_y + y);
 	ToWindow(&rect);
+
+	// ctp2-redux: the map code draws in game pixels; on a window drawn in
+	// the pixels of the frame the tile goes to a surface of its own first
+	if (surface->Scale() > 1)
+	{
+		AUI_ERRCODE   errcode = AUI_ERRCODE_OK;
+		aui_Surface * canvas  = aui_Factory::new_Surface(errcode, m_width, m_height);
+		if (canvas && AUI_SUCCESS(errcode))
+		{
+			RECT local = { 0, 0, m_width, m_height };
+			primitives_PaintRect16(canvas, &local, g_colorSet->GetColor(COLOR_BLACK));
+			DrawTile(canvas, (m_width / 2) - (k_TILE_PIXEL_WIDTH / 2),
+			         - k_TILE_PIXEL_HEADROOM + (m_height / 2) - (k_TILE_PIXEL_HEIGHT / 2));
+			g_ui->TheBlitter()->Blt(surface, rect.left, rect.top, canvas, &local, k_AUI_BLITTER_FLAG_COPY);
+		}
+		delete canvas;
+
+		if (surface == m_window->TheSurface()) {
+			m_window->AddDirtyRect(&rect);
+		}
+		return AUI_ERRCODE_OK;
+	}
+
 	primitives_PaintRect16(surface, &rect, g_colorSet->GetColor(COLOR_BLACK));
 
 	sint32 tileX = m_x + (m_width / 2) - (k_TILE_PIXEL_WIDTH / 2);

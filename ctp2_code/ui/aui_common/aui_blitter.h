@@ -16,6 +16,8 @@ struct aui_SpanList;
 
 #define k_AUI_BLITTER_FLAG_OUT			0x00010000
 #define k_AUI_BLITTER_FLAG_IN			0x00020000
+// ctp2-redux: ColorBlt rectangle in pixels of the surface, not game pixels
+#define k_AUI_BLITTER_FLAG_PIXELS		0x00040000
 
 struct aui_Stencil;
 aui_Stencil *aui_CreateStencil(aui_Surface *pSurface);
@@ -53,6 +55,15 @@ public:
 
 	virtual RobustBltFunc Blt;
 
+	// ctp2-redux: 16 bit tile blit between surfaces of different scale
+	AUI_ERRCODE ScaledTileBlt16(
+		aui_Surface *destSurf,
+		RECT *destRect,
+		aui_Surface *srcSurf,
+		RECT *srcRect,
+		sint32 anchorx,
+		sint32 anchory,
+		uint32 flags );
 	// ctp2-redux: 16 bit blit between surfaces of different scale
 	AUI_ERRCODE ScaledBlt16(
 		aui_Surface *destSurf,

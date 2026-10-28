@@ -365,6 +365,75 @@ AUI_ERRCODE aui_Blitter::ScaledBlt16(
 	return AUI_ERRCODE_OK;
 }
 
+//----------------------------------------------------------------------------
+//
+// Name       : aui_Blitter::ScaledTileBlt16
+//
+// Description: ctp2-redux: TileBlt between surfaces of different scale; the
+//              pattern (srcRect, game pixels) repeats over destRect from the
+//              anchor, each pattern pixel as large as a game pixel.
+//
+//----------------------------------------------------------------------------
+AUI_ERRCODE aui_Blitter::ScaledTileBlt16(
+	aui_Surface *destSurf,
+	RECT *destRect,
+	aui_Surface *srcSurf,
+	RECT *srcRect,
+	sint32 anchorx,
+	sint32 anchory,
+	uint32 flags )
+{
+	const sint32 ds = destSurf->Scale();
+	const sint32 ss = srcSurf->Scale();
+	const sint32 tileWidth  = ( srcRect->right  - srcRect->left ) * ss;
+	const sint32 tileHeight = ( srcRect->bottom - srcRect->top  ) * ss;
+	const sint32 left   = destRect->left * ds;
+	const sint32 top    = destRect->top  * ds;
+	const sint32 width  = ( destRect->right  - destRect->left ) * ds;
+	const sint32 height = ( destRect->bottom - destRect->top  ) * ds;
+	if ( width <= 0 || height <= 0 || tileWidth <= 0 || tileHeight <= 0 ) return AUI_ERRCODE_OK;
+
+	uint16 *destBase = (uint16 *)destSurf->Buffer();
+	const bool destLocked = destBase != NULL;
+	if ( !destLocked && destSurf->Lock( NULL, (LPVOID *)&destBase, 0 ) != AUI_ERRCODE_OK )
+		return AUI_ERRCODE_SURFACELOCKFAILED;
+
+	uint16 *srcBase = (uint16 *)srcSurf->Buffer();
+	const bool srcLocked = srcBase != NULL;
+	if ( !srcLocked && srcSurf->Lock( NULL, (LPVOID *)&srcBase, 0 ) != AUI_ERRCODE_OK )
+	{
+		if ( !destLocked ) destSurf->Unlock( destBase );
+		return AUI_ERRCODE_SURFACELOCKFAILED;
+	}
+
+	const sint32 destPitch = destSurf->Pitch() / 2;
+	const sint32 srcPitch  = srcSurf->Pitch() / 2;
+	const bool   chromakey = ( flags & k_AUI_BLITTER_FLAG_CHROMAKEY ) != 0;
+	const uint16 key       = (uint16)srcSurf->GetChromaKey();
+
+	// pattern column of every target column, in pixels of the source
+	std::vector<sint32> column( width );
+	for ( sint32 x = 0; x < width; ++x )
+		column[x] = srcRect->left * ss + Mod( anchorx * ss + ( x * ss ) / ds, tileWidth );
+
+	for ( sint32 y = 0; y < height; ++y )
+	{
+		const sint32 srcY = srcRect->top * ss + Mod( anchory * ss + ( y * ss ) / ds, tileHeight );
+		uint16 *dest = destBase + ( top + y ) * destPitch + left;
+		const uint16 *src = srcBase + srcY * srcPitch;
+		for ( sint32 x = 0; x < width; ++x )
+		{
+			const uint16 pixel = src[column[x]];
+			if ( !chromakey || pixel != key ) dest[x] = pixel;
+		}
+	}
+
+	if ( !srcLocked )  srcSurf->Unlock( srcBase );
+	if ( !destLocked ) destSurf->Unlock( destBase );
+
+	return AUI_ERRCODE_OK;
+}
+
 AUI_ERRCODE aui_Blitter::Blt16To16(
 	aui_Surface *destSurf,
 	RECT *destRect,
@@ -649,10 +718,10 @@ AUI_ERRCODE aui_Blitter::TileBlt(
 
 	clippedDestRect.left -= destdx;
 	clippedDestRect.top -= destdy;
-	if ( clippedDestRect.right > destSurf->Width() )
-		clippedDestRect.right = destSurf->Width();
-	if ( clippedDestRect.bottom > destSurf->Height() )
-		clippedDestRect.bottom = destSurf->Height();
+	if ( clippedDestRect.right > destSurf->LogicalWidth() )
+		clippedDestRect.right = destSurf->LogicalWidth();
+	if ( clippedDestRect.bottom > destSurf->LogicalHeight() )
+		clippedDestRect.bottom = destSurf->LogicalHeight();
 
 	if ( clippedDestRect.left >= clippedDestRect.right
 	||   clippedDestRect.top >= clippedDestRect.bottom )
@@ -667,10 +736,10 @@ AUI_ERRCODE aui_Blitter::TileBlt(
 
 	clippedSrcRect.left -= srcdx;
 	clippedSrcRect.top -= srcdy;
-	if ( clippedSrcRect.right > srcSurf->Width() )
-		clippedSrcRect.right = srcSurf->Width();
-	if ( clippedSrcRect.bottom > srcSurf->Height() )
-		clippedSrcRect.bottom = srcSurf->Height();
+	if ( clippedSrcRect.right > srcSurf->LogicalWidth() )
+		clippedSrcRect.right = srcSurf->LogicalWidth();
+	if ( clippedSrcRect.bottom > srcSurf->LogicalHeight() )
+		clippedSrcRect.bottom = srcSurf->LogicalHeight();
 
 	if ( clippedSrcRect.left >= clippedSrcRect.right
 	||   clippedSrcRect.top >= clippedSrcRect.bottom )
@@ -694,6 +763,9 @@ AUI_ERRCODE aui_Blitter::TileBlt(
 
 	anchorx = Mod(anchorx,srcWidth);
 	anchory = Mod(anchory,srcHeight);
+
+	if ( bytesPerPixel == 2 && ( destSurf->Scale() != 1 || srcSurf->Scale() != 1 ) )
+		return ScaledTileBlt16( destSurf, &clippedDestRect, srcSurf, &clippedSrcRect, anchorx, anchory, flags );
 
 	switch ( bytesPerPixel )
 	{
@@ -1138,10 +1210,10 @@ AUI_ERRCODE aui_Blitter::BevelBlt(
 
 	clippedDestRect.left -= dx;
 	clippedDestRect.top -= dy;
-	if ( clippedDestRect.right > destSurf->Width() )
-		clippedDestRect.right = destSurf->Width();
-	if ( clippedDestRect.bottom > destSurf->Height() )
-		clippedDestRect.bottom = destSurf->Height();
+	if ( clippedDestRect.right > destSurf->LogicalWidth() )
+		clippedDestRect.right = destSurf->LogicalWidth();
+	if ( clippedDestRect.bottom > destSurf->LogicalHeight() )
+		clippedDestRect.bottom = destSurf->LogicalHeight();
 
 	if ( clippedDestRect.left >= clippedDestRect.right
 	||   clippedDestRect.top >= clippedDestRect.bottom )
@@ -1161,6 +1233,23 @@ AUI_ERRCODE aui_Blitter::BevelBlt(
 		bevelThickness = bevelRectHeight / 2;
 
 	if ( !bevelThickness ) return AUI_ERRCODE_OK;
+
+	// ctp2-redux: game pixels to pixels of the surface
+	const sint32 scale = destSurf->Scale();
+	RECT scaledBevelRect = *bevelRect;
+	if ( scale != 1 )
+	{
+		clippedDestRect.left   *= scale;
+		clippedDestRect.top    *= scale;
+		clippedDestRect.right  *= scale;
+		clippedDestRect.bottom *= scale;
+		scaledBevelRect.left   *= scale;
+		scaledBevelRect.top    *= scale;
+		scaledBevelRect.right  *= scale;
+		scaledBevelRect.bottom *= scale;
+		bevelThickness         *= scale;
+		bevelRect               = &scaledBevelRect;
+	}
 
 	switch ( destSurf->BytesPerPixel() )
 	{
@@ -1566,17 +1655,18 @@ AUI_ERRCODE aui_Blitter::ColorBlt(
 
 	clippedDestRect.left -= dx;
 	clippedDestRect.top -= dy;
-	if ( clippedDestRect.right > destSurf->LogicalWidth() )
-		clippedDestRect.right = destSurf->LogicalWidth();
-	if ( clippedDestRect.bottom > destSurf->LogicalHeight() )
-		clippedDestRect.bottom = destSurf->LogicalHeight();
+	const bool inPixels = ( flags & k_AUI_BLITTER_FLAG_PIXELS ) != 0;
+	if ( clippedDestRect.right > ( inPixels ? destSurf->Width() : destSurf->LogicalWidth() ) )
+		clippedDestRect.right = inPixels ? destSurf->Width() : destSurf->LogicalWidth();
+	if ( clippedDestRect.bottom > ( inPixels ? destSurf->Height() : destSurf->LogicalHeight() ) )
+		clippedDestRect.bottom = inPixels ? destSurf->Height() : destSurf->LogicalHeight();
 
 	if ( clippedDestRect.left >= clippedDestRect.right
 	||   clippedDestRect.top >= clippedDestRect.bottom )
 		return AUI_ERRCODE_OK;
 
 	// ctp2-redux: game pixels to pixels of the surface
-	const sint32 scale = destSurf->Scale();
+	const sint32 scale = inPixels ? 1 : destSurf->Scale();
 	clippedDestRect.left   *= scale;
 	clippedDestRect.top    *= scale;
 	clippedDestRect.right  *= scale;
@@ -1628,7 +1718,7 @@ AUI_ERRCODE aui_Blitter::ColorBlt(
 			destSurf,
 			&clippedDestRect,
 			pixelColor,
-			flags );
+			flags | k_AUI_BLITTER_FLAG_PIXELS );
 	}
 	case 3:
 	{
@@ -1704,6 +1794,18 @@ AUI_ERRCODE aui_Blitter::ColorBlt16(
 	uint32 color,
 	uint32 flags )
 {
+	// ctp2-redux: callers outside the blitter give game pixels
+	if ( !( flags & k_AUI_BLITTER_FLAG_PIXELS ) && destSurf->Scale() != 1 )
+	{
+		const sint32 scale = destSurf->Scale();
+		RECT pixelRect =
+		{
+			destRect->left * scale, destRect->top * scale,
+			destRect->right * scale, destRect->bottom * scale
+		};
+		return ColorBlt16( destSurf, &pixelRect, color, flags | k_AUI_BLITTER_FLAG_PIXELS );
+	}
+
 	AUI_ERRCODE retcode = AUI_ERRCODE_OK;
 	AUI_ERRCODE errcode;
 
@@ -2259,10 +2361,10 @@ AUI_ERRCODE aui_Blitter::StretchBlt(
 
 	clippedDestRect.left -= destdx;
 	clippedDestRect.top -= destdy;
-	if ( clippedDestRect.right > destSurf->Width() )
-		clippedDestRect.right = destSurf->Width();
-	if ( clippedDestRect.bottom > destSurf->Height() )
-		clippedDestRect.bottom = destSurf->Height();
+	if ( clippedDestRect.right > destSurf->LogicalWidth() )
+		clippedDestRect.right = destSurf->LogicalWidth();
+	if ( clippedDestRect.bottom > destSurf->LogicalHeight() )
+		clippedDestRect.bottom = destSurf->LogicalHeight();
 
 	if ( clippedDestRect.left >= clippedDestRect.right
 	||   clippedDestRect.top >= clippedDestRect.bottom )
@@ -2277,14 +2379,22 @@ AUI_ERRCODE aui_Blitter::StretchBlt(
 
 	clippedSrcRect.left -= srcdx;
 	clippedSrcRect.top -= srcdy;
-	if ( clippedSrcRect.right > srcSurf->Width() )
-		clippedSrcRect.right = srcSurf->Width();
-	if ( clippedSrcRect.bottom > srcSurf->Height() )
-		clippedSrcRect.bottom = srcSurf->Height();
+	if ( clippedSrcRect.right > srcSurf->LogicalWidth() )
+		clippedSrcRect.right = srcSurf->LogicalWidth();
+	if ( clippedSrcRect.bottom > srcSurf->LogicalHeight() )
+		clippedSrcRect.bottom = srcSurf->LogicalHeight();
 
 	if ( clippedSrcRect.left >= clippedSrcRect.right
 	||   clippedSrcRect.top >= clippedSrcRect.bottom )
 		return AUI_ERRCODE_OK;
+
+	// ctp2-redux: game pixels to pixels of the surfaces
+	if ( destSurf->Scale() != 1 || srcSurf->Scale() != 1 )
+	{
+		const sint32 ds = destSurf->Scale(), ss = srcSurf->Scale();
+		clippedDestRect.left *= ds; clippedDestRect.top *= ds; clippedDestRect.right *= ds; clippedDestRect.bottom *= ds;
+		clippedSrcRect.left  *= ss; clippedSrcRect.top  *= ss; clippedSrcRect.right  *= ss; clippedSrcRect.bottom  *= ss;
+	}
 
 	switch ( bytesPerPixel )
 	{

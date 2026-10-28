@@ -254,6 +254,15 @@ protected:
 	sint32		m_bold;
 	sint32		m_italic;
 
+	// ctp2-redux: the same font at m_scaledFontScale times the size, for
+	// surfaces with a scale; m_inPixels while it draws in pixels of the
+	// surface (see DrawString)
+	aui_BitmapFont *ScaledFont( sint32 scale );
+	aui_BitmapFont *m_scaledFont;
+	sint32		m_scaledFontScale;
+	bool		m_inPixels;
+	bool		m_isScaledTwin;
+
 	tech_WLList<aui_Surface *> *m_surfaceList;
 
 #if !defined(_JAPANESE)

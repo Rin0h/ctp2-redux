@@ -92,6 +92,18 @@ AUI_ERRCODE aui_SDLBlitter::ColorBlt16(
     uint32 color,
     uint32 flags )
 {
+	// ctp2-redux: callers outside the blitter give game pixels
+	if ( !( flags & k_AUI_BLITTER_FLAG_PIXELS ) && destSurf->Scale() != 1 )
+	{
+		const sint32 scale = destSurf->Scale();
+		RECT pixelRect =
+		{
+			destRect->left * scale, destRect->top * scale,
+			destRect->right * scale, destRect->bottom * scale
+		};
+		return ColorBlt16( destSurf, &pixelRect, color, flags | k_AUI_BLITTER_FLAG_PIXELS );
+	}
+
 	AUI_ERRCODE retcode = AUI_ERRCODE_OK;
 
 	if ( !destSurf->Buffer()

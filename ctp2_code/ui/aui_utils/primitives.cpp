@@ -45,6 +45,7 @@
 #include "textutils.h"
 #include "tileset.h"
 #include "colorset.h"               // g_colorSet
+#include <cstdlib>                   // std::abs
 
 #define SWAPVARS(a, b) { sint32 temp; temp = a; a = b; b = temp; }
 
@@ -57,7 +58,7 @@ void primitives_SetPatternOffset(sint32 x, sint32 y)
 	g_patternOffsetY = y;
 }
 
-PRIMITIVES_ERRCODE primitives_FrameRect16(
+static PRIMITIVES_ERRCODE primitives_FrameRect16_px(
 	aui_Surface *pSurface,
 	RECT *pRect,
 	Pixel16 color
@@ -261,7 +262,7 @@ PRIMITIVES_ERRCODE primitives_Scale16(
 	return PRIMITIVES_ERRCODE_OK;
 }
 
-PRIMITIVES_ERRCODE primitives_PaintRect16(
+static PRIMITIVES_ERRCODE primitives_PaintRect16_px(
 	aui_Surface *pSurface,
 	RECT *pRect,
 	Pixel16 color
@@ -318,7 +319,7 @@ PRIMITIVES_ERRCODE primitives_PaintRect16(
 	return PRIMITIVES_ERRCODE_OK;
 }
 
-PRIMITIVES_ERRCODE primitives_BevelRect16(
+static PRIMITIVES_ERRCODE primitives_BevelRect16_px(
 	aui_Surface *pSurface,
 	RECT *pRect,
 	sint32 level,
@@ -537,7 +538,7 @@ PRIMITIVES_ERRCODE primitives_BevelRect16(
 	return PRIMITIVES_ERRCODE_OK;
 }
 
-PRIMITIVES_ERRCODE primitives_FrameThickRect16(
+static PRIMITIVES_ERRCODE primitives_FrameThickRect16_px(
 	aui_Surface *pSurface,
 	RECT *pRect,
 	Pixel16 color,
@@ -667,7 +668,7 @@ constexpr sint32 sgn(sint32 x) {
 	return x >= 0 ? 1 : -1;
 }
 
-PRIMITIVES_ERRCODE primitives_DrawLine16(
+static PRIMITIVES_ERRCODE primitives_DrawLine16_px(
 	aui_Surface *pSurface,
 	sint32 x1,
 	sint32 y1,
@@ -788,7 +789,7 @@ PRIMITIVES_ERRCODE primitives_DrawText(
 
 	if(font)
 	{
-		RECT rect = {x, static_cast<sint32>(y - 0.5 * font->GetLineSkip()), pDirectSurface->Width(), pDirectSurface->Height()}; // ony x, y matter; width and hight get clipped in DrawString
+		RECT rect = {x, static_cast<sint32>(y - 0.5 * font->GetLineSkip()), pDirectSurface->LogicalWidth(), pDirectSurface->LogicalHeight()}; // ony x, y matter; width and hight get clipped in DrawString
 		RECT clipRect = primitives_GetScreenAdjustedRectCopy(pDirectSurface, rect);
 		font->DrawString(pDirectSurface, &rect, &clipRect, pString, 0, color, 0); // no bg correspondence
 
@@ -927,7 +928,7 @@ PRIMITIVES_ERRCODE primitives_DrawTextBatch(
 	{
 		for (sint32 i=0;i < numStrings;i++)
 		{
-			RECT rect = {x, y, pDirectSurface->Width(), pDirectSurface->Height()}; // ony x, y matter; width and hight get clipped in DrawString
+			RECT rect = {x, y, pDirectSurface->LogicalWidth(), pDirectSurface->LogicalHeight()}; // ony x, y matter; width and hight get clipped in DrawString
 			RECT clipRect = primitives_GetScreenAdjustedRectCopy(pDirectSurface, rect);
 			font->DrawString(pDirectSurface, &rect, &clipRect, pString[i], 0, color, 0); // no bg correspondence
 			y += font->GetLineSkip();
@@ -1276,7 +1277,7 @@ PRIMITIVES_ERRCODE primitives_DropTextBatch(
 	{
 		for (sint32 i=0;i < numStrings;i++)
 		{
-			RECT rect = {x, y, pDirectSurface->Width(), pDirectSurface->Height()}; // ony x, y matter; width and hight get clipped in DrawString
+			RECT rect = {x, y, pDirectSurface->LogicalWidth(), pDirectSurface->LogicalHeight()}; // ony x, y matter; width and hight get clipped in DrawString
 			RECT clipRect = primitives_GetScreenAdjustedRectCopy(pDirectSurface, rect);
 			font->DrawString(pDirectSurface, &rect, &clipRect, pString[i], 0, color, 0); // no bg correspondence
 			y += font->GetLineSkip();
@@ -1289,7 +1290,7 @@ PRIMITIVES_ERRCODE primitives_DropTextBatch(
 	return PRIMITIVES_ERRCODE_OK;
 }
 
-PRIMITIVES_ERRCODE primitives_BevelPane16(
+static PRIMITIVES_ERRCODE primitives_BevelPane16_px(
 	aui_Surface *pSurface,
 	RECT *pRect,
 	sint32 level,
@@ -1469,7 +1470,7 @@ PRIMITIVES_ERRCODE primitives_BevelPane16(
 	return PRIMITIVES_ERRCODE_OK;
 }
 
-PRIMITIVES_ERRCODE primitives_BevelTabSelected16(
+static PRIMITIVES_ERRCODE primitives_BevelTabSelected16_px(
 	aui_Surface *pSurface,
 	RECT *pRect,
 	sint32 level,
@@ -1636,7 +1637,7 @@ PRIMITIVES_ERRCODE primitives_BevelTabSelected16(
 	return PRIMITIVES_ERRCODE_OK;
 }
 
-PRIMITIVES_ERRCODE primitives_BevelTabDeselected16(
+static PRIMITIVES_ERRCODE primitives_BevelTabDeselected16_px(
 	aui_Surface *pSurface,
 	RECT *pRect,
 	sint32 level,
@@ -1811,7 +1812,7 @@ PRIMITIVES_ERRCODE primitives_BevelTabDeselected16(
 	return PRIMITIVES_ERRCODE_OK;
 }
 
-PRIMITIVES_ERRCODE primitives_BevelLeftPiece16(
+static PRIMITIVES_ERRCODE primitives_BevelLeftPiece16_px(
 	aui_Surface *pSurface,
 	RECT *tab,
 	RECT *pane,
@@ -1917,7 +1918,7 @@ PRIMITIVES_ERRCODE primitives_BevelLeftPiece16(
 	return PRIMITIVES_ERRCODE_OK;
 }
 
-PRIMITIVES_ERRCODE primitives_BevelRightPiece16(
+static PRIMITIVES_ERRCODE primitives_BevelRightPiece16_px(
 	aui_Surface *pSurface,
 	RECT *tab,
 	RECT *pane,
@@ -2826,7 +2827,7 @@ void SpecialDrawPatternLine16(Pixel16 * base, sint32 x, sint32 y, sint32 deltaX,
 	}
 }
 
-void primitives_BaseClippedDrawLine16(aui_Surface & surf, sint32 x1, sint32 y1, sint32 x2, sint32 y2, Pixel16 color,
+static void primitives_BaseClippedDrawLine16_px(aui_Surface & surf, sint32 x1, sint32 y1, sint32 x2, sint32 y2, Pixel16 color,
 		LINE_FLAGS lineFlags, uint32 fullPattern, uint32 patternLength)
 {
 	// Verify that patternLength is a multitude of 2
@@ -2869,7 +2870,7 @@ void primitives_BaseClippedDrawLine16(aui_Surface & surf, sint32 x1, sint32 y1, 
 	}
 }
 
-void primitives_ClippedPaintRect16(aui_Surface & surf, const RECT & rect, Pixel16 color, uint8 alpha)
+static void primitives_ClippedPaintRect16_px(aui_Surface & surf, const RECT & rect, Pixel16 color, uint8 alpha)
 {
 	RECT clippedRect = ClipRect(surf, rect);
 	sint32 width  = clippedRect.right - clippedRect.left + 1;
@@ -2885,7 +2886,7 @@ void primitives_ClippedPaintRect16(aui_Surface & surf, const RECT & rect, Pixel1
 	}
 }
 
-void primitives_ClippedFrameRect16(aui_Surface & surf, const RECT & rect, Pixel16 color, uint8 alpha)
+static void primitives_ClippedFrameRect16_px(aui_Surface & surf, const RECT & rect, Pixel16 color, uint8 alpha)
 {
 	const int blendRGBMask = pixelutils_GetBlend16RGBMask();
 
@@ -2918,7 +2919,7 @@ void primitives_ClippedFrameRect16(aui_Surface & surf, const RECT & rect, Pixel1
 	}
 }
 
-void primitives_ClippedShadowRect16(aui_Surface & surf, const RECT & rect)
+static void primitives_ClippedShadowRect16_px(aui_Surface & surf, const RECT & rect)
 {
 	const int shadowRGBMask = pixelutils_GetShadow16RGBMask();
 
@@ -2945,7 +2946,7 @@ sint32 angleDirection (sint32 x1, sint32 y1, sint32 x2, sint32 y2, sint32 x3, si
 /*
  * Method can be tested by TestClipRectangle per example by calling it from RadarMap::RenderMap
  */
-void primitives_ClippedTriangle16(aui_Surface & surf, const RECT & rect, TRIANGLE_ID triangleId, Pixel16 color,
+static void primitives_ClippedTriangle16_px(aui_Surface & surf, const RECT & rect, TRIANGLE_ID triangleId, Pixel16 color,
 		uint8 alpha, bool antiAliased)
 {
 	if (!RectIntersectSurface(surf, rect)) {
@@ -2962,7 +2963,7 @@ void primitives_ClippedTriangle16(aui_Surface & surf, const RECT & rect, TRIANGL
 	sint32 deltaY = y2 - y1;
 	if (deltaX == 0 || deltaY == 0)
 	{
-		primitives_ClippedPaintRect16(surf, rect, color, alpha);
+		primitives_ClippedPaintRect16_px(surf, rect, color, alpha);
 		return;
 	}
 
@@ -3005,10 +3006,10 @@ void primitives_ClippedTriangle16(aui_Surface & surf, const RECT & rect, TRIANGL
 		// Both have the same sign, so in same half-plane => visible
 		if ((signTriangle < 0 && signRectangle < 0) || (signTriangle > 0 && signRectangle > 0))
 		{
-			primitives_ClippedPaintRect16(surf, rect, color, alpha);
+			primitives_ClippedPaintRect16_px(surf, rect, color, alpha);
 		}
 		else if ((x1 == x2) || (y1 == y2)) { // line touches corner, draw single point
-			primitives_ClippedPaintRect16(surf, RECT { x1, y1, x2, y2 }, color, alpha);
+			primitives_ClippedPaintRect16_px(surf, RECT { x1, y1, x2, y2 }, color, alpha);
 		}
 		return;
 	}
@@ -3059,7 +3060,7 @@ void primitives_ClippedTriangle16(aui_Surface & surf, const RECT & rect, TRIANGL
 		if (fillRect.top > fillRect.bottom) {
 			SWAPVARS(fillRect.top, fillRect.bottom);
 		}
-		primitives_ClippedPaintRect16(surf, fillRect, color, alpha);
+		primitives_ClippedPaintRect16_px(surf, fillRect, color, alpha);
 	}
 	if (point2Clipped)
 	{
@@ -3070,7 +3071,7 @@ void primitives_ClippedTriangle16(aui_Surface & surf, const RECT & rect, TRIANGL
 		if (fillRect.top > fillRect.bottom) {
 			SWAPVARS(fillRect.top, fillRect.bottom);
 		}
-		primitives_ClippedPaintRect16(surf, fillRect, color, alpha);
+		primitives_ClippedPaintRect16_px(surf, fillRect, color, alpha);
 	}
 }
 
@@ -3081,8 +3082,190 @@ RECT primitives_GetScreenAdjustedRectCopy(aui_Surface *surf, RECT &theRect)
 	// Adjust clipRect to fit on the screen
 	if (clipRect.left   <  0             ) clipRect.left   = 0;
 	if (clipRect.top    <  0             ) clipRect.top    = 0;
-	if (clipRect.right  >= surf->Width() ) clipRect.right  = surf->Width()  - 1;
-	if (clipRect.bottom >= surf->Height()) clipRect.bottom = surf->Height() - 1;
+	if (clipRect.right  >= surf->LogicalWidth() ) clipRect.right  = surf->LogicalWidth()  - 1;
+	if (clipRect.bottom >= surf->LogicalHeight()) clipRect.bottom = surf->LogicalHeight() - 1;
 
 	return clipRect;
+}
+
+//----------------------------------------------------------------------------
+//
+// ctp2-redux: surfaces with a scale (aui_Surface::Scale, pixels of the
+// surface per game pixel). The functions above draw in pixels of the
+// surface (*_px); the public ones take game pixels as before and convert
+// them. Lines and frames one game pixel wide stay one game pixel wide.
+//
+//----------------------------------------------------------------------------
+namespace
+{
+	sint32 ScaleOf(aui_Surface const * surf) { return surf ? surf->Scale() : 1; }
+
+	// exclusive right and bottom
+	RECT ScaledRect(RECT const & r, sint32 s)
+	{
+		RECT out = { r.left * s, r.top * s, r.right * s, r.bottom * s };
+		return out;
+	}
+
+	// inclusive right and bottom (the clipped primitives)
+	RECT ScaledRectInclusive(RECT const & r, sint32 s)
+	{
+		RECT out = { r.left * s, r.top * s, r.right * s + s - 1, r.bottom * s + s - 1 };
+		return out;
+	}
+
+	// a line from game pixel to game pixel: the first and last pixel of the
+	// pixel blocks, and the offset for the width along the minor axis
+	struct ScaledLine { sint32 x1, y1, x2, y2, dx, dy; };
+	ScaledLine ScaleLine(sint32 x1, sint32 y1, sint32 x2, sint32 y2, sint32 s)
+	{
+		ScaledLine l;
+		l.x1 = x1 * s + (x1 > x2 ? s - 1 : 0);
+		l.x2 = x2 * s + (x2 > x1 ? s - 1 : 0);
+		l.y1 = y1 * s + (y1 > y2 ? s - 1 : 0);
+		l.y2 = y2 * s + (y2 > y1 ? s - 1 : 0);
+		bool const flat = std::abs(x2 - x1) >= std::abs(y2 - y1);
+		l.dx = flat ? 0 : 1;
+		l.dy = flat ? 1 : 0;
+		return l;
+	}
+}
+
+PRIMITIVES_ERRCODE primitives_FrameRect16(aui_Surface *pSurface, RECT *pRect, Pixel16 color)
+{
+	sint32 const s = ScaleOf(pSurface);
+	if (s == 1 || !pRect) return primitives_FrameRect16_px(pSurface, pRect, color);
+
+	RECT const r = ScaledRect(*pRect, s);
+	PRIMITIVES_ERRCODE errcode = PRIMITIVES_ERRCODE_OK;
+	for (sint32 i = 0; i < s && r.right - r.left > 2 * i && r.bottom - r.top > 2 * i; ++i)
+	{
+		RECT inner = { r.left + i, r.top + i, r.right - i, r.bottom - i };
+		errcode = primitives_FrameRect16_px(pSurface, &inner, color);
+	}
+	return errcode;
+}
+
+PRIMITIVES_ERRCODE primitives_PaintRect16(aui_Surface *pSurface, RECT *pRect, Pixel16 color)
+{
+	sint32 const s = ScaleOf(pSurface);
+	if (s == 1 || !pRect) return primitives_PaintRect16_px(pSurface, pRect, color);
+	RECT r = ScaledRect(*pRect, s);
+	return primitives_PaintRect16_px(pSurface, &r, color);
+}
+
+PRIMITIVES_ERRCODE primitives_BevelRect16(aui_Surface *pSurface, RECT *pRect, sint32 level, BOOL flag,
+                                          sint32 blendLight, sint32 blendDark)
+{
+	sint32 const s = ScaleOf(pSurface);
+	if (s == 1 || !pRect) return primitives_BevelRect16_px(pSurface, pRect, level, flag, blendLight, blendDark);
+	RECT r = ScaledRect(*pRect, s);
+	return primitives_BevelRect16_px(pSurface, &r, level * s, flag, blendLight, blendDark);
+}
+
+PRIMITIVES_ERRCODE primitives_FrameThickRect16(aui_Surface *pSurface, RECT *pRect, Pixel16 color, sint32 level)
+{
+	sint32 const s = ScaleOf(pSurface);
+	if (s == 1 || !pRect) return primitives_FrameThickRect16_px(pSurface, pRect, color, level);
+	RECT r = ScaledRect(*pRect, s);
+	return primitives_FrameThickRect16_px(pSurface, &r, color, level * s);
+}
+
+PRIMITIVES_ERRCODE primitives_DrawLine16(aui_Surface *pSurface, sint32 x1, sint32 y1, sint32 x2, sint32 y2, Pixel16 color)
+{
+	sint32 const s = ScaleOf(pSurface);
+	if (s == 1) return primitives_DrawLine16_px(pSurface, x1, y1, x2, y2, color);
+
+	ScaledLine const l = ScaleLine(x1, y1, x2, y2, s);
+	PRIMITIVES_ERRCODE errcode = PRIMITIVES_ERRCODE_OK;
+	for (sint32 i = 0; i < s; ++i)
+		errcode = primitives_DrawLine16_px(pSurface, l.x1 + i * l.dx, l.y1 + i * l.dy,
+		                                   l.x2 + i * l.dx, l.y2 + i * l.dy, color);
+	return errcode;
+}
+
+PRIMITIVES_ERRCODE primitives_BevelPane16(aui_Surface *pSurface, RECT *pRect, sint32 level, BOOL flag,
+                                          sint32 blendLight, sint32 blendDark, AUI_TABGROUP_ALIGNMENT a)
+{
+	sint32 const s = ScaleOf(pSurface);
+	if (s == 1 || !pRect) return primitives_BevelPane16_px(pSurface, pRect, level, flag, blendLight, blendDark, a);
+	RECT r = ScaledRect(*pRect, s);
+	return primitives_BevelPane16_px(pSurface, &r, level * s, flag, blendLight, blendDark, a);
+}
+
+PRIMITIVES_ERRCODE primitives_BevelTabSelected16(aui_Surface *pSurface, RECT *pRect, sint32 level, BOOL flag,
+                                                 sint32 blendLight, sint32 blendDark, AUI_TABGROUP_ALIGNMENT a)
+{
+	sint32 const s = ScaleOf(pSurface);
+	if (s == 1 || !pRect) return primitives_BevelTabSelected16_px(pSurface, pRect, level, flag, blendLight, blendDark, a);
+	RECT r = ScaledRect(*pRect, s);
+	return primitives_BevelTabSelected16_px(pSurface, &r, level * s, flag, blendLight, blendDark, a);
+}
+
+PRIMITIVES_ERRCODE primitives_BevelTabDeselected16(aui_Surface *pSurface, RECT *pRect, sint32 level, BOOL flag,
+                                                   sint32 blendLight, sint32 blendDark, AUI_TABGROUP_ALIGNMENT a)
+{
+	sint32 const s = ScaleOf(pSurface);
+	if (s == 1 || !pRect) return primitives_BevelTabDeselected16_px(pSurface, pRect, level, flag, blendLight, blendDark, a);
+	RECT r = ScaledRect(*pRect, s);
+	return primitives_BevelTabDeselected16_px(pSurface, &r, level * s, flag, blendLight, blendDark, a);
+}
+
+PRIMITIVES_ERRCODE primitives_BevelLeftPiece16(aui_Surface *pSurface, RECT *tab, RECT *pane, sint32 level, BOOL flag,
+                                               sint32 blendLight, sint32 blendDark, AUI_TABGROUP_ALIGNMENT a)
+{
+	sint32 const s = ScaleOf(pSurface);
+	if (s == 1 || !tab || !pane) return primitives_BevelLeftPiece16_px(pSurface, tab, pane, level, flag, blendLight, blendDark, a);
+	RECT t = ScaledRect(*tab, s), p = ScaledRect(*pane, s);
+	return primitives_BevelLeftPiece16_px(pSurface, &t, &p, level * s, flag, blendLight, blendDark, a);
+}
+
+PRIMITIVES_ERRCODE primitives_BevelRightPiece16(aui_Surface *pSurface, RECT *tab, RECT *pane, sint32 level, BOOL flag,
+                                                sint32 blendLight, sint32 blendDark, AUI_TABGROUP_ALIGNMENT a)
+{
+	sint32 const s = ScaleOf(pSurface);
+	if (s == 1 || !tab || !pane) return primitives_BevelRightPiece16_px(pSurface, tab, pane, level, flag, blendLight, blendDark, a);
+	RECT t = ScaledRect(*tab, s), p = ScaledRect(*pane, s);
+	return primitives_BevelRightPiece16_px(pSurface, &t, &p, level * s, flag, blendLight, blendDark, a);
+}
+
+void primitives_ClippedPaintRect16(aui_Surface & surf, const RECT & rect, Pixel16 color, uint8 alpha)
+{
+	sint32 const s = surf.Scale();
+	primitives_ClippedPaintRect16_px(surf, s == 1 ? rect : ScaledRectInclusive(rect, s), color, alpha);
+}
+
+void primitives_ClippedFrameRect16(aui_Surface & surf, const RECT & rect, Pixel16 color, uint8 alpha)
+{
+	sint32 const s = surf.Scale();
+	if (s == 1) { primitives_ClippedFrameRect16_px(surf, rect, color, alpha); return; }
+
+	RECT const r = ScaledRectInclusive(rect, s);
+	for (sint32 i = 0; i < s && r.right - r.left >= 2 * i && r.bottom - r.top >= 2 * i; ++i)
+		primitives_ClippedFrameRect16_px(surf, RECT { r.left + i, r.top + i, r.right - i, r.bottom - i }, color, alpha);
+}
+
+void primitives_ClippedShadowRect16(aui_Surface & surf, const RECT & rect)
+{
+	sint32 const s = surf.Scale();
+	primitives_ClippedShadowRect16_px(surf, s == 1 ? rect : ScaledRectInclusive(rect, s));
+}
+
+void primitives_ClippedTriangle16(aui_Surface & surf, const RECT & rect, TRIANGLE_ID triangleId, Pixel16 color,
+		uint8 alpha, bool antiAliased)
+{
+	sint32 const s = surf.Scale();
+	primitives_ClippedTriangle16_px(surf, s == 1 ? rect : ScaledRectInclusive(rect, s), triangleId, color, alpha, antiAliased);
+}
+
+void primitives_BaseClippedDrawLine16(aui_Surface & surf, sint32 x1, sint32 y1, sint32 x2, sint32 y2, Pixel16 color,
+		LINE_FLAGS lineFlags, uint32 fullPattern, uint32 patternLength)
+{
+	sint32 const s = surf.Scale();
+	if (s == 1) { primitives_BaseClippedDrawLine16_px(surf, x1, y1, x2, y2, color, lineFlags, fullPattern, patternLength); return; }
+
+	ScaledLine const l = ScaleLine(x1, y1, x2, y2, s);
+	for (sint32 i = 0; i < s; ++i)
+		primitives_BaseClippedDrawLine16_px(surf, l.x1 + i * l.dx, l.y1 + i * l.dy, l.x2 + i * l.dx, l.y2 + i * l.dy,
+		                                    color, lineFlags, fullPattern, patternLength);
 }
