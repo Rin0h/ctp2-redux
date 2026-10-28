@@ -397,7 +397,24 @@ im Reiter Status Runden bis Wachstum, Kriminalität, Bekehrungsverlust und
 Lizenzgebühren. Zurückgeholt aus dem Original: die Beschreibung des
 Bauobjekts und des gewählten Gebäudes mit Links in die Bibliothek
 (`EditQueue::SetItemDescription`, jetzt öffentlich).
-Nächstes: die übrigen In-Game-Fenster.
+Reichsstatus/Inlandsmanager (`civstatus.ldl`, Entscheidung 2026-10-28:
+„Original + Reiter Details“): Originalfenster 576x384; Apolyton hatte es
+2009 auf 800x558 vergrößert, um Nahrung, Produktion und Wirtschaft nach
+Quellen aufzuschlüsseln. Diese Aufschlüsselung ist jetzt der dritte Reiter
+„Details“ (Wissenschaft und Gold nebeneinander), der Details-Knopf öffnet
+ihn; Reiter 1 zeigt die Original-Zusammenfassung plus „Optimiere
+Schieber“. `ce_GetObject`/`ce_SetText` in CauseAndEffectTab.cpp.
+Diplomatie-Assistent (`dipwizard.ldl`, Entscheidung: Original): wieder
+576x384; das Diplomatenbild von Apolyton (2007) entfällt, das Original hatte
+keins (Platz war auskommentiert).
+Übrige Fenster (Bestandsaufnahme 2026-10-28): Stadtstatus, Bauliste,
+Handel, Einheiten, Wissenschaft, Info, Bibliothek usw. haben schon
+Originalgröße und -optik, Apolyton hat dort nur Spalten/Knöpfe ergänzt
+oder Listen um ein paar Pixel ausgerichtet (Commit 914e8c947) – bleiben.
+Noch offen: Armeemanager (Apolyton 2021 auf Dialogfenster umgestellt),
+Steuerleiste (2 Kartenknöpfe), Szenario-Editor.
+Hinweis Besitzer: Die Oberfläche muss später ohnehin skaliert werden, damit
+sie unter anderen Auflösungen läuft; Plan dazu folgt.
 
 Werkzeug: Bildschirmtour im Testmodus (`tools\mptest.ps1 -Single -Tour`:
 erst Hauptmenü, Einzelspieler-Menü, Neues Spiel und seine Fenster als
