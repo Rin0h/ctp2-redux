@@ -40,7 +40,8 @@ upstream.
   ones the Apolyton Edition redesigned (main menu, new game pop-ups, city
   window with tabs, domestic manager, diplomacy wizard, army manager); the
   Apolyton additions are fitted into them. The layouts are in
-  `ctp2_data/classic`; switched off, the game shows the Apolyton interface.
+  `ctp2_data/classic`; switch it in Options → Graphics (takes effect at the
+  next start); switched off, the game shows the Apolyton interface.
 - Upscaling: analysis done, implementation not started.
 
 ### Automated multiplayer test
@@ -374,7 +375,8 @@ spiegelt das Upstream-Projekt.
   Apolyton Edition umgestalteten (Hauptmenü, Fenster von „Neues Spiel“,
   Stadtfenster mit Reitern, Inlandsmanager, Diplomatie-Assistent,
   Truppenmanager); die Apolyton-Ergänzungen sind darin eingepasst. Die
-  Layouts liegen in `ctp2_data/classic`; ausgeschaltet zeigt das Spiel die
+  Layouts liegen in `ctp2_data/classic`; umschalten unter Optionen → Grafik
+  (wirkt beim nächsten Start); ausgeschaltet zeigt das Spiel die
   Apolyton-Oberfläche.
 - Hochskalierung: Analyse abgeschlossen, Umsetzung steht aus.
 

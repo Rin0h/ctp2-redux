@@ -11,6 +11,7 @@
 #include "c3slider.h"
 #include "c3ui.h"
 #include "aui_switch.h"
+#include "aui_ldl.h"
 #include "aui_uniqueid.h"
 #include "spnewgamewindow.h"
 #include "graphicsscreen.h"
@@ -18,6 +19,7 @@
 #include "tiledmap.h"       // g_tiledMap;
 #include "civapp.h"
 #include "SpriteGroupList.h"
+#include "MessageBoxDialog.h"
 
 extern C3UI            * g_c3ui;
 extern sint32            g_isGridOn;
@@ -59,6 +61,7 @@ static aui_Switch	*s_walk						= NULL,
 					*s_goodAnims				= NULL,
 					*s_runInBackground			= NULL,
 					*s_cityProd					= NULL,
+					*s_classicInterface			= NULL, // ctp2-redux
 #if defined(__AUI_USE_SDL__)
 					*s_windowedMode				= NULL,
 #endif
@@ -93,6 +96,7 @@ enum
 	GS_CITYPROD,
 	GS_WINDOWEDMODE,
 	GS_RUNINBACKGROUNT,
+	GS_CLASSICINTERFACE,
 
 	GS_TOTAL
 };
@@ -118,6 +122,7 @@ static uint32 check[] =
 	GS_CITYPROD,
 	GS_WINDOWEDMODE,
 	GS_RUNINBACKGROUNT,
+	GS_CLASSICINTERFACE,
 
 	GS_TOTAL
 };
@@ -187,6 +192,8 @@ void graphicsscreen_initializeValues()
 	s_runInBackground ->SetState(g_theProfileDB->IsRunInBackground());
 	s_grid            ->SetState(g_isGridOn);
 	s_cityProd        ->SetState(g_theProfileDB->IsShowCityProduction());
+	if (s_classicInterface)
+		s_classicInterface->SetState(g_theProfileDB->IsClassicInterface());
 #if defined(__AUI_USE_SDL__)
 	s_windowedMode    ->SetState(g_theProfileDB->IsWindowedMode());
 #endif
@@ -264,6 +271,11 @@ AUI_ERRCODE graphicsscreen_Initialize( void )
 	s_goodAnims        = spNew_aui_Switch  (&errcode, windowBlock, "GoodsButton",            graphicsscreen_checkPress, &check[GS_GOODANIMS]);
 	s_runInBackground  = spNew_aui_Switch  (&errcode, windowBlock, "RunInBackgroundButton",  graphicsscreen_checkPress, &check[GS_RUNINBACKGROUNT]);
 	s_cityProd         = spNew_aui_Switch  (&errcode, windowBlock, "ShowCityProdButton",     graphicsscreen_checkPress, &check[GS_CITYPROD]);
+	// ctp2-redux: classic or Apolyton interface
+	MBCHAR classicBlock[k_AUI_LDL_MAXBLOCK + 1];
+	sprintf(classicBlock, "%s.%s", windowBlock, "ClassicInterfaceButton");
+	if (aui_Ldl::IsValid(classicBlock))
+		s_classicInterface = spNew_aui_Switch(&errcode, windowBlock, "ClassicInterfaceButton", graphicsscreen_checkPress, &check[GS_CLASSICINTERFACE]);
 #if defined(__AUI_USE_SDL__)
 	s_windowedMode     = spNew_aui_Switch  (&errcode, windowBlock, "WindowedModeButton",     graphicsscreen_checkPress, &check[GS_WINDOWEDMODE]);
 #endif
@@ -314,6 +326,7 @@ void graphicsscreen_Cleanup()
 	mycleanup(s_goodAnims);
 	mycleanup(s_runInBackground);
 	mycleanup(s_cityProd);
+	mycleanup(s_classicInterface);
 #if defined(__AUI_USE_SDL__)
 	mycleanup(s_windowedMode);
 #endif
@@ -419,6 +432,11 @@ void graphicsscreen_checkPress(aui_Control *control, uint32 action, uint32 data,
 		break;
 	case GS_CITYPROD:
 		func = &ProfileDB::SetShowCityProduction;
+		break;
+	case GS_CLASSICINTERFACE:
+		// ctp2-redux: the layouts are loaded at the start of the game
+		func = &ProfileDB::SetClassicInterface;
+		MessageBoxDialog::Information("str_ldl_Classic_Interface_Restart", "InfoClassicInterface");
 		break;
 #if defined(__AUI_USE_SDL__)
 	case GS_WINDOWEDMODE:

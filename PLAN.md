@@ -415,8 +415,9 @@ Truppenmanager (`armymanager.ldl`): wieder 485x225; Liste zeigt die
 Truppennamen (etwas breiter), Truppentext zwischen den Knöpfen, kleine
 Einheitensymbole (`am_UnitIcon` wählt nach Feldgröße).
 Steuerleiste und Szenario-Editor: nur kleine Ergänzungen im Originalstil,
-bleiben. Damit sind alle Fenster durch; offen ist der Umschalter in den
-Optionen (bisher nur Profilzeile `ClassicInterface=Yes/No`).
+bleiben. Damit sind alle Fenster durch. Umschalter: Optionen → Grafik →
+„Klassische Oberfläche“/„Apolyton-Oberfläche“ (auch vom Hauptmenü aus),
+Hinweis „wechselt beim nächsten Start“; Profilzeile `ClassicInterface`.
 Hinweis Besitzer: Die Oberfläche muss später ohnehin skaliert werden, damit
 sie unter anderen Auflösungen läuft; Plan dazu folgt.
 

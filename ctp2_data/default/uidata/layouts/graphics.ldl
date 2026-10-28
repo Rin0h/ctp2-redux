@@ -38,7 +38,7 @@ GraphicsWindow {
 	string	xanchor	"center"
 	string	yanchor	"center"
 	int	widthpix	700
-	int	heightpix	420
+	int	heightpix	450
 	int	xpix	0
 	int	ypix	0
 	Name:CTP_GREY_TITLE_FONT {
@@ -171,6 +171,15 @@ GraphicsWindow {
 			string	string1	"str_ldl_Good_Animations_On"
 		}
 	}
+	# ctp2-redux: classic (original) or Apolyton interface, after a restart
+	ClassicInterfaceButton:GRAPHICS_CHECKBOX {
+		int	xpix	30
+		int	ypix	340
+		stringtable {
+			string	string0	"str_ldl_Classic_Interface_Off"
+			string	string1	"str_ldl_Classic_Interface_On"
+		}
+	}
 	RunInBackgroundButton:GRAPHICS_CHECKBOX {
 		int	xpix	350
 		int	ypix	310
@@ -189,7 +198,7 @@ GraphicsWindow {
 		string	imagebltflag	"chromakey"
 #		int xpix	279
 		string	xanchor	"center"
-		int	ypix	350
+		int	ypix	380
 		string	text	"str_ldl_RES_CHANGE_BUTTON"
 	}
 

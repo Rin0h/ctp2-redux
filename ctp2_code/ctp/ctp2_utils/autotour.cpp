@@ -244,6 +244,9 @@ namespace
 	void OpenMapShape()     { NoteWindows(); spnewgamemapshapescreen_displayMyWindow(); }
 	void OpenRules()        { NoteWindows(); spnewgamerulesscreen_displayMyWindow(); }
 	void OpenCustomMap()    { NoteWindows(); custommapscreen_displayMyWindow(); }
+	// graphics options from the main menu (with the interface switch)
+	void OpenGraphicsShell()  { graphicsscreen_displayMyWindow(); }
+	void CloseGraphicsShell() { graphicsscreen_removeMyWindow(k_exec); }
 
 	const TourWindow k_shell[] =
 	{
@@ -258,6 +261,7 @@ namespace
 		{ "ng_rules",       OpenRules,     RemoveNewWindows     },
 		{ "ng_custommap",   OpenCustomMap, RemoveNewWindows },
 		{ "ng_back",        ShellNothing,  CloseNewGame   },
+		{ "mm_graphics",    OpenGraphicsShell, CloseGraphicsShell },
 	};
 	const int k_shellCount = sizeof(k_shell) / sizeof(k_shell[0]);
 
