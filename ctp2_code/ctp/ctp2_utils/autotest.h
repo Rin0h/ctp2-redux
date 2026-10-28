@@ -11,6 +11,9 @@
 //   autojoin=<addr>       join the host at <addr> ("127.0.0.1:21157")
 //   autosingle            single player game instead (instant start), for
 //                         comparing the AI with the network game
+//   autotour              screenshots of the main menu and of the game
+//                         windows one by one (autotest_ui_<nn>_<name>.png),
+//                         then quit; see autotour.cpp
 //   autoturns=<n>         stop after n rounds (default 20)
 //   autoai=<n>            host only: number of AI civilisations (default 2)
 //   autohumans=<n>        host only: human players to wait for (default 2)

@@ -418,6 +418,8 @@ private:
     sint32 m_windowedMode;
     /// Sleeping units automatically board
     sint32 m_sleepingUnitsBoard;
+    /// ctp2-redux: classic (original) interface layouts, ctp2_data\classic
+    sint32 m_classicInterface;
 
     PointerList<ProfileVar> *m_vars;
     BOOL m_loadedFromTutorial;
@@ -618,6 +620,7 @@ public:
     void SetShowCityProduction(BOOL on)                 { m_showCityProduction = on; }
 
     void SetWindowedMode(BOOL val)                      { m_windowedMode = val; }
+    void SetClassicInterface(BOOL val)                  { m_classicInterface = val; }
     void SetSleepingUnitsBoard(BOOL val)                { m_sleepingUnitsBoard = val; }
 
     sint32      GetNPlayers() const             { return m_nPlayers; }
@@ -877,6 +880,7 @@ public:
     BOOL    IsShowCityProduction()              { return m_showCityProduction; }
 
     BOOL    IsWindowedMode() const              { return m_windowedMode; }
+    BOOL    IsClassicInterface() const          { return m_classicInterface; }
     BOOL    IsSleepingUnitsBoard() const        { return m_sleepingUnitsBoard; }
 };
 

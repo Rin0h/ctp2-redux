@@ -17,6 +17,7 @@
 
 #include "c3.h"
 #include "autotest.h"
+#include "autotour.h"
 
 #include <chrono>
 #include <cstdarg>
@@ -78,6 +79,7 @@ namespace
 	bool        s_hidden        = true;
 	int         s_shotEvery     = 1;
 	bool        s_play          = true;
+	bool        s_tour          = false;
 	int         s_playedRound   = -1;
 	int         s_lastShotRound = -1;
 
@@ -298,6 +300,7 @@ void autotest_ParseCommandLine(const char *cmdLine)
 	if (ReadValue(cmdLine, "autohumans=", v)) s_humanPlayers = atoi(v.c_str());
 	if (ReadValue(cmdLine, "autoname=", v))   s_name         = v;
 	if (ReadValue(cmdLine, "autoshots=", v))  s_shotEvery    = atoi(v.c_str());
+	if (strstr(cmdLine, "autotour"))          s_tour         = true;
 	if (ReadValue(cmdLine, "autoplay=", v))   s_play         = atoi(v.c_str()) != 0;
 	if (strstr(cmdLine, "autoshow"))          s_hidden       = false;
 	if (s_turns < 1) s_turns = 1;
@@ -416,7 +419,9 @@ void autotest_Process(bool gameLoaded)
 		{
 			// as many civilisations as in the network test: the humans
 			// there are one human and AIs here (+1 for the barbarians)
-			if (s_mainMenuSeen && autotest_Step("mainmenu-single"))
+			if (s_tour && s_mainMenuSeen && autotest_Step("shot-mainmenu"))
+				autotest_Screenshot("autotest_ui_00_mainmenu.png");
+			else if (s_mainMenuSeen && autotest_Step("mainmenu-single"))
 			{
 				g_theProfileDB->SetNPlayers(s_humanPlayers + s_aiPlayers + 1);
 				initialplayscreen_instantPress(NULL, AUI_BUTTON_ACTION_EXECUTE, 0, NULL);
@@ -494,6 +499,16 @@ void autotest_Process(bool gameLoaded)
 		if (sci_advancescreen_isOnScreen())
 			sci_advancescreen_removeMyWindow(AUI_BUTTON_ACTION_EXECUTE);
 		PlayTurn(me, round);
+	}
+
+	// Screenshot tour of the windows in the first round with a city; the
+	// test ends with it.
+	if (s_tour && round >= 1 && Now() - s_myTurnSince > 2.0)
+	{
+		if (autotour_Process())
+			return;
+		autotest_Finish("ok");
+		return;
 	}
 
 	if (s_shotEvery > 0 && round % s_shotEvery == 0 && round != s_lastShotRound &&

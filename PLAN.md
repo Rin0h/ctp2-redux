@@ -327,6 +327,44 @@ Aufgaben:
 2. Originalgrafiken für Titel und Menüs aus der eigenen Installation nutzen
    (nicht ins Repo), Layouts entsprechend anpassen.
 
+## Klassische Oberfläche (Entscheidung 2026-10-28)
+
+Besitzer: „Die alte UI war um so vieles besser. Wir nehmen die und passen die
+neuen Sachen darauf an.“ Dazu wählbar: klassisch oder Apolyton.
+
+Umsetzung:
+- Profiloption `ClassicInterface` (Standard an) hängt `ctp2_data\classic`
+  als vorrangigen Datenordner ein (`InitDataIncludePath`, vor den RuleSets,
+  Mods behalten Vorrang). Dort liegen nur die klassischen Fassungen; was
+  fehlt, kommt aus der Apolyton-Fassung. Beide Sätze haben dieselben
+  Steuerelemente, nur Anordnung/Aussehen unterscheiden sich, deshalb läuft
+  der Code mit beiden. Umschalten in den Optionen (wirksam nach Neustart).
+- Grundlage: Original-Layouts aus der GOG-Installation
+  (`ctp2_data\english\uidata\layouts`; die Git-Historie beginnt erst 2005
+  mit bereits geänderten Fassungen).
+- Je Fenster: Original nehmen, die von Apolyton hinzugefügten Felder im
+  Originalstil einsetzen, Bild prüfen.
+
+Bestandsaufnahme (37 geänderte + 2 neue Layouts, Struktur-Diff):
+- Nur Geometrie/Aussehen: DiplomacyDetails, diplomacywindow, infoscreen,
+  intelligence, victoryscreen, scenario, profileedit, wondermovie,
+  c3utilitydialog; dazu km_screen (neue Tastenfunktionen), ns_strings
+  (Kartenformen), ctp_template (Rahmenwerte) mit inhaltlichen Ergänzungen.
+- Listeneinträge mit „box“-Rahmen (Code sucht neue Namen): science,
+  sciencevictory, unitmanager, cityespionage, dipwizard, editqueue.
+- Neue Felder: citywindow (völlig neu: Spezialisten, Garnison, Effizienz),
+  civstatus (Regler optimieren), citystatus (Stadtmanager, Spezialisten),
+  controlpanel (2 Kartenknöpfe, politische Karte), armymanager, battleview,
+  trademanager, greatlibrary, helptile, graphics/gameplayoptions/options,
+  spnewgame (Hauptmenü + Disclaimer = Branding), spnewgamepopups
+  (Regeloptionen), custommap, scenarioeditor, ns_launch, ns_selcnct,
+  ns_selserv (unsere Direktverbindung); neu: ctp2.ldl, LanguageScreen.ldl.
+
+Werkzeug: Bildschirmtour im Testmodus (Einzelspieler, öffnet die Fenster
+nacheinander und macht je ein Bild), damit jedes Fenster ohne Klicken
+geprüft werden kann. Danach Skalierung (intern kleiner rendern, scharf
+ganzzahlig hochskalieren).
+
 ## Offene Fragen an den Besitzer
 
 - GitHub-Login für den Fork (`gh auth login`).

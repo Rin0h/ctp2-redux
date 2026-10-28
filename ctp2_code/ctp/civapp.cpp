@@ -475,6 +475,16 @@ void AddSearchPacks
 //----------------------------------------------------------------------------
 void InitDataIncludePath(void)
 {
+	// ctp2-redux: the classic interface (original layouts with the newer
+	// controls fitted in) is an extra data directory below ctp2_data. It is
+	// inserted first, so rule sets from the profile still take priority.
+	if (g_theProfileDB->IsClassicInterface())
+	{
+		static MBCHAR classicPath[MAX_PATH];
+		snprintf(classicPath, sizeof(classicPath), "%s%sclassic", g_civPaths->GetDataPath(), FILE_SEP);
+		g_civPaths->InsertExtraDataPath(classicPath);
+	}
+
 	MBCHAR                  ruleSets[MAX_PATH];
 	strcpy(ruleSets, g_theProfileDB->GetRuleSets());
 

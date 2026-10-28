@@ -9,6 +9,7 @@
 #   pwsh tools/mptest.ps1 -ShotEvery 5         # screenshot every 5th round (0 = none)
 #   pwsh tools/mptest.ps1 -Idle                # test players only end their turns
 #   pwsh tools/mptest.ps1 -AnetLog             # network library with logging (dp.log)
+#   pwsh tools/mptest.ps1 -Single -Tour        # screenshots of all game windows (autotest_ui_*.png)
 #   pwsh tools/mptest.ps1 -JoinAddress '[::1]:21157'   # client joins over IPv6
 #
 # By default the two test players play a simple turn (settle, walk, fill
@@ -35,6 +36,7 @@ param(
     [int]$ShotEvery = 1,
     [switch]$Idle,
     [switch]$Single,
+    [switch]$Tour,
     [switch]$AnetLog,
     [string]$Port = '21157',
     [string]$JoinAddress = ''
@@ -85,9 +87,17 @@ $showArg = if ($Show) { ' autoshow' } else { '' }
 # civilisations as the network game (the second human becomes an AI)
 if ($Single) {
     $dir = Prepare-Instance 'autotest_single'
+    $tourArg = ''
+    if ($Tour) {
+        # screenshots of all windows at the resolution the layouts were made for
+        $tourArg = ' autotour'
+        (Get-Content (Join-Path $dir 'userprofile.txt')) -replace 'ScreenResWidth=\d+', 'ScreenResWidth=1024' `
+            -replace 'ScreenResHeight=\d+', 'ScreenResHeight=768' | Set-Content (Join-Path $dir 'userprofile.txt') -Encoding ascii
+        Remove-Item (Join-Path $dir 'autotest_ui_*.png') -ErrorAction SilentlyContinue
+    }
     Write-Host "Single player: $dir, rounds: $Turns"
     $p = Start-Process -FilePath (Join-Path $dir 'ctp2.exe') -WorkingDirectory $dir -PassThru `
-        -ArgumentList "nointromovie autoturns=$Turns autoshots=$ShotEvery autoai=$AIPlayers autosingle$playArg$showArg"
+        -ArgumentList "nointromovie autoturns=$Turns autoshots=$ShotEvery autoai=$AIPlayers autosingle$playArg$showArg$tourArg"
     if (-not $p.WaitForExit($TimeoutMinutes * 60 * 1000)) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
     $r = Read-Result $dir 'single'
     Write-Host ("single  {0}  {1}" -f ($(if ($r.ok) { 'OK  ' } else { 'FAIL' })), $r.text)

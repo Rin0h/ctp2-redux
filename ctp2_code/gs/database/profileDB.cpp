@@ -264,6 +264,7 @@ ProfileDB::ProfileDB()
     m_showCityProduction                (TRUE),
     m_windowedMode                      (FALSE),
     m_sleepingUnitsBoard                (FALSE),
+    m_classicInterface                  (TRUE),
     // Add above this line new profile options
     m_vars                              (new PointerList<ProfileVar>),
     m_loadedFromTutorial                (FALSE),
@@ -483,6 +484,7 @@ ProfileDB::ProfileDB()
 #endif
 
 	Var("SleepingUnitsBoard"          , PV_BOOL  , &m_sleepingUnitsBoard         , NULL);
+	Var("ClassicInterface"            , PV_BOOL  , &m_classicInterface           , NULL, false);
 }
 
 void ProfileDB::DefaultSettings(void)

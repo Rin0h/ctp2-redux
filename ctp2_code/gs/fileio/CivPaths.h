@@ -112,6 +112,7 @@ public:
 	MBCHAR *    GetSavePathString(void) const { return m_savePath; }
 
 	MBCHAR *    GetDesktopPath(void);
+	MBCHAR const * GetDataPath(void) const { return m_dataPath; }
 
 	std::vector<MBCHAR const *> const &
 	            GetExtraDataPaths(void) const;
