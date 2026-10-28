@@ -365,6 +365,22 @@ Plan und Entscheidungen (2026-10-28):
     Längen u32. Farbe per KI, Schlüsselfarben (Übergang 0–3, Colorize,
     Schatten, Chroma) über Nearest-Masken. Risiko: u16-Zeilenoffsets bei 4x
     (ggf. nur 2x/3x), Speicher N², Arbeitskarte/Ressourcenkarte/tilecontrol.
+    Etappe 1 erledigt (2026-10-28): `g_tileScale` (2/3, bei 4x bleibt die
+    Karte 1x), `k_TILE_*` sind Ausdrücke × Faktor, `_1X` für Spielpixel
+    (Hintergrundfenster). Rautentreppe `tileset_StartPixel` (exakt
+    vergrößert, sonst Endlosschleife bei Zeilenbreite 0). Kartenfläche =
+    zweite Fläche auf den Pixeln des HD-Hintergrundfensters
+    (`Background::MapSurface`), Umrechnung nur an Rändern (Initialize, Maus,
+    Zoom-Offset, Dirty-Rects, Fensterpositionen). Daten beim Laden per
+    Nearest vergrößert: `TileSet::ScaleUp` (Basiskacheln, Übergangsströme
+    über das feste 352-Pixel-Markierungsmuster je Quadrant, Hüte, Flüsse,
+    Ausbauten, Kartensymbole), `Sprite::ScaleUp` (Bilder, Minis, Schatten,
+    Hotpoints) + Schildpunkte. RLE-Zeilen werden einmal kodiert und S-mal
+    referenziert (u16-Offsets reichen). Leerzeilen-Ersatz in den Decodern
+    in Läufe ≤255 geteilt. Kartenschrift × Faktor, feste Maße der
+    Beschriftungen über `Px()`. Tour: Zoom halb/klein.
+    Offen: Linien (Grenzen, Wege, Auswahl) sind 1 Kartenpixel dünn; kleiner
+    Schnitt an Einheiten bei halbem Zoom; Kampffenster ungeprüft.
   - B1 Videos (Skript-Infrastruktur aus M3) – erledigt 2026-10-28: Videos
     Bild für Bild durch Real-ESRGAN, `redux_hires/<N>x/videos/<name>.mkv`
     (H.264 über Media Foundation, Originalton), eigenes ffmpeg.exe aus dem

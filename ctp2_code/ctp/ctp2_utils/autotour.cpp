@@ -66,6 +66,7 @@ extern C3UI *g_c3ui;
 #include "spnewgamerulesscreen.h"
 #include "custommapscreen.h"
 #include "wondermoviewin.h"
+#include "tiledmap.h"            // g_tiledMap
 #include "WonderRecord.h"
 #include "IconRecord.h"
 
@@ -108,6 +109,10 @@ namespace
 		ctp2_Tab *     page  = (ctp2_Tab *)aui_Ldl::GetObject("DomesticDialog.TabGroup.Tab3");
 		if (group && page) group->SelectTab(page);
 	}
+	// the map zoomed out halfway and fully (scaled drawing of tiles/sprites)
+	void ZoomHalf()       { if (g_tiledMap) for (int i = 0; i < 3; ++i) g_tiledMap->ZoomOut(); }
+	void ZoomSmallest()   { if (g_tiledMap) while (g_tiledMap->ZoomOut()) {} }
+	void ZoomNormal()     { if (g_tiledMap) while (g_tiledMap->ZoomIn()) {} }
 	void OpenCityStatus() { open_CityStatus(); }
 	void OpenCivStatus()  { open_CivStatus(); }
 	void OpenScience()    { open_ScienceStatus(); }
@@ -182,6 +187,8 @@ namespace
 	const TourWindow k_windows[] =
 	{
 		{ "map",          Nothing,        Nothing        },
+		{ "map_zoom_half",     ZoomHalf,     ZoomNormal  },
+		{ "map_zoom_smallest", ZoomSmallest, ZoomNormal  },
 		{ "city",         OpenCity,       CloseCity      },
 		{ "city_inventory",   OpenCityInventory,   CloseCity },
 		{ "city_specialists", OpenCitySpecialists, CloseCity },

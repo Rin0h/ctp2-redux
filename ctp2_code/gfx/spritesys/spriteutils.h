@@ -4,6 +4,8 @@
 #ifndef __SPRITEUTILS_H__
 #define __SPRITEUTILS_H__
 
+#include "pixeltypes.h"     // Pixel16
+
 #define k_CHROMAKEY_PIXEL		0x0000
 #define k_SHADOW_PIXEL_565		0xF81F
 #define k_SHADOW_PIXEL_555		0x7C1F
@@ -20,6 +22,21 @@
 #define k_ALL_ALPHA			0xFF
 
 #define k_EMPTY_TABLE_ENTRY	0xFFFF
+
+// ctp2-redux: a stand-in for an empty row of the given width; runs hold at
+// most 255 pixels, so wide (enlarged) sprites need several
+#define k_EMPTY_ROW_SIZE	8
+inline void spriteutils_EmptyRow(Pixel16 * row, sint32 width)
+{
+	sint32 i = 0;
+	do
+	{
+		sint32 const piece = (width > 0xFF) ? 0xFF : width;
+		row[i++] = (Pixel16)((k_CHROMAKEY_RUN_ID << 8) | piece);
+		width -= piece;
+	} while (width > 0 && i < k_EMPTY_ROW_SIZE - 1);
+	row[i] = (Pixel16)(k_EOLN_ID << 8);
+}
 
 #include "ctp2_inttypes.h"  // sint##, uint##
 #include "pixeltypes.h"     // Pixel##
@@ -38,6 +55,10 @@ Pixel32 spriteutils_AveragePixel32(Pixel32 pixel1, Pixel32 pixel2, Pixel32 pixel
 void spriteutils_CreateQuarterSize(Pixel32 *srcBuf, sint32 srcWidth, sint32 srcHeight, Pixel32 **destBuf, BOOL aa);
 
 void spriteutils_ConvertPixelFormat(Pixel16 *frame, sint32 width, sint32 height, const MBCHAR * filename = NULL);
+
+// ctp2-redux: a sprite frame enlarged scale times by repeating its pixels
+// (new[]); NULL when it does not fit the format
+Pixel16 * spriteutils_ScaleFrame(Pixel16 const *frame, sint32 scale, size_t *size);
 
 
 

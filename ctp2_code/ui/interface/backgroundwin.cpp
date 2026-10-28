@@ -79,13 +79,14 @@ sint32 backgroundWin_Initialize(bool fullscreen)
 
 
 
-	sint32 backgroundWidth = g_ScreenWidth + 5 * k_TILE_GRID_WIDTH / 2;
+	// ctp2-redux: the window in game pixels (the map inside in map pixels)
+	sint32 backgroundWidth = g_ScreenWidth + 5 * k_TILE_GRID_WIDTH_1X / 2;
 
-	sint32 backgroundHeight = g_ScreenHeight  + 2 * k_TILE_GRID_HEIGHT;
+	sint32 backgroundHeight = g_ScreenHeight  + 2 * k_TILE_GRID_HEIGHT_1X;
 
-	sint32 backgroundX = 0 - k_TILE_GRID_WIDTH;
+	sint32 backgroundX = 0 - k_TILE_GRID_WIDTH_1X;
 
-	sint32 backgroundY = 0 - k_TILE_GRID_HEIGHT;
+	sint32 backgroundY = 0 - k_TILE_GRID_HEIGHT_1X;
 
 	sint32 widthAdjust = 0;
 	sint32 heightAdjust = 0;
@@ -104,10 +105,10 @@ sint32 backgroundWin_Initialize(bool fullscreen)
 
 	SetRect(
 		&g_backgroundViewport,
-		k_TILE_GRID_WIDTH,
-		k_TILE_GRID_HEIGHT,
-		backgroundWidth - widthAdjust - 3 * k_TILE_GRID_WIDTH / 2,
-		backgroundHeight - heightAdjust - k_TILE_GRID_HEIGHT );
+		k_TILE_GRID_WIDTH_1X,
+		k_TILE_GRID_HEIGHT_1X,
+		backgroundWidth - widthAdjust - 3 * k_TILE_GRID_WIDTH_1X / 2,
+		backgroundHeight - heightAdjust - k_TILE_GRID_HEIGHT_1X );
 
 	g_background = new Background(
 		&errcode,
@@ -139,7 +140,7 @@ sint32 g_debugOwner = k_DEBUG_OWNER_NONE;
 AUI_ERRCODE background_draw_handler(LPVOID bg)
 {
 	Background  *   back    = reinterpret_cast<Background *>(bg);
-	aui_Surface	*   surface = (back)    ? back->TheSurface() : NULL;
+	aui_Surface	*   surface = (back)    ? back->MapSurface() : NULL;   // ctp2-redux: map pixels
 	aui_Mouse *     mouse   = (g_c3ui)  ? g_c3ui->TheMouse() : NULL;
 
     if (!mouse || !g_tiledMap)

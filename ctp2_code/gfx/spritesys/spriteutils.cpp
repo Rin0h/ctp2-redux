@@ -31,6 +31,9 @@
 
 #include "c3.h"
 
+#include <algorithm>
+#include <vector>
+
 #include "pixelutils.h"
 #include "spriteutils.h"
 
@@ -673,6 +676,80 @@ void spriteutils_ConvertPixelFormat(Pixel16 *frame, sint32 width, sint32 height,
 
 
 
+
+Pixel16 * spriteutils_ScaleFrame(Pixel16 const *frame, sint32 scale, size_t *size)
+{
+	if (!frame || scale <= 1) return NULL;
+
+	sint32 const    height    = frame[0];
+	Pixel16 const * table     = frame + 1;
+	Pixel16 const * dataStart = table + height;
+
+	// The rows are encoded once; the table points scale times to each. The
+	// draw functions take runs up to the one marked as end of line, which
+	// they do not draw (the first one is always drawn); here every row ends
+	// with an empty run marked so.
+	std::vector<Pixel16> offsets;
+	std::vector<Pixel16> runs;
+	for (sint32 j = 0; j < height; ++j)
+	{
+		if (table[j] == k_EMPTY_TABLE_ENTRY)
+		{
+			offsets.insert(offsets.end(), scale, (Pixel16) k_EMPTY_TABLE_ENTRY);
+			continue;
+		}
+		if (runs.size() >= k_EMPTY_TABLE_ENTRY) return NULL;
+		offsets.insert(offsets.end(), scale, (Pixel16) runs.size());
+
+		Pixel16 const * p   = dataStart + table[j];
+		Pixel16         tag = *p++ & 0x0FFF;
+		while ((tag & 0xF000) == 0)
+		{
+			sint32 const kind = (tag & 0x0F00) >> 8;
+			if (kind == k_FEATHERED_RUN_ID)
+			{
+				// one pixel with its alpha in the tag
+				Pixel16 const pixel = *p++;
+				for (sint32 i = 0; i < scale; ++i)
+				{
+					runs.push_back(tag);
+					runs.push_back(pixel);
+				}
+			}
+			else
+			{
+				sint32 const count = tag & 0x00FF;
+				sint32       left  = count * scale;
+				sint32       done  = 0;
+				while (left > 0)
+				{
+					// runs are at most 255 long
+					sint32 const piece = std::min<sint32>(left, 0xFF);
+					runs.push_back(static_cast<Pixel16>((kind << 8) | piece));
+					if (kind == k_COPY_RUN_ID)
+					{
+						for (sint32 i = 0; i < piece; ++i)
+							runs.push_back(p[(done + i) / scale]);
+					}
+					done += piece;
+					left -= piece;
+				}
+				if (kind == k_COPY_RUN_ID) p += count;
+			}
+			tag = *p++;
+		}
+		runs.push_back(static_cast<Pixel16>((k_EOLN_ID | k_CHROMAKEY_RUN_ID) << 8));
+	}
+	if (runs.size() > k_EMPTY_TABLE_ENTRY) return NULL;
+
+	size_t const count  = 1 + offsets.size() + runs.size();
+	Pixel16 *    scaled = new Pixel16[count];
+	scaled[0] = static_cast<Pixel16>(height * scale);
+	std::copy(offsets.begin(), offsets.end(), scaled + 1);
+	std::copy(runs.begin(), runs.end(), scaled + 1 + offsets.size());
+	if (size) *size = count * sizeof(Pixel16);
+	return scaled;
+}
 
 void spriteutils_ConvertPixelFormatForFile(Pixel16 *frame, sint32 width, sint32 height)
 {

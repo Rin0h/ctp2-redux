@@ -118,18 +118,22 @@ AUI_ERRCODE TileControl::DrawThis(aui_Surface * surface, sint32 x, sint32 y)
 	OffsetRect(&rect, m_x + x, m_y + y);
 	ToWindow(&rect);
 
-	// ctp2-redux: the map code draws in game pixels; on a window drawn in
-	// the pixels of the frame the tile goes to a surface of its own first
+	// ctp2-redux: the map code draws in map pixels (g_tileScale times game
+	// pixels); on a window drawn in the pixels of the frame the tile goes to
+	// a surface of its own first
 	if (surface->Scale() > 1)
 	{
+		sint32 const  scale   = g_tileScale;
 		AUI_ERRCODE   errcode = AUI_ERRCODE_OK;
-		aui_Surface * canvas  = aui_Factory::new_Surface(errcode, m_width, m_height);
+		aui_Surface * canvas  = aui_Factory::new_Surface(errcode, m_width * scale, m_height * scale);
 		if (canvas && AUI_SUCCESS(errcode))
 		{
+			RECT pixels = { 0, 0, m_width * scale, m_height * scale };
+			primitives_PaintRect16(canvas, &pixels, g_colorSet->GetColor(COLOR_BLACK));
+			DrawTile(canvas, (m_width * scale / 2) - (k_TILE_PIXEL_WIDTH / 2),
+			         - k_TILE_PIXEL_HEADROOM + (m_height * scale / 2) - (k_TILE_PIXEL_HEIGHT / 2));
+			canvas->SetScale(scale);
 			RECT local = { 0, 0, m_width, m_height };
-			primitives_PaintRect16(canvas, &local, g_colorSet->GetColor(COLOR_BLACK));
-			DrawTile(canvas, (m_width / 2) - (k_TILE_PIXEL_WIDTH / 2),
-			         - k_TILE_PIXEL_HEADROOM + (m_height / 2) - (k_TILE_PIXEL_HEIGHT / 2));
 			g_ui->TheBlitter()->Blt(surface, rect.left, rect.top, canvas, &local, k_AUI_BLITTER_FLAG_COPY);
 		}
 		delete canvas;

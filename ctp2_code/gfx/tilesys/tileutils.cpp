@@ -30,6 +30,9 @@
 
 #include "c3.h"
 
+#include <algorithm>
+#include <vector>
+
 #include "Globals.h"
 
 #include "pixelutils.h"
@@ -627,6 +630,67 @@ Pixel16 *tileutils_EncodeTile16(Pixel16 *buf, uint16 width, uint16 height, size_
 	return (Pixel16 *)returnBuf;
 }
 
+Pixel16 *tileutils_ScaleTile16(Pixel16 const *data, sint32 scale)
+{
+	if (!data || scale <= 1) return NULL;
+
+	uint16 const    start    = data[0];
+	uint16 const    end      = data[1];
+	sint32 const    rows     = end - start + 1;
+	Pixel16 const * table    = data + 2;
+	Pixel16 const * rowsData = table + rows;
+
+	// The rows are encoded once; the table points scale times to each.
+	std::vector<Pixel16> offsets;
+	std::vector<Pixel16> runs;
+	for (sint32 j = 0; j < rows; ++j)
+	{
+		if (table[j] == (Pixel16) -1)
+		{
+			offsets.insert(offsets.end(), scale, (Pixel16) -1);
+			continue;
+		}
+		if (runs.size() >= 0xFFFF) return NULL;
+		offsets.insert(offsets.end(), scale, (Pixel16) runs.size());
+
+		Pixel16 const * p = rowsData + table[j];
+		Pixel16         tag;
+		size_t          lastTag = 0;
+		do
+		{
+			tag = *p++;
+			sint32 const kind  = (tag & 0x0F00) >> 8;
+			sint32 const count = tag & 0x00FF;
+			sint32       left  = count * scale;
+			sint32       done  = 0;
+			do
+			{
+				// runs are at most 255 long (and an empty run stays one)
+				sint32 const piece = std::min<sint32>(left, 0xFF);
+				lastTag = runs.size();
+				runs.push_back(static_cast<Pixel16>((kind << 8) | piece));
+				if (kind == k_TILE_COPY_RUN_ID)
+				{
+					for (sint32 i = 0; i < piece; ++i)
+						runs.push_back(p[(done + i) / scale]);
+				}
+				done += piece;
+				left -= piece;
+			} while (left > 0);
+			if (kind == k_TILE_COPY_RUN_ID) p += count;
+		} while ((tag & 0xF000) == 0);
+		runs[lastTag] |= (k_TILE_EOLN_ID << 8);
+	}
+	if (runs.size() > 0xFFFF) return NULL;
+
+	Pixel16 * scaled = new Pixel16[2 + offsets.size() + runs.size()];
+	scaled[0] = static_cast<Pixel16>(start * scale);
+	scaled[1] = static_cast<Pixel16>(end * scale + scale - 1);
+	std::copy(offsets.begin(), offsets.end(), scaled + 2);
+	std::copy(runs.begin(), runs.end(), scaled + 2 + offsets.size());
+	return scaled;
+}
+
 sint32 tileutils_ConvertPixelFormatFrom565(Pixel16 *data)
 {
 	uint16		start = (uint16)*data++;
@@ -748,8 +812,8 @@ void tileutils_DecodeToBuffer(Pixel16 *data, int width, int height)
 	}
 }
 
-Pixel16 g_offsets[k_TILE_PIXEL_HEIGHT*32*sizeof(Pixel16)];
-uint32 g_bitsTable[k_TILE_PIXEL_HEIGHT];
+Pixel16 g_offsets[k_TILE_PIXEL_HEIGHT_1X*32*sizeof(Pixel16)];
+uint32 g_bitsTable[k_TILE_PIXEL_HEIGHT_1X];
 uint16 g_stencilSize = 0;
 
 sint32 tileutils_EncodeStencil(MBCHAR *filename)
@@ -798,8 +862,8 @@ sint32 tileutils_EncodeStencil(MBCHAR *filename)
 	uint32 accum = 0;
 //	sint32 counter = 0;
 
-    std::fill(g_bitsTable, g_bitsTable + k_TILE_PIXEL_HEIGHT, 0);
-    std::fill(g_offsets, g_offsets + k_TILE_PIXEL_HEIGHT * 32, (Pixel16) 0xFFFF);
+    std::fill(g_bitsTable, g_bitsTable + k_TILE_PIXEL_HEIGHT_1X, 0);
+    std::fill(g_offsets, g_offsets + k_TILE_PIXEL_HEIGHT_1X * 32, (Pixel16) 0xFFFF);
 	uint32	bit;
 
 	uint16	index=0;
@@ -830,14 +894,14 @@ sint32 tileutils_EncodeStencil(MBCHAR *filename)
 
 	g_stencilSize = index;
 
-	uint16 tableHeight = k_TILE_PIXEL_HEIGHT;
+	uint16 tableHeight = k_TILE_PIXEL_HEIGHT_1X;
 
 	FILE *  file = fopen("source" FILE_SEP "stencil" FILE_SEP "stencil.bin", "wb");
 	if (file != NULL) {
 		fwrite((void *)&tableHeight, 1, sizeof(uint16), file);
-		fwrite((void *)g_bitsTable, 1, sizeof(sint32) * k_TILE_PIXEL_HEIGHT, file);
+		fwrite((void *)g_bitsTable, 1, sizeof(sint32) * k_TILE_PIXEL_HEIGHT_1X, file);
 		fwrite((void *)&index, 1, sizeof(index), file);
-		fwrite((void *)g_offsets, 1, 32 * k_TILE_PIXEL_HEIGHT * sizeof(Pixel16), file);
+		fwrite((void *)g_offsets, 1, 32 * k_TILE_PIXEL_HEIGHT_1X * sizeof(Pixel16), file);
 		fclose(file);
 	}
 
@@ -867,7 +931,7 @@ void tileutils_DumpStencil(MBCHAR *filename)
 		fprintf(file,"\n");
 	}
 
-	for (i=0; i<k_TILE_PIXEL_HEIGHT; i++) {
+	for (i=0; i<k_TILE_PIXEL_HEIGHT_1X; i++) {
 		for (j=0; j<32; j++) {
 			fprintf(file, "\t%d", g_offsets[i*32+j]);
 		}

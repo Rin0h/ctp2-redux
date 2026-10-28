@@ -27,6 +27,9 @@ void		tileutils_EncodeShadowRun16(Pixel16 **inBuf, int *pos, int width, Pixel16 
 char		tileutils_EncodeSkipRun16(Pixel16 **inBuf, int *pos, int width, Pixel16 **outBufPtr, BOOL sourceDataIs565);
 char		tileutils_EncodeScanline16(Pixel16 *scanline, int width, Pixel16 **outBufPtr, BOOL sourceDataIs565);
 Pixel16		*tileutils_EncodeTile16(Pixel16 *buf, uint16 width, uint16 height, size_t *size, sint32 pitch = 0);
+// ctp2-redux: a tile image (as made by tileutils_EncodeTile16) enlarged
+// scale times by repeating its pixels; NULL when it does not fit the format
+Pixel16		*tileutils_ScaleTile16(Pixel16 const *data, sint32 scale);
 
 sint32		tileutils_ConvertPixelFormatFrom565(Pixel16 *data);
 sint32		tileutils_ConvertPixelFormatFrom555(Pixel16 *data);

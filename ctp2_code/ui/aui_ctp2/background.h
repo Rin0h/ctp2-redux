@@ -39,6 +39,8 @@
 #include "aui_window.h"
 #include "MapPoint.h"
 
+extern sint32 g_tileScale;
+
 
 
 
@@ -68,9 +70,12 @@ public:
             m_lbutton_isdown = FALSE;
             m_rbutton_isdown = FALSE;
             m_current_mouse_tile.Set(-1,-1);
+            m_mapSurface = NULL;
 
-            // ctp2-redux: the map draws into this surface in game pixels
-            m_gamePixels = true;
+            // ctp2-redux: without HD map graphics the map draws into this
+            // surface in game pixels; with them in the pixels of the frame
+            // (through MapSurface)
+            m_gamePixels = (g_tileScale == 1);
             delete m_surface;
             m_surface = NULL;
             CreateSurface();
@@ -81,7 +86,12 @@ public:
 #endif
         }
 
-	virtual ~Background() {};
+	virtual ~Background() { delete m_mapSurface; };
+
+	// ctp2-redux: the surface the map draws into, in its own pixels; it
+	// shares the pixels of the window surface, which has the scale of the
+	// frame (g_tileScale)
+	aui_Surface *	MapSurface();
 
 	virtual AUI_ERRCODE DrawThis(
 		aui_Surface *surface = NULL,
@@ -91,6 +101,7 @@ public:
 	virtual AUI_ERRCODE Idle(void);
 
 protected:
+    aui_Surface * m_mapSurface;
     sint32 m_lbutton_isdown;
     sint32 m_rbutton_isdown;
 

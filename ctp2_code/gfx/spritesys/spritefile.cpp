@@ -51,6 +51,7 @@
 #include "EffectSpriteGroup.h"
 #include "Anim.h"
 #include "CivPaths.h"               // g_civPaths
+#include "tileset.h"                // g_tileScale
 #include "profileDB.h"              // g_theProfileDB
 
 #ifdef __MAKESPR__
@@ -346,6 +347,31 @@ void SpriteFile::WriteAnimData(Anim *a)
 	WriteData((uint8 *)a->m_transparencies, sizeof(uint16) * a->GetNumFrames());
 }
 
+namespace
+{
+	// ctp2-redux: sprites are loaded g_tileScale times as large, for the map
+	// in the pixels of the frame
+	void ScaleLoaded(Sprite * s)
+	{
+		if (g_tileScale > 1)
+			s->ScaleUp(g_tileScale);
+	}
+
+	void ScaleShieldPoints(UnitSpriteGroup * s)
+	{
+		if (g_tileScale <= 1) return;
+		for (sint32 action = 0; action < UNITACTION_MAX; ++action)
+		{
+			POINT * points = s->GetShieldPoints((UNITACTION) action);
+			for (sint32 facing = 0; facing < k_NUM_FACINGS; ++facing)
+			{
+				points[facing].x *= g_tileScale;
+				points[facing].y *= g_tileScale;
+			}
+		}
+	}
+}
+
 void SpriteFile::ReadSpriteDataBasic(Sprite *s)
 {
 	uint16		data16;
@@ -421,6 +447,8 @@ void SpriteFile::ReadSpriteDataBasic(Sprite *s)
 	}
 
 	s->SetNumFrames(1);
+
+	ScaleLoaded(s);
 }
 
 void SpriteFile::ReadSpriteDataFull(Sprite *s)
@@ -482,6 +510,8 @@ void SpriteFile::ReadSpriteDataFull(Sprite *s)
 		spriteutils_ConvertPixelFormat(ActualData, s->GetWidth()/2, s->GetHeight()/2, m_filename);
 		s->SetMiniFrameData(i, ActualData, size);
 	}
+
+	ScaleLoaded(s);
 }
 
 void SpriteFile::SkipSpriteData(void)
@@ -597,6 +627,8 @@ void SpriteFile::ReadFacedSpriteDataBasic(FacedSprite *s)
 	}
 
 	s->SetNumFrames(1);
+
+	ScaleLoaded(s);
 }
 
 void SpriteFile::ReadFacedSpriteDataFull(FacedSprite *s)
@@ -662,6 +694,8 @@ void SpriteFile::ReadFacedSpriteDataFull(FacedSprite *s)
 			s->SetMiniFrameData(j, i, ActualData, size);
 		}
 	}
+
+	ScaleLoaded(s);
 }
 
 void SpriteFile::SkipFacedSpriteData(void)
@@ -815,6 +849,8 @@ void SpriteFile::ReadFacedSpriteWshadowData(FacedSpriteWshadow *s)
 			}
 		}
 	}
+
+	ScaleLoaded(s);
 }
 
 void SpriteFile::ReadSpriteDataGeneralBasic(Sprite **sprite)
@@ -1550,6 +1586,7 @@ SpriteFile::ReadBasic_v13(UnitSpriteGroup *s)
 		ReadData((void *)pointBuffer, sizeof(POINT) * k_NUM_FACINGS);
 		memcpy(s->GetShieldPoints((UNITACTION)i), pointBuffer, sizeof(POINT) * k_NUM_FACINGS);
 	}
+	ScaleShieldPoints(s);
 
 	ReadData((void *)&data16, sizeof(uint16));
 	s->SetHasDeath(0 != data16);
@@ -1630,6 +1667,7 @@ SpriteFile::ReadBasic_v20(UnitSpriteGroup *s)
 
 	for (i=0; i<UNITACTION_MAX; i++)
 		ReadData((void *)s->GetShieldPoints((UNITACTION)i), sizeof(POINT) * k_NUM_FACINGS);
+	ScaleShieldPoints(s);
 
 	uint16	data16;
 	ReadData((void *)&data16, sizeof(uint16));
@@ -1714,6 +1752,7 @@ SPRITEFILEERR SpriteFile::ReadFull_v13(UnitSpriteGroup *s)
 		ReadData((void *)pointBuffer, sizeof(POINT) * k_NUM_FACINGS);
 		memcpy(s->GetShieldPoints((UNITACTION)i), pointBuffer, sizeof(POINT) * k_NUM_FACINGS);
 	}
+	ScaleShieldPoints(s);
 
 	ReadData((void *)&data16, sizeof(uint16));
 	s->SetHasDeath(0 != data16);
@@ -1752,6 +1791,7 @@ SPRITEFILEERR SpriteFile::ReadFull_v20(UnitSpriteGroup *s)
 
 	for (i=0; i<UNITACTION_MAX; i++)
 		ReadData((void *)s->GetShieldPoints((UNITACTION)i), sizeof(POINT) * k_NUM_FACINGS);
+	ScaleShieldPoints(s);
 
 	uint16 data16;
 	ReadData((void *)&data16, sizeof(uint16));
@@ -1837,6 +1877,7 @@ SpriteFile::ReadIndexed_v13(UnitSpriteGroup *s,GAME_ACTION action)
 		POINT *	thePoints = s->GetShieldPoints((UNITACTION)i);
 		memcpy(thePoints, pointBuffer, sizeof(POINT) * k_NUM_FACINGS);
 	}
+	ScaleShieldPoints(s);
 
 	ReadData((void *)&data16, sizeof(uint16));
 	s->SetHasDeath(0 != data16);
@@ -1876,6 +1917,7 @@ SpriteFile::ReadIndexed_v20(UnitSpriteGroup *s,GAME_ACTION action)
 	for (size_t i = 0; i < UNITACTION_MAX; ++i)
 	{
 		ReadData((void *)s->GetShieldPoints((UNITACTION)i), sizeof(POINT) * k_NUM_FACINGS);
+	ScaleShieldPoints(s);
 	}
 
 	uint16	data16;

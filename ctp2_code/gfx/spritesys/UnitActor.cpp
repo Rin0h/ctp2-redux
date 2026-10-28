@@ -1052,8 +1052,10 @@ RECT UnitActor::DrawStackingIndicator(const RECT & rect, sint32 stack) const
 		sprintf(stackString, "%i", stack);
 
 		COLOR color = ColorSet::UseDarkFontColor(displayedColor) ? COLOR_BLACK : COLOR_WHITE;
-		RECT textRect = { rect.left + (stack < 10 ? 5 : 1), rect.top + (stack < 10 ? 0 : -1),
-					rect.left + (stack < 10 ? 12 : 14), rect.top + (stack < 10 ? 12 : 11) };
+		// ctp2-redux: in map pixels (g_tileScale times game pixels)
+		sint32 const s = g_tileScale;
+		RECT textRect = { rect.left + s * (stack < 10 ? 5 : 1), rect.top + s * (stack < 10 ? 0 : -1),
+					rect.left + s * (stack < 10 ? 12 : 14), rect.top + s * (stack < 10 ? 12 : 11) };
 
 		aui_Surface * surf = g_screenManager->GetSurface();
 		RECT clipRect = primitives_GetScreenAdjustedRectCopy(surf, textRect);

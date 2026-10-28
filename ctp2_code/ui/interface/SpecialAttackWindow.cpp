@@ -33,6 +33,7 @@
 //----------------------------------------------------------------------------
 
 #include "c3.h"
+#include "tileset.h"     // g_tileScale
 #include "SpecialAttackWindow.h"
 
 #include "ArmyData.h"
@@ -164,7 +165,7 @@ void specialAttackWindow_DisplayData(MapPoint &p, sint32 type)
 
 	sint32       x, y;
 	maputils_MapXY2PixelXY(p.x,p.y,&x,&y);
-	g_theSpecialAttackWindow->Move(x,y);
+	g_theSpecialAttackWindow->Move(x / g_tileScale, y / g_tileScale);   // ctp2-redux: map to game pixels
 
 	sint32		visPlayer = g_selected_item->GetVisiblePlayer();
 	if(costs <= g_player[visPlayer]->GetGold()){

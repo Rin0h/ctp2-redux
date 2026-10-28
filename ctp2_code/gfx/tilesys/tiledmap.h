@@ -575,7 +575,7 @@ protected:
 	MapPoint					m_overlayPos;
 	Pixel16						m_overlayColor;
 
-	TILEHITMASK		m_tileHitMask[k_TILE_GRID_HEIGHT];
+	TILEHITMASK		m_tileHitMask[k_TILE_GRID_HEIGHT_1X * k_TILE_SCALE_MAX];
 
 	TileSet			*m_tileSet;
 

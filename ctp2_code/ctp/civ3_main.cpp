@@ -420,6 +420,11 @@ int ui_Initialize(void)
 	Assert( AUI_NEWOK(g_c3ui,auiErr) );
 	if ( !AUI_NEWOK(g_c3ui,auiErr) ) return 10;
 
+	// ctp2-redux: the map in the pixels of the frame up to 3x (larger factors
+	// would overflow the 16 bit offsets of the tile and sprite data); at 4x
+	// it stays in game pixels and is enlarged
+	g_tileScale = (g_c3ui->Scale() >= 2 && g_c3ui->Scale() <= k_TILE_SCALE_MAX) ? g_c3ui->Scale() : 1;
+
 	if (g_exclusiveMode)
 		g_c3ui->MinimizeOnAltTabOut(TRUE);
 
@@ -740,7 +745,7 @@ bool ui_CheckForScroll(void)
 				return false;
 			} else if(!scrolled_last_time) {
 				g_tiledMap->AddChatDirtyRectToMap();
-				g_tiledMap->UpdateMixFromMap(g_background->TheSurface());
+				g_tiledMap->UpdateMixFromMap(g_background->MapSurface());
 				scrolled_last_time = scrolled;
 			}
 		}
@@ -829,7 +834,7 @@ int ui_Process(void)
 	}
 	else if (curTicks > lastTicks + k_TICKS_PER_GENERIC_FRAME)
 	{
-		g_tiledMap->RestoreMixFromMap(g_background->TheSurface());
+		g_tiledMap->RestoreMixFromMap(g_background->MapSurface());
 		g_background->Draw();
 
 		lastTicks = curTicks;

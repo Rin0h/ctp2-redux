@@ -942,3 +942,25 @@ inline Pixel16 Sprite::average(Pixel16 pixel1, Pixel16 pixel2)
 		return static_cast<Pixel16>((r0 << 10) | (g0 << 5) | b0);
 	}
 }
+
+void Sprite::ScaleFrame(Pixel16 *& frame, size_t & size, sint32 scale)
+{
+	if (Pixel16 * scaled = spriteutils_ScaleFrame(frame, scale, &size))
+	{
+		delete [] frame;
+		frame = scaled;
+	}
+}
+
+void Sprite::ScaleUp(sint32 scale)
+{
+	for (size_t i = 0; i < m_numFrames; ++i)
+	{
+		ScaleFrame(m_frames[i], m_framesSizes[i], scale);
+		ScaleFrame(m_miniframes[i], m_miniframesSizes[i], scale);
+	}
+	m_width  = static_cast<uint16>(m_width * scale);
+	m_height = static_cast<uint16>(m_height * scale);
+	m_hotPoint.x *= scale;
+	m_hotPoint.y *= scale;
+}

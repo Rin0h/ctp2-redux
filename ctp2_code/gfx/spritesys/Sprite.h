@@ -175,6 +175,10 @@ public:
 	virtual sint32	ParseFromTokens(Token *theToken);
 	virtual void	AllocateFrameArrays(size_t count);
 
+	// ctp2-redux: enlarges the loaded frames, size and points scale times,
+	// for the map in the pixels of the frame (g_tileScale)
+	virtual void	ScaleUp(sint32 scale);
+
 	void			InitializeDrawLow();
 
 protected:
@@ -331,6 +335,8 @@ protected:
 							 uint16 transparency, Pixel16 outlineColor, uint16 flags, BOOL reverse);
 
 protected:
+	static void		ScaleFrame(Pixel16 *& frame, size_t & size, sint32 scale);
+
 	SPRITETYPE		m_type;
 
 	uint16			m_width, m_height;

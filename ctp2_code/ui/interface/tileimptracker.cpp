@@ -32,6 +32,7 @@
 //----------------------------------------------------------------------------
 
 #include "c3.h"
+#include "tileset.h"     // g_tileScale
 #include "tileimptracker.h"
 
 #include "aui.h"
@@ -221,7 +222,7 @@ void tileimptracker_DisplayData(MapPoint const & p, sint32 type)
 		maputils_MapXY2PixelXY(p.x,p.y,&x,&y);
 
 
-		g_tileImpTrackerWindow->Move(x,y);
+		g_tileImpTrackerWindow->Move(x / g_tileScale, y / g_tileScale);   // ctp2-redux: map to game pixels
 
 //		TERRAIN_TYPES terr = g_theWorld->GetTerrainType(p);
 

@@ -41,6 +41,8 @@
 #ifndef __TILESET_H__
 #define __TILESET_H__
 
+#include "pixeltypes.h"     // Pixel16
+
 class TileSet;
 
 #define k_TILE_SKIP_PIXEL			0x0000
@@ -60,12 +62,52 @@ class TileSet;
 #define k_16_BIT_COLORIZE_PIXEL		0x03FF
 #define k_16_BIT_RGB_MASK			0x7FFF
 
-#define k_TILE_GRID_HEIGHT		72
-#define k_TILE_GRID_WIDTH		94
+// ctp2-redux: the map is drawn in pixels of the frame, g_tileScale times
+// as large as game pixels (1 without HD), and tiles and sprites are loaded
+// that much larger (see TileSet::ScaleUp); the _1X sizes are game pixels
+extern sint32 g_tileScale;
+#define k_TILE_SCALE_MAX		3
 
-#define k_TILE_PIXEL_WIDTH		94
-#define k_TILE_PIXEL_HEIGHT		48
-#define k_TILE_PIXEL_HEADROOM	24
+#define k_TILE_GRID_HEIGHT_1X	72
+#define k_TILE_GRID_WIDTH_1X	94
+#define k_TILE_PIXEL_WIDTH_1X	94
+#define k_TILE_PIXEL_HEIGHT_1X	48
+#define k_TILE_PIXEL_HEADROOM_1X	24
+
+#define k_TILE_GRID_HEIGHT		(k_TILE_GRID_HEIGHT_1X * g_tileScale)
+#define k_TILE_GRID_WIDTH		(k_TILE_GRID_WIDTH_1X * g_tileScale)
+
+#define k_TILE_PIXEL_WIDTH		(k_TILE_PIXEL_WIDTH_1X * g_tileScale)
+#define k_TILE_PIXEL_HEIGHT		(k_TILE_PIXEL_HEIGHT_1X * g_tileScale)
+#define k_TILE_PIXEL_HEADROOM	(k_TILE_PIXEL_HEADROOM_1X * g_tileScale)
+
+// ctp2-redux: a stand-in for an empty row of a tile image; runs hold at
+// most 255 pixels, so enlarged tiles need several (the last ends the row)
+#define k_TILE_EMPTY_ROW_SIZE	8
+inline void tileset_EmptyRow(Pixel16 * row, sint32 width)
+{
+	sint32 i = 0;
+	for (;;)
+	{
+		sint32 const piece = (width > 0xFF) ? 0xFF : width;
+		row[i] = (Pixel16)((k_TILE_SKIP_RUN_ID << 8) | piece);
+		width -= piece;
+		if (width <= 0 || i == k_TILE_EMPTY_ROW_SIZE - 1) break;
+		++i;
+	}
+	row[i] |= (Pixel16)(k_TILE_EOLN_ID << 8);
+}
+
+// The first pixel of row y of the tile diamond (the row ends at
+// k_TILE_PIXEL_WIDTH minus it). ctp2-redux: enlarged tiles keep the steps
+// of the original diamond, so that they fit together the same way.
+inline sint32 tileset_StartPixel(sint32 y)
+{
+	sint32 const row = y / g_tileScale;
+	return g_tileScale * ((row < k_TILE_PIXEL_HEADROOM_1X)
+	                      ? 2 * ((k_TILE_PIXEL_HEADROOM_1X - 1) - row)
+	                      : 2 * (row - k_TILE_PIXEL_HEADROOM_1X));
+}
 
 #define k_MAX_TRANSFORMS		300
 
@@ -317,6 +359,7 @@ enum MAPICON {
 
 #include "gstypes.h"
 #include "pixeltypes.h"     // Pixel16
+#include <vector>
 
 class BaseTile;
 
@@ -376,6 +419,7 @@ public:
 
 	void			QuickLoad(void);
 	void			QuickLoadMapped(void);
+	void			ScaleUp(sint32 scale);
 
 	BOOL			QuickLoaded(void) { return m_quick; }
 
@@ -402,6 +446,9 @@ private:
 	BOOL			m_mapped;
 	Pixel16			**m_mapIcons;
 	POINT			*m_mapIconDimensions;
+
+	// ctp2-redux: the enlarged tile data (ScaleUp), replacing the mapped one
+	std::vector<Pixel16 *>	m_scaledData;
 
 #ifdef WIN32
 	HANDLE			m_fileHandle;

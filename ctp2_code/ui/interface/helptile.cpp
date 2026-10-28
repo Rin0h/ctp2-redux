@@ -32,6 +32,7 @@
 //----------------------------------------------------------------------------
 
 #include "c3.h"
+#include "tileset.h"     // g_tileScale
 #include "aui.h"
 #include "aui_ldl.h"
 #include "aui_uniqueid.h"
@@ -350,7 +351,7 @@ void helptile_setPosition(const MapPoint & pos)
 {
 	sint32 x,y;
 	maputils_MapXY2PixelXY(pos.x, pos.y, &x, &y);
-	g_helpTileWindow->Move(x,y);
+	g_helpTileWindow->Move(x / g_tileScale, y / g_tileScale);   // ctp2-redux: map to game pixels
 }
 
 bool helptile_isShown()

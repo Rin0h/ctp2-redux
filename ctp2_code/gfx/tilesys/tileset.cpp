@@ -33,6 +33,9 @@
 //----------------------------------------------------------------------------
 
 #include "c3.h"
+
+#include <algorithm>
+#include <map>
 #include "tileset.h"
 
 #include "World.h"
@@ -80,6 +83,8 @@ namespace
         return (g_is565Format) ? TILESETFILE_565 : TILESETFILE_555;
     }
 }
+
+sint32 g_tileScale = 1;
 
 TileSet::TileSet()
 :
@@ -137,6 +142,8 @@ TileSet::TileSet()
 TileSet::~TileSet()
 {
 	Cleanup();
+	for (size_t i = 0; i < m_scaledData.size(); ++i)
+		delete [] m_scaledData[i];
 }
 
 // ToDo: Merge the comon parts of CleanupQuick and CleanupMapped
@@ -457,7 +464,7 @@ void TileSet::LoadMapIcons(void)
 	Pixel16		*tga;
 	Pixel16		*data;
 
-	m_mapIcons          = new Pixel16*[g_theMapIconDB->NumRecords()];
+	m_mapIcons          = new Pixel16*[g_theMapIconDB->NumRecords()]();
 	m_mapIconDimensions = new POINT[g_theMapIconDB->NumRecords()];
 	for (sint32 i = 0; i < g_theMapIconDB->NumRecords(); ++i)
 	{
@@ -878,4 +885,173 @@ void TileSet::QuickLoadMapped(void)
 	LoadMapIcons();
 
 	m_quick = TRUE;
+
+	if (g_tileScale > 1)
+		ScaleUp(g_tileScale);
+}
+
+namespace
+{
+	// the first pixel of row y of the tile diamond in game pixels
+	sint32 StartPixel1X(sint32 y)
+	{
+		return (y < k_TILE_PIXEL_HEADROOM_1X)
+		       ? 2 * ((k_TILE_PIXEL_HEADROOM_1X - 1) - y)
+		       : 2 * (y - k_TILE_PIXEL_HEADROOM_1X);
+	}
+
+	// the index of every pixel of the diamond in the raw tile data
+	struct DiamondIndex
+	{
+		sint32 index[k_TILE_PIXEL_HEIGHT_1X][k_TILE_PIXEL_WIDTH_1X];
+
+		DiamondIndex()
+		{
+			sint32 n = 0;
+			for (sint32 y = 0; y < k_TILE_PIXEL_HEIGHT_1X; ++y)
+			{
+				for (sint32 x = 0; x < k_TILE_PIXEL_WIDTH_1X; ++x)
+				{
+					bool const inside = x >= StartPixel1X(y) && x < k_TILE_PIXEL_WIDTH_1X - StartPixel1X(y);
+					index[y][x] = inside ? n++ : -1;
+				}
+			}
+		}
+	};
+}
+
+//----------------------------------------------------------------------------
+//
+// Name       : TileSet::ScaleUp
+//
+// Description: ctp2-redux: enlarges all tile data scale times by repeating
+//              the pixels, for the map in the pixels of the frame
+//              (g_tileScale). The diamond keeps its steps (tileset_StartPixel).
+//
+//              A base tile pixel below 4 takes the next pixel of transition
+//              stream 0-3; these markers cover the same 352 pixels in every
+//              tile, so a stream is enlarged along that layout.
+//
+//----------------------------------------------------------------------------
+void TileSet::ScaleUp(sint32 scale)
+{
+	static DiamondIndex const diamond;
+
+	// the marker layout of each transition stream: stream index per pixel
+	std::vector<sint32> layout[k_TRANSITIONS_PER_TILE];
+	for (sint32 k = 0; k < k_TRANSITIONS_PER_TILE; ++k)
+	{
+		for (sint32 i = 0; i < k_MAX_BASE_TILES && layout[k].empty(); ++i)
+		{
+			if (!m_baseTiles[i] || !m_baseTiles[i]->GetTileData()) continue;
+			Pixel16 const *     data   = m_baseTiles[i]->GetTileData();
+			std::vector<sint32> streamIndex(k_TILE_PIXEL_HEIGHT_1X * k_TILE_PIXEL_WIDTH_1X, -1);
+			sint32              count  = 0;
+			for (sint32 y = 0; y < k_TILE_PIXEL_HEIGHT_1X; ++y)
+			{
+				for (sint32 x = StartPixel1X(y); x < k_TILE_PIXEL_WIDTH_1X - StartPixel1X(y); ++x)
+				{
+					if (data[diamond.index[y][x]] == k)
+						streamIndex[y * k_TILE_PIXEL_WIDTH_1X + x] = count++;
+				}
+			}
+			if (count >= 100)   // a real transition area, not a stray dark pixel
+				layout[k].swap(streamIndex);
+		}
+	}
+
+	// the enlarged diamond, row by row
+	std::vector<Pixel16> scaled;
+	sint32 const width = k_TILE_PIXEL_WIDTH_1X * scale;
+
+	for (sint32 i = 0; i < k_MAX_BASE_TILES; ++i)
+	{
+		BaseTile * tile = m_baseTiles[i];
+		if (!tile) continue;
+
+		if (Pixel16 const * data = tile->GetTileData())
+		{
+			scaled.clear();
+			for (sint32 y = 0; y < k_TILE_PIXEL_HEIGHT_1X * scale; ++y)
+			{
+				sint32 const start = scale * StartPixel1X(y / scale);
+				for (sint32 x = start; x < width - start; ++x)
+					scaled.push_back(data[diamond.index[y / scale][x / scale]]);
+			}
+			Pixel16 * copy = new Pixel16[scaled.size()];
+			std::copy(scaled.begin(), scaled.end(), copy);
+			m_scaledData.push_back(copy);
+			tile->SetTileData(copy);
+			tile->SetTileDataLen(static_cast<uint16>(std::min<size_t>(scaled.size() * 2, 0xFFFF)));
+		}
+		if (Pixel16 * hat = tileutils_ScaleTile16(tile->GetHatData(), scale))
+		{
+			m_scaledData.push_back(hat);
+			tile->SetHatData(hat);
+		}
+	}
+
+	// the same stream may serve several terrain pairs
+	std::map<Pixel16 *, Pixel16 *> done;
+	for (sint32 from = 0; from < TERRAIN_MAX; ++from)
+	{
+		for (sint32 to = 0; to < TERRAIN_MAX; ++to)
+		{
+			for (sint32 k = 0; k < k_TRANSITIONS_PER_TILE; ++k)
+			{
+				Pixel16 * stream = m_transitions[from][to][k];
+				if (!stream || layout[k].empty()) continue;
+				std::map<Pixel16 *, Pixel16 *>::const_iterator known = done.find(stream);
+				if (known != done.end())
+				{
+					m_transitions[from][to][k] = known->second;
+					continue;
+				}
+
+				scaled.clear();
+				for (sint32 y = 0; y < k_TILE_PIXEL_HEIGHT_1X * scale; ++y)
+				{
+					sint32 const start = scale * StartPixel1X(y / scale);
+					for (sint32 x = start; x < width - start; ++x)
+					{
+						sint32 const n = layout[k][(y / scale) * k_TILE_PIXEL_WIDTH_1X + x / scale];
+						if (n >= 0) scaled.push_back(stream[n]);
+					}
+				}
+				Pixel16 * copy = new Pixel16[scaled.size()];
+				std::copy(scaled.begin(), scaled.end(), copy);
+				m_scaledData.push_back(copy);
+				done[stream] = copy;
+				m_transitions[from][to][k] = copy;
+			}
+		}
+	}
+
+	for (sint32 i = 0; i < m_numRiverTransforms; ++i)
+	{
+		if (Pixel16 * river = tileutils_ScaleTile16(m_riverData[i], scale))
+		{
+			m_scaledData.push_back(river);
+			m_riverData[i] = river;
+		}
+	}
+	for (sint32 i = 0; i < k_MAX_IMPROVEMENTS; ++i)
+	{
+		if (Pixel16 * improvement = tileutils_ScaleTile16(m_improvementData[i], scale))
+		{
+			m_scaledData.push_back(improvement);
+			m_improvementData[i] = improvement;
+		}
+	}
+	for (sint32 i = 0; i < g_theMapIconDB->NumRecords(); ++i)
+	{
+		if (Pixel16 * icon = tileutils_ScaleTile16(m_mapIcons[i], scale))
+		{
+			// the icons belong to the tile set (see CleanupMapped)
+			delete [] reinterpret_cast<char *>(m_mapIcons[i]);
+			m_mapIcons[i] = icon;
+			m_mapIconDimensions[i].x *= scale;
+			m_mapIconDimensions[i].y *= scale;
+		}
+	}
 }

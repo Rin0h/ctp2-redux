@@ -33,6 +33,9 @@
 #include "aui.h"
 
 #include "background.h"
+#if defined(__AUI_USE_SDL__)
+#include "aui_sdlsurface.h"
+#endif
 
 #include "tiledmap.h"
 #include "dynarr.h"
@@ -73,6 +76,27 @@ struct SavedMouseEvent {
 PointerList<SavedMouseEvent> s_savedEvents;
 
 sint32				doubleClickTimeout = 100;
+
+aui_Surface * Background::MapSurface()
+{
+	if (!m_surface || m_surface->Scale() == 1)
+		return m_surface;
+
+#if defined(__AUI_USE_SDL__)
+	// a second surface on the same pixels, without the scale
+	aui_SDLSurface * windowSurface = static_cast<aui_SDLSurface *>(m_surface);
+	if (!m_mapSurface || m_mapSurface->Buffer() != windowSurface->Buffer())
+	{
+		delete m_mapSurface;
+		AUI_ERRCODE errcode = AUI_ERRCODE_OK;
+		m_mapSurface = new aui_SDLSurface(&errcode, windowSurface->Width(), windowSurface->Height(),
+		                                  windowSurface->BitsPerPixel(), windowSurface->GetSDLSurface());
+	}
+	return m_mapSurface;
+#else
+	return m_surface;
+#endif
+}
 
 AUI_ERRCODE Background::DrawThis( aui_Surface *surface, sint32 x, sint32 y )
 {

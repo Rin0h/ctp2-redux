@@ -704,10 +704,9 @@ void Sprite::DrawScaledLow565(Pixel16 *data, sint32 x, sint32 y, sint32 destWidt
 {
 	uint8			*surfBase;
 
-	Pixel16		emptyRow[2];
+	Pixel16		emptyRow[k_EMPTY_ROW_SIZE];
 
-	emptyRow[0] = (Pixel16)((k_CHROMAKEY_RUN_ID << 8) | m_width);
-	emptyRow[1] = (Pixel16)(k_EOLN_ID << 8);
+	spriteutils_EmptyRow(emptyRow, m_width);
 
 	RECT destRect = { x, y, x + destWidth, y + destHeight };
 
@@ -1167,10 +1166,9 @@ void Sprite::DrawFlashScaledLow565(Pixel16 *data, sint32 x, sint32 y, sint32 des
 {
 	uint8			*surfBase;
 
-	Pixel16		emptyRow[2];
+	Pixel16		emptyRow[k_EMPTY_ROW_SIZE];
 
-	emptyRow[0] = (Pixel16)((k_CHROMAKEY_RUN_ID << 8) | m_width);
-	emptyRow[1] = (Pixel16)(k_EOLN_ID << 8);
+	spriteutils_EmptyRow(emptyRow, m_width);
 
 	RECT destRect = { x, y, x + destWidth, y + destHeight };
 

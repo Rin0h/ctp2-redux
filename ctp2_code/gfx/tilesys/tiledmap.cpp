@@ -238,6 +238,14 @@ TiledMap::TiledMap(MapPoint &size)
     std::copy(s_zoomTileScale, s_zoomTileScale + k_MAX_ZOOM_LEVELS,
               m_zoomTileScale
              );
+    // ctp2-redux: in pixels of the frame (the scale stays relative to the art)
+    for (sint32 i = 0; i < k_MAX_ZOOM_LEVELS; ++i)
+    {
+        m_zoomTilePixelWidth[i]  *= g_tileScale;
+        m_zoomTilePixelHeight[i] *= g_tileScale;
+        m_zoomTileGridHeight[i]  *= g_tileScale;
+        m_zoomTileHeadroom[i]    *= g_tileScale;
+    }
 
 	SetRect(&m_mapBounds, 0, 0, size.x, size.y);
 	SetZoomLevel(k_ZOOM_NORMAL);
@@ -254,7 +262,7 @@ TiledMap::TiledMap(MapPoint &size)
 
 		m_font = g_c3ui->LoadBitmapFont(fontNameString);
 		Assert(m_font);
-		m_font->SetPointSize(atoi(fontSizeString));
+		m_font->SetPointSize(atoi(fontSizeString) * g_tileScale);   // ctp2-redux: map pixels
 
 		const MBCHAR *    fString         = stringTable->GetString(2);
 		strncpy(m_fortifyString, fString, 3);
@@ -283,8 +291,12 @@ TiledMap::~TiledMap()
 	// m_lockedSurface  not deleted: reference only
 }
 
-sint32 TiledMap::Initialize(RECT *viewRect)
+sint32 TiledMap::Initialize(RECT *gameRect)
 {
+	// ctp2-redux: the window rectangle in game pixels, the map in map pixels
+	RECT			scaledRect = { gameRect->left * g_tileScale, gameRect->top * g_tileScale,
+	                               gameRect->right * g_tileScale, gameRect->bottom * g_tileScale };
+	RECT *			viewRect = &scaledRect;
 	sint32			w = viewRect->right - viewRect->left;
 	sint32			h = viewRect->bottom - viewRect->top;
 	AUI_ERRCODE		errcode;
@@ -632,6 +644,22 @@ void TiledMap::ClearMixDirtyRects(void)
 	ClearGrid();
 }
 
+namespace
+{
+	// ctp2-redux: a rectangle of map pixels as game pixels, rounded outwards
+	void AddGameRect(aui_DirtyList * dest, RECT const * rect)
+	{
+		if (g_tileScale == 1)
+		{
+			dest->AddRect(const_cast<RECT *>(rect));
+			return;
+		}
+		sint32 const s = g_tileScale;
+		RECT game = { rect->left / s, rect->top / s, (rect->right + s - 1) / s, (rect->bottom + s - 1) / s };
+		dest->AddRect(&game);
+	}
+}
+
 void TiledMap::CopyMixDirtyRects(aui_DirtyList *dest)
 {
 	dest->Flush();
@@ -640,7 +668,7 @@ void TiledMap::CopyMixDirtyRects(aui_DirtyList *dest)
 	size_t	i;
 	for (i = m_oldMixDirtyList->L(); i > 0; --i)
 	{
-		dest->AddRect(m_oldMixDirtyList->GetNext(position));
+		AddGameRect(dest, m_oldMixDirtyList->GetNext(position));
 	}
 
 	m_oldMixDirtyList->Flush();
@@ -653,7 +681,7 @@ void TiledMap::CopyMixDirtyRects(aui_DirtyList *dest)
 	for (i = m_mixDirtyList->L(); i > 0; --i)
 	{
 		RECT *rect = m_mixDirtyList->GetNext(position);
-		dest->AddRect(rect);
+		AddGameRect(dest, rect);
 		m_oldMixDirtyList->AddRect(rect);
 	}
 }
@@ -813,7 +841,9 @@ void TiledMap::ValidateMap(void)
 
 void TiledMap::InvalidateMix(void)
 {
-	RECT tempRect = g_backgroundViewport;
+	// ctp2-redux: the viewport is in game pixels
+	RECT tempRect = { g_backgroundViewport.left * g_tileScale, g_backgroundViewport.top * g_tileScale,
+	                  g_backgroundViewport.right * g_tileScale, g_backgroundViewport.bottom * g_tileScale };
 
 	m_mixDirtyList->Flush();
 
@@ -827,7 +857,7 @@ void TiledMap::InvalidateMix(void)
 
 
 m_oldMixDirtyList->Flush();
-AddDirtyRect(g_backgroundViewport, m_oldMixDirtyList);
+AddDirtyRect(tempRect, m_oldMixDirtyList);
 }
 
 void TiledMap::ValidateMix(void)
@@ -3156,11 +3186,7 @@ if (y >= surface->Height() - k_TILE_PIXEL_HEIGHT) return 0;
 	Pixel16 pixelColor   = g_colorSet->GetColor(color);
 
 	for(sint32 j=0; j<k_TILE_PIXEL_HEIGHT; j++) {
-		if (j<=23) {
-			startX = (23-j)*2;
-		} else {
-			startX = (j-24)*2;
-		}
+		startX = tileset_StartPixel(j);
 		endX = k_TILE_PIXEL_WIDTH - startX;
 
 		destPixel = (unsigned short *)(surfBase + ((y + j) * surfPitch) + ((x+startX) * 2));
@@ -3379,7 +3405,7 @@ bool TiledMap::ScrollMap(sint32 deltaX, sint32 deltaY)
 		return false;
 	}
 
-	RetargetTileSurface(g_background->TheSurface());
+	RetargetTileSurface(g_background->MapSurface());
 
 	if (!g_theWorld->IsXwrap())
 	{
@@ -3499,7 +3525,7 @@ bool TiledMap::SmoothScrollAligned() const
 
 bool TiledMap::ScrollMapSmooth(sint32 pdeltaX, sint32 pdeltaY)
 {
-	RetargetTileSurface(g_background->TheSurface());
+	RetargetTileSurface(g_background->MapSurface());
 
 	sint32 signX  = (!pdeltaX ? 0 : (pdeltaX < 0 ? -1 : 1));
 	sint32 signY  = (!pdeltaY ? 0 : (pdeltaY < 0 ? -1 : 1));
@@ -4664,7 +4690,8 @@ void TiledMap::MouseDrag(aui_MouseEvent *data)
 void TiledMap::Click(aui_MouseEvent *data, bool doubleClick)
 {
 	MapPoint		pos;
-	POINT			point = data->position;
+	// ctp2-redux: the event in game pixels, the map in map pixels
+	POINT			point = { data->position.x * g_tileScale, data->position.y * g_tileScale };
 
 	if (MousePointToTilePos(point, pos))
 	{
@@ -4724,7 +4751,8 @@ void TiledMap::Click(aui_MouseEvent *data, bool doubleClick)
 void TiledMap::Drop(aui_MouseEvent *data)
 {
 	MapPoint		pos;
-	POINT           point = data->position;
+	// ctp2-redux: the event in game pixels, the map in map pixels
+	POINT           point = { data->position.x * g_tileScale, data->position.y * g_tileScale };
 
 	if (MousePointToTilePos(point, pos)) {
 
@@ -4780,8 +4808,9 @@ bool TiledMap::GetMousePos(POINT &pos) const
 	aui_Mouse * mouse = g_c3ui->TheMouse();
 	if (mouse == NULL) return false;
 
-	pos.x = mouse->X() - g_background->X();
-	pos.y = mouse->Y() - g_background->Y();
+	// ctp2-redux: the mouse in game pixels, the map in map pixels
+	pos.x = (mouse->X() - g_background->X()) * g_tileScale;
+	pos.y = (mouse->Y() - g_background->Y()) * g_tileScale;
 	return true;
 }
 
@@ -5046,7 +5075,7 @@ TiledMap::DrawTransitionTileClipped(aui_Surface *surface, MapPoint &pos, sint32 
 
 	for (sint32 y = 0; y < k_TILE_PIXEL_HEIGHT; ++y)
 	{
-		sint32 const startX  = (y <= 23) ? (23-y)*2 : (y-24)*2;
+		sint32 const startX  = tileset_StartPixel(y);
 		sint32 const endX    = k_TILE_PIXEL_WIDTH - startX;
 
 		for (sint32 x = startX; x < endX; ++x)
@@ -5102,14 +5131,16 @@ void TiledMap::SetZoomLevel(sint32 level)
 
 	if (g_background)
 	{
+		// ctp2-redux: the window moves in game pixels
+		sint32 const s = g_tileScale;
 		sint32 xOffset;
 		sint32 yOffset;
 		if (level == k_ZOOM_LARGEST) {
-			xOffset = -m_zoomTilePixelWidth[m_zoomLevel] - g_background->X();
-			yOffset = -(m_zoomTilePixelHeight[m_zoomLevel] / 2) * 3 - g_background->Y();
+			xOffset = -m_zoomTilePixelWidth[m_zoomLevel] / s - g_background->X();
+			yOffset = -(m_zoomTilePixelHeight[m_zoomLevel] / s / 2) * 3 - g_background->Y();
 		} else {
-			xOffset = m_zoomTilePixelWidth[m_zoomLevel] - m_zoomTilePixelWidth[level];
-			yOffset = (m_zoomTilePixelHeight[m_zoomLevel] - m_zoomTilePixelHeight[level]) * 2;
+			xOffset = (m_zoomTilePixelWidth[m_zoomLevel] - m_zoomTilePixelWidth[level]) / s;
+			yOffset = (m_zoomTilePixelHeight[m_zoomLevel] - m_zoomTilePixelHeight[level]) / s * 2;
 		}
 		g_background->Offset(xOffset, yOffset);
 		OffsetRect(&g_backgroundViewport, -xOffset, -yOffset);

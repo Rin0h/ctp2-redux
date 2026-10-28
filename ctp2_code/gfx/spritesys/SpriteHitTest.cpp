@@ -203,10 +203,9 @@ BOOL Sprite::HitTestLowReversed(POINT mousePt, Pixel16 *frame, sint32 drawX, sin
 BOOL Sprite::HitTestScaledLow(POINT mousePt, Pixel16 *data, sint32 x, sint32 y, sint32 destWidth, sint32 destHeight,
 							 uint16 transparency, Pixel16 outlineColor, uint16 flags, BOOL reverse)
 {
-	Pixel16		emptyRow[2];
+	Pixel16		emptyRow[k_EMPTY_ROW_SIZE];
 
-	emptyRow[0] = (Pixel16)((k_CHROMAKEY_RUN_ID << 8) | m_width);
-	emptyRow[1] = (Pixel16)(k_EOLN_ID << 8);
+	spriteutils_EmptyRow(emptyRow, m_width);
 
 	RECT destRect = { x, y, x + destWidth, y + destHeight };
 
