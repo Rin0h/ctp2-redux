@@ -76,9 +76,9 @@ function Prepare-Instance([string]$name) {
         ClassicInterface = $(if ($Apolyton) { 'No' } else { 'Yes' })
     }
     $shared = Join-Path $ctpDir 'userprofile.txt'
-    $profile = @(if (Test-Path $shared) { Get-Content $shared | Where-Object { $_ -notmatch "^($($settings.Keys -join '|'))=" } })
+    $profile = @(if (Test-Path $shared) { Get-Content $shared -Encoding latin1 | Where-Object { $_ -notmatch "^($($settings.Keys -join '|'))=" } })
     $profile += $settings.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }
-    Set-Content -Path (Join-Path $dir 'userprofile.txt') -Encoding ascii -Value $profile
+    Set-Content -Path (Join-Path $dir 'userprofile.txt') -Encoding latin1 -Value $profile
     return $dir
 }
 
@@ -109,8 +109,8 @@ if ($Single) {
     if ($Tour) {
         # screenshots of all windows at the resolution the layouts were made for
         $tourArg = ' autotour'
-        (Get-Content (Join-Path $dir 'userprofile.txt')) -replace 'ScreenResWidth=\d+', 'ScreenResWidth=1024' `
-            -replace 'ScreenResHeight=\d+', 'ScreenResHeight=768' | Set-Content (Join-Path $dir 'userprofile.txt') -Encoding ascii
+        (Get-Content (Join-Path $dir 'userprofile.txt') -Encoding latin1) -replace 'ScreenResWidth=\d+', 'ScreenResWidth=1024' `
+            -replace 'ScreenResHeight=\d+', 'ScreenResHeight=768' | Set-Content (Join-Path $dir 'userprofile.txt') -Encoding latin1
         Remove-Item (Join-Path $dir 'autotest_ui_*.png') -ErrorAction SilentlyContinue
     }
     Write-Host "Single player: $dir, rounds: $Turns"

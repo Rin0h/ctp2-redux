@@ -367,13 +367,30 @@ Bildpaket, damit lose Apolyton-Bilder sie nicht überdecken; Lizenzhinweis
 auf dem Startbildschirm: englischer Activision-Satz, ctp2-redux von
 RinoLetsPlay - Falco Alex mit impressum@rinoletsplay.de, Apolyton Edition).
 Achtung: Commit 9e512ec trägt versehentlich die Nachricht des Vorgängers.
-Nächste Fenster: Neues-Spiel-Fenster (restliche Blöcke von spnewgame.ldl
-und spnewgamepopups), dann Stadtfenster.
 
-Werkzeug: Bildschirmtour im Testmodus (Einzelspieler, öffnet die Fenster
-nacheinander und macht je ein Bild), damit jedes Fenster ohne Klicken
-geprüft werden kann. Danach Skalierung (intern kleiner rendern, scharf
-ganzzahlig hochskalieren).
+Neues Spiel (`classic\default\uidata\layouts\spnewgamepopups.ldl`, erzeugt
+aus der Apolyton-Fassung, nur die geänderten Fenster ersetzt):
+- Nation: Original-Raster aus Optionsknöpfen statt Liste, 5 Spalten für die
+  70 Völker (Fenster 800x545), Herrschername und Geschlecht darunter.
+- Schwierigkeit: die zwei Spalten Optionsknöpfe des Originals.
+- Beides über `ListRadioGrid` (`ui\interface\listradiogrid.*`): Die Liste
+  bleibt verborgen das Modell (Einträge kommen aus den Datenbanken, Mods mit
+  anderer Anzahl funktionieren), das Raster zeigt sie als Knöpfe. Layout:
+  Block mit `columns`, `colwidth`, `rowheight` und Unterblock `Radio`.
+- Spieler: Originalfenster 400x250 mit den Apolyton-Drehreglern.
+- Unverändert übernommen, weil schon im Originalstil: Hauptfenster (nur
+  Kartentyp und Editor ergänzt), Kartengröße (identisch), Kartenform
+  (Uranuswelt ergänzt), Sonderregeln (15 statt 2 Schalter, gleiche Optik),
+  eigene Karte (Schieberegler).
+- Die kleinen Magenta-Ecken der Knöpfe gab es im Original genauso (kein
+  Farbschlüssel für diese Bilder), bleiben daher.
+Nächstes Fenster: Stadtfenster, dann die übrigen In-Game-Fenster.
+
+Werkzeug: Bildschirmtour im Testmodus (`tools\mptest.ps1 -Single -Tour`:
+erst Hauptmenü, Einzelspieler-Menü, Neues Spiel und seine Fenster als
+`autotest_ui_00*.png`, dann im Spiel die Spielfenster), damit jedes Fenster
+ohne Klicken geprüft werden kann. Danach Skalierung (intern kleiner rendern,
+scharf ganzzahlig hochskalieren).
 
 ## Offene Fragen an den Besitzer
 

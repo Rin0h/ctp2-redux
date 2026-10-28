@@ -588,13 +588,15 @@ SPNewGameRandomCustomScreen {
 	}
 }
 
+# ctp2-redux classic interface: the original players window (400 x 250)
+# with the spinners of the Apolyton Edition (number of players, maximum
+# number of civilisations, start player) instead of the six radio buttons.
 SPNewGamePlayersScreen {
 	string	pattern	"uptg20e.tga"
 	string	xanchor		"center"
 	string	yanchor		"center"
-	int	widthpix	500
+	int	widthpix	400
 	int	heightpix	250
-
 	Name:CTP_GREY_TITLE_FONT {
 		string	parent	"c3_PopupTitle"
 		string xanchor "center"
@@ -602,24 +604,19 @@ SPNewGamePlayersScreen {
 		int widthpct 50
 		int heightpix 20
 		int	ypix	20
-
 		string	text	"str_ldl_Players"
 	}
-
 	BackButton:CTP2_STANDARD_FONT {
 		int	xpix	325
 		int	ypix	195
 		int	widthpix	40
 		int	heightpix	20
-
 		string	text	"str_ldl_BACK"
 	}
-
 	NumPlayerSpinner:CTP2_SPINNER{
-		int xpix 38
-		int ypix 63
+		int xpix 25
+		int ypix 52
 		int widthpix 90
-		# JJB changed the minimum value from 3 to 1
 		int minxval 1
 		int maxxval 32
 		int incxval 1
@@ -628,8 +625,8 @@ SPNewGamePlayersScreen {
 		string tipwindow "str_ldl_SPNGPS_NumPlayerSpinner"
 	}
 	MaxPlayerSpinner:CTP2_SPINNER{
-		int xpix 38
-		int ypix 103
+		int xpix 25
+		int ypix 98
 		int widthpix 90
 		int minxval 0
 		int maxxval 32
@@ -639,12 +636,11 @@ SPNewGamePlayersScreen {
 		string tipwindow "str_ldl_SPNGPS_MaxPlayerSpinner"
 	}
 	PlayerSpinner:CTP2_SPINNER{
-		int xpix 38
-		int ypix 143
+		# maxxval is overwritten by the game; minxval 0 starts with the Barbarians
+		int xpix 25
+		int ypix 144
 		int widthpix 90
-		#Set it to zero if you want to start with the Barbarians
 		int minxval 1
-		#Is overwritten by the game
 		int maxxval 32
 		int incxval 1
 		int xval 1
@@ -655,37 +651,34 @@ SPNewGamePlayersScreen {
 		int fontcolorred 0
 		int fontcolorgreen 0
 		int fontcolorblue 0
-
 		string text "str_ldl_SPNGPS_NumPlayerText"
 		bool wordwrap TRUE
-		int xpix 158
-		int ypix 63
-		int widthpix 260
-		int heightpix 48
+		int xpix 130
+		int ypix 52
+		int widthpix 250
+		int heightpix 44
 	}
 	MaxPlayerText:SP_POPUP_LABEL {
 		int fontcolorred 0
 		int fontcolorgreen 0
 		int fontcolorblue 0
-
 		string text "str_ldl_SPNGPS_MaxPlayerText"
 		bool wordwrap TRUE
-		int xpix 158
-		int ypix 103
-		int widthpix 260
-		int heightpix 48
+		int xpix 130
+		int ypix 98
+		int widthpix 250
+		int heightpix 44
 	}
 	PlayerText:SP_POPUP_LABEL {
 		int fontcolorred 255
 		int fontcolorgreen 0
 		int fontcolorblue 0
-
 		string text "str_ldl_SPNGPS_PlayerText"
 		bool wordwrap TRUE
-		int xpix 158
-		int ypix 143
-		int widthpix 260
-		int heightpix 48
+		int xpix 130
+		int ypix 144
+		int widthpix 250
+		int heightpix 44
 	}
 }
 
