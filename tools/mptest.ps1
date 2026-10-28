@@ -43,10 +43,12 @@ param(
     [switch]$Apolyton,
     [switch]$AnetLog,
     [string]$Port = '21157',
-    [string]$JoinAddress = ''
+    [string]$JoinAddress = '',
+    [int]$Seed = 0             # fixed random seed, so a run makes the same map again
 )
 
 $ErrorActionPreference = 'Stop'
+if ($Seed) { $env:CTP2_TEST_SEED = "$Seed" } else { Remove-Item Env:CTP2_TEST_SEED -ErrorAction SilentlyContinue }
 $root   = Split-Path -Parent $PSScriptRoot
 $ctpDir = Join-Path $root 'ctp2_code\ctp'
 $build  = Join-Path $ctpDir 'x64'

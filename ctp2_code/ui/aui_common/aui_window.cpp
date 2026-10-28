@@ -670,11 +670,14 @@ void aui_Window::SetStencilFromImage(const MBCHAR *imageFileName)
 	if(!image)
 		return;
 
+	// ctp2-redux: the stencil in the pixels of the window surface (the
+	// image fills it at the scale of the window)
 	aui_Surface tempSurface(
 		&errcode,
 		m_surface->Width(),
 		m_surface->Height(),
 		16 );
+	tempSurface.SetScale(m_surface->Scale());
 
 	RECT imageRect = {
 		0, 0,
@@ -686,6 +689,26 @@ void aui_Window::SetStencilFromImage(const MBCHAR *imageFileName)
 							k_AUI_BLITTER_FLAG_COPY);
 
 	g_ui->UnloadImage(image);
+
+	// ctp2-redux: an upscaled stencil image has soft edges; the stencil
+	// needs two values (every change of value starts a span)
+	uint16 * pixels = NULL;
+	if (tempSurface.Lock(NULL, (LPVOID *)&pixels, 0) == AUI_ERRCODE_OK)
+	{
+		sint32 const pitch = tempSurface.Pitch() / 2;
+		for (sint32 y = 0; y < tempSurface.Height(); ++y)
+		{
+			uint16 * row = pixels + y * pitch;
+			for (sint32 x = 0; x < tempSurface.Width(); ++x)
+			{
+				// roughly the brightness (good enough for 565 and 555)
+				uint16 const p = row[x];
+				sint32 const light = ((p >> 11) & 0x1F) + ((p >> 6) & 0x1F) + (p & 0x1F);
+				row[x] = (light >= 3 * 16) ? 0xFFFF : 0x0000;
+			}
+		}
+		tempSurface.Unlock(pixels);
+	}
 
 	m_stencil = aui_CreateStencil(&tempSurface);
 

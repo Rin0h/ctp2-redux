@@ -67,6 +67,8 @@ extern C3UI *g_c3ui;
 #include "custommapscreen.h"
 #include "wondermoviewin.h"
 #include "tiledmap.h"            // g_tiledMap
+#include "Vision.h"
+extern void WhackScreen();
 #include "WonderRecord.h"
 #include "IconRecord.h"
 
@@ -108,6 +110,14 @@ namespace
 		ctp2_TabGroup *group = (ctp2_TabGroup *)aui_Ldl::GetObject("DomesticDialog.TabGroup");
 		ctp2_Tab *     page  = (ctp2_Tab *)aui_Ldl::GetObject("DomesticDialog.TabGroup.Tab3");
 		if (group && page) group->SelectTab(page);
+	}
+	// the whole map explored, for a look at all kinds of terrain
+	void ExploreAll()
+	{
+		Player *p = Me();
+		if (!p || !p->m_vision) return;
+		p->m_vision->SetTheWholeWorldExplored();
+		WhackScreen();
 	}
 	// the map zoomed out halfway and fully (scaled drawing of tiles/sprites)
 	void ZoomHalf()       { if (g_tiledMap) for (int i = 0; i < 3; ++i) g_tiledMap->ZoomOut(); }
@@ -187,6 +197,7 @@ namespace
 	const TourWindow k_windows[] =
 	{
 		{ "map",          Nothing,        Nothing        },
+		{ "map_explored",      ExploreAll,   Nothing     },
 		{ "map_zoom_half",     ZoomHalf,     ZoomNormal  },
 		{ "map_zoom_smallest", ZoomSmallest, ZoomNormal  },
 		{ "city",         OpenCity,       CloseCity      },

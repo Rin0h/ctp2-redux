@@ -833,20 +833,30 @@ AUI_ERRCODE aui_UI::ClipAndConsolidate(void)
 							top + remainWindow->Height()
 						};
 
-						if (Rectangle_Clip( &rect, &windowRect ))
+						// ctp2-redux: the mixing works on the pixels of both
+						// surfaces (and the stencil), so it needs the same
+						// scale; the rectangles are in game pixels
+						aui_Surface * remainSurface = remainWindow->TheSurface();
+						sint32 const  scale         = windowSurface->Scale();
+						if (remainSurface && remainSurface->Scale() == scale &&
+						    Rectangle_Clip( &rect, &windowRect ))
 						{
 							RECT srcRect = rect;
 							OffsetRect( &srcRect, -left, -top );
 
+							RECT pixels    = { rect.left * scale, rect.top * scale,
+							                   rect.right * scale, rect.bottom * scale };
+							RECT srcPixels = { srcRect.left * scale, srcRect.top * scale,
+							                   srcRect.right * scale, srcRect.bottom * scale };
 							g_ui->TheBlitter()->StencilMixBlt16(
 								windowSurface,
-								&rect,
+								&pixels,
 								NULL,
-								&rect,
-								remainWindow->TheSurface(),
-								&srcRect,
+								&pixels,
+								remainSurface,
+								&srcPixels,
 								windowStencil,
-								&rect);
+								&pixels);
 						}
 					}
 				}

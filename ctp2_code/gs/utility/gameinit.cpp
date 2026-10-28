@@ -1090,6 +1090,8 @@ sint32 spriteEditor_Initialize(sint32 mWidth, sint32 mHeight)
 
 
 	uint32 seed = g_oldRandSeed ? g_oldRandSeed : GetTickCount();
+	// ctp2-redux: tests can fix the map (tools/mptest.ps1 -Seed)
+	if (getenv("CTP2_TEST_SEED")) seed = (uint32) atol(getenv("CTP2_TEST_SEED"));
 	srand(seed);
 	g_rand = new RandomGenerator(seed);
 
@@ -1453,6 +1455,8 @@ sint32 gameinit_Initialize(sint32 mWidth, sint32 mHeight, CivArchive *archive)
 
 	seed = g_oldRandSeed ? g_oldRandSeed : GetTickCount();
 #endif
+	// ctp2-redux: tests can fix the map (tools/mptest.ps1 -Seed)
+	if (getenv("CTP2_TEST_SEED")) seed = (uint32) atol(getenv("CTP2_TEST_SEED"));
 
 	srand(seed);
 
