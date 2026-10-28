@@ -406,6 +406,10 @@ Plan und Entscheidungen (2026-10-28):
     Bild wird gegen das Original geprüft und bei Rauschen einzeln neu
     gerechnet (sonst nearest). Zu große Bilder (>65535 Wörter) bleiben
     nearest.
+    Kartensymbole (upc*, Wappen/Stern/Statussymbole) 2026-10-29 verworfen:
+    HD-Farbe aus Schritt 1 + Pixelart aus dem Original gab türkise Säume
+    (Spielerfarben-Markierung von der KI verwischt); ohne Randpixel bleibt bei
+    10–20 px kaum Gewinn. Ginge nur mit eigenem Export ohne Sonderfarben.
   - B1 Videos (Skript-Infrastruktur aus M3) – erledigt 2026-10-28: Videos
     Bild für Bild durch Real-ESRGAN, `redux_hires/<N>x/videos/<name>.mkv`
     (H.264 über Media Foundation, Originalton), eigenes ffmpeg.exe aus dem
