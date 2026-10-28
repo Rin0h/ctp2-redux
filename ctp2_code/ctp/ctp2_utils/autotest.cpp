@@ -332,6 +332,14 @@ void autotest_Log(const char *format, ...)
 	fclose(f);
 }
 
+void autotest_Screenshot(const char *path)
+{
+#ifdef __AUI_USE_SDL__
+	aui_SDLUI::RequestScreenshot(path);
+	autotest_Log("screenshot %s", path);
+#endif
+}
+
 bool autotest_Step(const char *name)
 {
 	if (!autotest_Active() || s_finished) return false;
@@ -495,8 +503,7 @@ void autotest_Process(bool gameLoaded)
 #ifdef __AUI_USE_SDL__
 		char path[64];
 		snprintf(path, sizeof(path), "autotest_round_%03d.png", round);
-		aui_SDLUI::RequestScreenshot(path);
-		autotest_Log("screenshot %s", path);
+		autotest_Screenshot(path);
 #endif
 	}
 

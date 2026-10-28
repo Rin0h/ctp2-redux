@@ -53,7 +53,7 @@ function Prepare-Instance([string]$name) {
     Copy-Item (Join-Path $build 'dll') $dir -Recurse -Force
     # release network DLL (the logging variant only if the folder had one)
     Copy-Item (Join-Path $build 'anet2.dll') $dir -Force
-    Remove-Item (Join-Path $dir 'dp.ini'), (Join-Path $dir 'autotest_*.txt'), (Join-Path $dir 'autotest_round_*.png') -ErrorAction SilentlyContinue
+    Remove-Item (Join-Path $dir 'dp.ini'), (Join-Path $dir 'autotest_*.txt'), (Join-Path $dir 'autotest_*.png') -ErrorAction SilentlyContinue
     Set-Content -Path (Join-Path $dir 'userprofile.txt') -Encoding ascii -Value @(
         'WindowedMode=Yes', 'ScreenResWidth=800', 'ScreenResHeight=600', 'TryWindowsResolution=No',
         'FullScreenMovies=No', 'SfxVolume=0', 'VoiceVolume=0', 'MusicVolume=0')

@@ -159,7 +159,15 @@ nie. Er legt mangels Lobby des Hosts eine eigene an und ist damit
 Sitzungen, spätere Aktualisierungen des Hosts trugen identische Daten und
 lösten nichts aus (`libs/anet/src/dp/deltas.c`, jetzt auch die bekannten
 fremden Sitzungen). Gefunden mit `mptest.ps1 -AnetLog` (dp.log beider
-Instanzen). Offen: Lobby und Vorlagenauswahl sind kurz sichtbar.
+Instanzen). Lobby und Vorlagenauswahl bleiben auf diesem Weg versteckt
+(sichtbar erst wieder nach „Zurück“), ein wartender Client sieht den
+Dialog „Lobby wird betreten“. Netzwerkmenü aufgeräumt (Wunsch des
+Besitzers): IPX wird nicht mehr angeboten, die tote Activision-Serverliste
+ist ausgeblendet, das Fenster heißt „Direktverbindung“ und zeigt nur Adresse
++ „Beitreten“, „Spiel hosten“ und die eigene Adresse (Knopfstil wie im
+Spiel-Setup). TCP/IP-LAN, Hotseat und E-Mail bleiben. Der Test macht Bilder
+vom Verbindungsfenster und vom Spiel-Setup (`autotest_connect.png`,
+`autotest_setup.png`).
 
 Plan:
 1. **Weitere Tests:** LAN-Adresse statt 127.0.0.1, dann ein echter Test über

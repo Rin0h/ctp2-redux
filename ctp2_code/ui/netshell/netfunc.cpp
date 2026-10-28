@@ -797,7 +797,8 @@ NETFunc::TransportList::CallBack(const dp_transport_t *t, const comm_driverInfo_
 			((TransportList *)context)->Add(new Internet(d, t, k));
 		break;
 		case Transport::IPX:
-			((TransportList *)context)->Add(new IPX(d, t, k));
+			// ctp2-redux: not offered any more, IPX is gone from today's
+			// Windows; direct connections and TCP/IP LAN cover the network
 		break;
 		case Transport::MODEM:
 			((TransportList *)context)->Add(new Modem(d, t, k));

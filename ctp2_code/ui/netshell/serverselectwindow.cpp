@@ -51,6 +51,7 @@
 #include "playerselectwindow.h"
 #include "passwordscreen.h"
 #include "dialogboxwindow.h"
+#include "spnewgamewindow.h"              // spNew_ctp2_Button
 
 static DialogBoxWindow *s_dbw = NULL;
 // When the "waiting for servers" dialog was opened. Without a reachable
@@ -145,18 +146,22 @@ AUI_ERRCODE ServerSelectWindow::CreateControls( void )
 	if ( !AUI_NEWOK(control,errcode) ) return errcode;
 	m_controls[ CONTROL_DIRECTTEXTFIELD ] = control;
 
-	control = new aui_Button(
+	// same oval button style as the game setup ("Profile")
+	control = spNew_ctp2_Button(
 		&errcode,
-		aui_UniqueId(),
-		"serverselectwindow.directjoinbutton" );
+		"serverselectwindow",
+		"directjoinbutton",
+		NULL);
 	Assert( AUI_NEWOK(control,errcode) );
 	if ( !AUI_NEWOK(control,errcode) ) return errcode;
 	m_controls[ CONTROL_DIRECTJOINBUTTON ] = control;
 
-	control = new aui_Button(
+	// same oval button style as the game setup ("Profile")
+	control = spNew_ctp2_Button(
 		&errcode,
-		aui_UniqueId(),
-		"serverselectwindow.directhostbutton" );
+		"serverselectwindow",
+		"directhostbutton",
+		NULL);
 	Assert( AUI_NEWOK(control,errcode) );
 	if ( !AUI_NEWOK(control,errcode) ) return errcode;
 	m_controls[ CONTROL_DIRECTHOSTBUTTON ] = control;
@@ -209,6 +214,11 @@ AUI_ERRCODE ServerSelectWindow::CreateControls( void )
 
 	((aui_ListBox *)m_controls[ CONTROL_SELECTSERVERLISTBOX ])->
 		SetForceSelect( TRUE );
+
+	// ctp2-redux: the Activision game servers are gone, only the direct
+	// connection is offered
+	m_controls[ CONTROL_SELECTSERVERLISTBOX ]->Hide();
+	m_controls[ CONTROL_OKBUTTON ]->Hide();
 
 	Update();
 
@@ -281,9 +291,11 @@ AUI_ERRCODE ServerSelectWindow::Idle( void )
 {
 	if (g_netfunc)
 	{
-		if ( s_dbw && time(NULL) - s_dbwShown >= k_WAIT_FOR_SERVERS_SECONDS )
+		if ( s_dbw && (g_netfunc->GetStatus() == NETFunc::PRECONNECT ||
+		               time(NULL) - s_dbwShown >= k_WAIT_FOR_SERVERS_SECONDS) )
 		{
-			// No server answered, give the player the direct connection controls.
+			// Connected (or no answer): give the player the direct connection
+			// controls, nobody waits for the old server list any more.
 			DialogBoxWindow::PopDown( s_dbw );
 			s_dbw = NULL;
 			UpdateMyAddress();
@@ -322,9 +334,12 @@ AUI_ERRCODE ServerSelectWindow::Idle( void )
 		}
 
 		// ctp2-redux test mode: direct host or direct join
-		if (autotest_Active() && g_netfunc->GetStatus() == NETFunc::PRECONNECT)
+		if (autotest_Active() && (g_netfunc->GetStatus() == NETFunc::PRECONNECT ||
+		                          g_netfunc->GetStatus() == NETFunc::LOGIN))
 		{
-			if (autotest_IsHost())
+			if (autotest_Step("shot-connect"))
+				autotest_Screenshot("autotest_connect.png");
+			else if (autotest_IsHost())
 			{
 				if (autotest_Step("direct-host"))
 				{
@@ -332,7 +347,7 @@ AUI_ERRCODE ServerSelectWindow::Idle( void )
 					b->GetAction()->Execute( b, AUI_BUTTON_ACTION_EXECUTE, 0 );
 				}
 			}
-			else if (autotest_Step("direct-join"))
+			else if (!autotest_IsHost() && autotest_Step("direct-join"))
 			{
 				((aui_TextField *)m_controls[ CONTROL_DIRECTTEXTFIELD ])->SetFieldText( autotest_Address() );
 				aui_Control *b = m_controls[ CONTROL_DIRECTJOINBUTTON ];

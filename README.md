@@ -23,7 +23,9 @@ upstream.
 - Multiplayer over a **direct connection** (host / join by IP address, no
   lobby server): 50+ rounds without a crash in manual tests. Network crashes
   found with AddressSanitizer are fixed. Host and client go straight from
-  their profile to the game setup (nation, rules), no chat lobby.
+  their profile to the game setup (nation, rules), no chat lobby. The
+  network menu only offers what still works: direct connection, TCP/IP LAN,
+  hotseat and e-mail (no IPX, no list of the long-gone Activision servers).
 - **Automated multiplayer test**: two instances play a game against each
   other in the background, see [below](#automated-multiplayer-test).
 - Upscaling: analysis done, implementation not started.
@@ -69,7 +71,8 @@ the working copy. The exit code is 0 if the test passed. A test passes when:
   - `autotest_map_end.txt`: terrain and flags of every map cell at the end;
   - `autotest_result.txt`: the machine-readable result;
   - `autotest_round_<nnn>.png`: a screenshot of the own turn start, taken
-    even while the window is hidden.
+    even while the window is hidden; `autotest_connect.png` and
+    `autotest_setup.png` show the connection window and the game setup.
 
 **How it works:** the script passes command-line switches to the game,
 implemented in `ctp2_code/ctp/ctp2_utils/autotest.cpp`:
@@ -341,7 +344,9 @@ spiegelt das Upstream-Projekt.
   IP-Adresse, ohne Lobbyserver): in Handtests über 50 Runden ohne Absturz.
   Die Netzwerkabstürze, die AddressSanitizer gefunden hat, sind behoben.
   Host und Client kommen vom Profil direkt ins Spiel-Setup (Nation, Regeln),
-  ohne Chat-Lobby.
+  ohne Chat-Lobby. Das Netzwerkmenü bietet nur noch an, was funktioniert:
+  Direktverbindung, TCP/IP-LAN, Hotseat und E-Mail (kein IPX, keine Liste der
+  abgeschalteten Activision-Server).
 - **Automatischer Multiplayer-Test**: Zwei Instanzen spielen im Hintergrund
   gegeneinander, siehe unten.
 - Hochskalierung: Analyse abgeschlossen, Umsetzung steht aus.
@@ -390,7 +395,8 @@ bestanden, wenn:
   - `autotest_map_end.txt`: Gelände und Flags jedes Kartenfelds am Ende;
   - `autotest_result.txt`: das Ergebnis in maschinenlesbarer Form;
   - `autotest_round_<nnn>.png`: ein Bild vom eigenen Zugbeginn, auch bei
-    verstecktem Fenster.
+    verstecktem Fenster; `autotest_connect.png` und `autotest_setup.png`
+    zeigen das Verbindungsfenster und das Spiel-Setup.
 
 **Wie es funktioniert:** Das Skript übergibt dem Spiel Kommandozeilen-
 Schalter, umgesetzt in `ctp2_code/ctp/ctp2_utils/autotest.cpp`. Die Tabelle

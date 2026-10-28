@@ -446,7 +446,15 @@ AUI_ERRCODE LobbyWindow::Idle( void )
 		}
 	}
 	// ctp2-redux: a direct connection goes straight to the game setup: the
-	// host creates its game, a client joins the host's game once it is listed
+	// host creates its game, a client joins the host's game once it is listed.
+	// The lobby stays hidden meanwhile; a waiting client sees the "joining"
+	// dialog instead (kept open below).
+	const bool directPassThrough = (NETFunc::GetDirectAuto() != NETFunc::DIRECT_AUTO_OFF);
+	if (directPassThrough != IsHidden())
+	{
+		if (directPassThrough) Hide(); else Show();
+	}
+
 	if (g_netfunc->GetStatus() == NETFunc::OK)
 	{
 		if (NETFunc::GetDirectAuto() == NETFunc::DIRECT_AUTO_CREATE)
@@ -462,6 +470,11 @@ AUI_ERRCODE LobbyWindow::Idle( void )
 			if (games && games->NumItems() > 0)
 			{
 				NETFunc::SetDirectAuto(NETFunc::DIRECT_AUTO_OFF);
+				if ( s_dbw )
+				{
+					DialogBoxWindow::PopDown( s_dbw );
+					s_dbw = NULL;
+				}
 				games->SelectItem( (sint32)0 );
 				aui_Control *b = FindControl( CONTROL_JOINBUTTON );
 				b->GetAction()->Execute( b, AUI_BUTTON_ACTION_EXECUTE, 0 );
@@ -576,7 +589,7 @@ AUI_ERRCODE LobbyWindow::Idle( void )
 		UpdatePlayerButtons();
 
 
-		if ( s_dbw )
+		if ( s_dbw && NETFunc::GetDirectAuto() != NETFunc::DIRECT_AUTO_JOIN )
 		{
 			DialogBoxWindow::PopDown( s_dbw );
 			s_dbw = NULL;

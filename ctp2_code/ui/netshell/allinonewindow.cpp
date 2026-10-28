@@ -1707,10 +1707,20 @@ AUI_ERRCODE AllinoneWindow::Idle( void )
 			}
 			else if (CurNumHumanPlayers() >= autotest_HumanPlayers() &&
 			         ((aui_ListBox *)FindControl( CONTROL_GPLAYERSLISTBOX ))->NumItems() > 1 &&
+			         autotest_Step("shot-setup"))
+			{
+				autotest_Screenshot("autotest_setup.png");
+			}
+			else if (CurNumHumanPlayers() >= autotest_HumanPlayers() &&
+			         ((aui_ListBox *)FindControl( CONTROL_GPLAYERSLISTBOX ))->NumItems() > 1 &&
 			         autotest_Step("host-start"))
 			{
 				ok->GetAction()->Execute( ok, AUI_BUTTON_ACTION_EXECUTE, 0 );
 			}
+		}
+		else if (g_netfunc->GotGameSetup() && autotest_Step("shot-setup"))
+		{
+			autotest_Screenshot("autotest_setup.png");
 		}
 		else if (g_netfunc->GotGameSetup() && autotest_Step("client-ready"))
 		{

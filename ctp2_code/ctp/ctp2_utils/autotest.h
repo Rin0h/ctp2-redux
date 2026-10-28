@@ -46,6 +46,7 @@ int         autotest_AIPlayers();
 // previous step is a moment ago, so the UI can settle in between.
 bool        autotest_Step(const char *name);
 void        autotest_Log(const char *format, ...);
+void        autotest_Screenshot(const char *path);   // next frame, also hidden
 
 // Hooks
 void        autotest_NoteMainMenu();

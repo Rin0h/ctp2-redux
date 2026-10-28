@@ -8,12 +8,13 @@ serverselectwindow:nswindow {
 
 	int	widthpix	450
 
-	int	heightpix	385
+	int	heightpix	260
 
 
 	titlestatictext : nstitlestatictext {
 
-		string	text	"str_ldl_SELECT_SERVER"
+		string	text	"str_ldl_DIRECT_TITLE"
+		int	widthpix	240
 	}
 
 
@@ -105,51 +106,49 @@ serverselectwindow:nswindow {
 
 
 
-# ctp2-redux: direct connection without an Anet game server
+# ctp2-redux: direct connection without an Anet game server. The server
+# list and the OK button stay in the layout but are hidden by the code
+# (the Activision servers are gone).
 	directstatictext:nsstatictext {
 		int	xpix	73
-		int	ypix	222
+		int	ypix	70
 		int	widthpix	312
 		int	heightpix	20
 		string	text	"str_ldl_DIRECT_CONNECT_LABEL"
 		int	srcxpix	73
-		int	srcypix	222
+		int	srcypix	70
 		int	srcwidthpix	312
 		int	srcheightpix	20
 	}
 	directtextfield {
 		int	xpix	73
-		int	ypix	245
+		int	ypix	93
 		int	widthpix	222
 		int	heightpix	20
 		int	maxfieldlen	80
 	}
-	directjoinbutton:nsnextbutton {
-		string	xanchor	"left"
-		string	yanchor	"top"
+	directjoinbutton:nscommonbutton {
 		int	xpix	305
-		int	ypix	243
+		int	ypix	88
 		int	widthpix	80
-		int	heightpix	24
+		int	heightpix	21
 		string	text	"str_ldl_DIRECT_JOIN"
 	}
-	directhostbutton:nsnextbutton {
-		string	xanchor	"left"
-		string	yanchor	"top"
+	directhostbutton:nscommonbutton {
 		int	xpix	73
-		int	ypix	275
-		int	widthpix	120
-		int	heightpix	24
+		int	ypix	128
+		int	widthpix	123
+		int	heightpix	21
 		string	text	"str_ldl_DIRECT_HOST"
 	}
 	myaddressstatictext:nsstatictext {
 		int	xpix	73
-		int	ypix	305
+		int	ypix	172
 		int	widthpix	312
 		int	heightpix	20
 		string	text	""
 		int	srcxpix	73
-		int	srcypix	305
+		int	srcypix	172
 		int	srcwidthpix	312
 		int	srcheightpix	20
 	}

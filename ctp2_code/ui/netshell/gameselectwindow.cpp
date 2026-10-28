@@ -680,9 +680,14 @@ StartSelectingWindow::~StartSelectingWindow()
 
 AUI_ERRCODE StartSelectingWindow::Idle( void )
 {
-	// ctp2-redux: a direct host starts a new game setup right away
+	if (IsHidden() && NETFunc::GetDirectAuto() == NETFunc::DIRECT_AUTO_OFF)
+		Show();
+
+	// ctp2-redux: a direct host starts a new game setup right away, without
+	// showing this window
 	if (NETFunc::GetDirectAuto() == NETFunc::DIRECT_AUTO_NEW)
 	{
+		Hide();
 		NETFunc::SetDirectAuto(NETFunc::DIRECT_AUTO_PASSWORD);
 		aui_Control *b = FindControl( CONTROL_NEWBUTTON );
 		b->GetAction()->Execute( b, AUI_BUTTON_ACTION_EXECUTE, 0 );
