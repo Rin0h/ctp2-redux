@@ -59,7 +59,6 @@
 
 
 #include "gameselectwindow.h"
-#include "autotest.h"                   // ctp2-redux test mode
 #include "allinonewindow.h"
 #include "playerselectwindow.h"
 #include "passwordscreen.h"
@@ -681,9 +680,10 @@ StartSelectingWindow::~StartSelectingWindow()
 
 AUI_ERRCODE StartSelectingWindow::Idle( void )
 {
-	// ctp2-redux test mode: new game setup
-	if (autotest_Active() && autotest_Step("new-setup"))
+	// ctp2-redux: a direct host starts a new game setup right away
+	if (NETFunc::GetDirectAuto() == NETFunc::DIRECT_AUTO_NEW)
 	{
+		NETFunc::SetDirectAuto(NETFunc::DIRECT_AUTO_PASSWORD);
 		aui_Control *b = FindControl( CONTROL_NEWBUTTON );
 		b->GetAction()->Execute( b, AUI_BUTTON_ACTION_EXECUTE, 0 );
 		return AUI_ERRCODE_OK;

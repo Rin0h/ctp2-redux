@@ -433,7 +433,7 @@ void LobbyWindow::Update(BOOL init)
 
 AUI_ERRCODE LobbyWindow::Idle( void )
 {
-	// ctp2-redux test mode: host creates a game, client joins the first one
+	// ctp2-redux test mode: progress in the log
 	if (autotest_Active())
 	{
 		static time_t s_lastLog = 0;
@@ -445,26 +445,23 @@ AUI_ERRCODE LobbyWindow::Idle( void )
 			autotest_Log("lobby: netfunc status %d, games %d, players %d", (int)g_netfunc->GetStatus(), g ? (int)g->NumItems() : -1, pl ? (int)pl->NumItems() : -1);
 		}
 	}
-	if (autotest_Active() && g_netfunc->GetStatus() == NETFunc::OK)
+	// ctp2-redux: a direct connection goes straight to the game setup: the
+	// host creates its game, a client joins the host's game once it is listed
+	if (g_netfunc->GetStatus() == NETFunc::OK)
 	{
-		if (autotest_IsHost())
+		if (NETFunc::GetDirectAuto() == NETFunc::DIRECT_AUTO_CREATE)
 		{
-			// wait until the other humans are in the lobby: a direct client that
-			// arrives later does not see games created before (see PLAN.md)
-			aui_ListBox *players = (aui_ListBox *)FindControl( CONTROL_PLAYERSLISTBOX );
-			if (players && players->NumItems() >= autotest_HumanPlayers() &&
-			    autotest_Step("lobby-create"))
-			{
-				aui_Control *b = FindControl( CONTROL_CREATEBUTTON );
-				b->GetAction()->Execute( b, AUI_BUTTON_ACTION_EXECUTE, 0 );
-				return AUI_ERRCODE_OK;
-			}
+			NETFunc::SetDirectAuto(NETFunc::DIRECT_AUTO_NEW);
+			aui_Control *b = FindControl( CONTROL_CREATEBUTTON );
+			b->GetAction()->Execute( b, AUI_BUTTON_ACTION_EXECUTE, 0 );
+			return AUI_ERRCODE_OK;
 		}
-		else
+		if (NETFunc::GetDirectAuto() == NETFunc::DIRECT_AUTO_JOIN)
 		{
 			aui_ListBox *games = (aui_ListBox *)FindControl( CONTROL_GAMESLISTBOX );
-			if (games && games->NumItems() > 0 && autotest_Step("lobby-join"))
+			if (games && games->NumItems() > 0)
 			{
+				NETFunc::SetDirectAuto(NETFunc::DIRECT_AUTO_OFF);
 				games->SelectItem( (sint32)0 );
 				aui_Control *b = FindControl( CONTROL_JOINBUTTON );
 				b->GetAction()->Execute( b, AUI_BUTTON_ACTION_EXECUTE, 0 );

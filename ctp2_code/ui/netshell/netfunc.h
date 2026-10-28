@@ -89,6 +89,7 @@ public:
 	static const sint32 k_DIRECT_PORT = 21157;
 	static char         s_directAddress[128]; // host address a client joins, "" = none
 	static bool         s_directHost;         // this node hosts a direct connection
+	static sint32       s_directAuto;         // DirectAuto step, see below
 
 
 enum STATUS
@@ -1351,6 +1352,19 @@ public:
 	STATUS SetDirectAddress(const char *address);
 
 	static bool IsDirect(void);
+
+	// A direct connection skips the chat lobby: the windows on the way
+	// (lobby, start selecting, password) press their buttons by themselves,
+	// once per SetDirectHost/SetDirectAddress, until the game setup is open.
+	enum DirectAuto {
+		DIRECT_AUTO_OFF,
+		DIRECT_AUTO_CREATE,     // host: lobby -> "create"
+		DIRECT_AUTO_NEW,        // host: start selecting -> "new"
+		DIRECT_AUTO_PASSWORD,   // host: no password
+		DIRECT_AUTO_JOIN        // client: join the host's game once listed
+	};
+	static DirectAuto GetDirectAuto(void) { return (DirectAuto)s_directAuto; }
+	static void SetDirectAuto(DirectAuto a) { s_directAuto = a; }
 
 	static void RefreshDirectSource(void);
 

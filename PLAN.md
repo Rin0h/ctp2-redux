@@ -145,14 +145,26 @@ im Einzelspieler gründet die KI in 40 Runden keine Stadt aus einem selbst
 gebauten Siedler, der Anfang ist einfach langsam. Für den Schnelltest
 reicht, dass die KI wirklich spielt. Unsichtbar heißt: verstecktes Fenster,
 Software-Renderer ohne Present, kein Rand-Scrollen (die Maus liegt außerhalb
-und `CivApp::ProcessUI` scrollte sonst endlos). Bekannt: der Host wartet in
-der Lobby auf den Client, weil ein Direkt-Client ein bereits angelegtes Spiel
-nicht sieht (wird mit „direkt ins Spiel-Setup“ gelöst).
+und `CivApp::ProcessUI` scrollte sonst endlos).
+
+Stand 2026-10-28 (Mittag): **Direktverbindung ohne Chat-Lobby.** Host:
+„Spiel hosten“ → Profil → Spiel-Setup; Client: „Beitreten“ → Profil →
+Spiel-Setup des Hosts. Umgesetzt mit `NETFunc::DirectAuto`: Lobby,
+Vorlagenauswahl und Passwortfrage drücken ihre Knöpfe einmal pro
+Direktverbindung selbst („Erstellen“, „Neu“, kein Passwort bzw. „Beitreten“,
+sobald das Spiel gelistet ist). Wer im Setup „Zurück“ wählt, bleibt in der
+Lobby. Dabei behoben: ein Client, der nach dem Anlegen des Spiels kam, sah es
+nie. Er legt mangels Lobby des Hosts eine eigene an und ist damit
+„standalone master“; `dpRequestObjectDeltas` meldete dann nur die eigenen
+Sitzungen, spätere Aktualisierungen des Hosts trugen identische Daten und
+lösten nichts aus (`libs/anet/src/dp/deltas.c`, jetzt auch die bekannten
+fremden Sitzungen). Gefunden mit `mptest.ps1 -AnetLog` (dp.log beider
+Instanzen). Offen: Lobby und Vorlagenauswahl sind kurz sichtbar.
 
 Plan:
 1. **Weitere Tests:** LAN-Adresse statt 127.0.0.1, dann ein echter Test über
    zwei Anschlüsse (Port 21157 UDP weiterleiten).
-2. **Direkt ins Spiel-Setup (Wunsch des Besitzers):** ohne Chat-Lobby. Host
+2. ~~**Direkt ins Spiel-Setup (Wunsch des Besitzers):**~~ erledigt, s. o. Host
    „Spiel hosten“ → Profil → direkt Spiel-Setup (Spielsitzung sofort
    anlegen); Client „Beitreten“ → Profil → direkt ins Spiel-Setup des Hosts
    (erste Spielsitzung aus dem abonnierten Sitzungsverzeichnis). Serverweg

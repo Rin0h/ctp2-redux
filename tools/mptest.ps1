@@ -8,6 +8,7 @@
 #   pwsh tools/mptest.ps1 -Show                # watch the two windows
 #   pwsh tools/mptest.ps1 -ShotEvery 5         # screenshot every 5th round (0 = none)
 #   pwsh tools/mptest.ps1 -Idle                # test players only end their turns
+#   pwsh tools/mptest.ps1 -AnetLog             # network library with logging (dp.log)
 #
 # By default the two test players play a simple turn (settle, walk, fill
 # build queues, pick research), so their actions go over the network.
@@ -33,6 +34,7 @@ param(
     [int]$ShotEvery = 1,
     [switch]$Idle,
     [switch]$Single,
+    [switch]$AnetLog,
     [string]$Port = '21157'
 )
 
@@ -97,6 +99,17 @@ if ($Single) {
 
 $hostDir   = Prepare-Instance 'autotest_host'
 $clientDir = Prepare-Instance 'autotest_client'
+
+# network library with logging: both write dp.log next to the exe
+if ($AnetLog) {
+    $anetDll = Join-Path $root 'ctp2_code\libs\anet\x64\anet2l.dll'
+    if (-not (Test-Path $anetDll)) { throw "No logging network library at $anetDll (anet.vcxproj, configuration Logging)" }
+    foreach ($d in $hostDir, $clientDir) {
+        Copy-Item $anetDll (Join-Path $d 'anet2.dll') -Force
+        Set-Content -Path (Join-Path $d 'dp.ini') -Encoding ascii -Value @('[Debug]', 'All=1', 'ToLog=1', 'Logfile=dp.log')
+        Remove-Item (Join-Path $d 'dp.log') -ErrorAction SilentlyContinue
+    }
+}
 
 $clientExe = 'ctp2.exe'
 if ($Asan) {

@@ -190,6 +190,35 @@ DP_API dp_result_t DP_APIX dpRequestObjectDeltas(
 					DPRINT(("dpRequestObjectDeltas: can't send object delta, err:%d\n", err));
 				}
 			}
+			/* ctp2-redux: a standalone master can still know sessions of
+			 * others, e.g. a direct-connection client that subscribed to the
+			 * host's session list (dpSetSessionSource) and then opened a
+			 * lobby of its own.  Report those too, else games that existed
+			 * before stay invisible: their later updates carry identical
+			 * data and never reach dp_sessions_cb.
+			 */
+			if (sesstab == dp->mysessions && dp->sessions) {
+				DPRINT(("dpRequestObjectDeltas: + %d known sessions\n", dptab_tableSize(dp->sessions)));
+				for (i=0; i<dptab_tableSize(dp->sessions); i++) {
+					char *s;
+					void *mine;
+					dp_session_t sess;
+					size_t len, minelen;
+					char subkey[dptab_KEY_MAXLEN];
+					sint32 subkeylen;
+
+					err = dptab_get_byindex(dp->sessions, i, (void **)&s, &len, subkey, &subkeylen);
+					if (err != dp_RES_OK)
+						break;
+					if (dptab_get_bykey(dp->mysessions, subkey, subkeylen, &mine, &minelen) == dp_RES_OK)
+						continue;	/* own session, reported above */
+					dp_unpack_session(dp, subkey, subkeylen, s, len, &sess);
+					err = dpSendObjectDelta(dp, dp_RES_CREATED, (dp_object_t *) &sess, dp->sessions, subkey, subkeylen);
+					if (err != dp_RES_OK) {
+						DPRINT(("dpRequestObjectDeltas: can't send object delta, err:%d\n", err));
+					}
+				}
+			}
 		}
 		return dp_RES_OK;
 		break;

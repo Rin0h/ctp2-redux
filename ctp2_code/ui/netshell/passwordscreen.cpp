@@ -44,7 +44,6 @@
 #include "lobbywindow.h"
 
 #include "passwordscreen.h"
-#include "autotest.h"                   // ctp2-redux test mode
 
 #include "spnewgamewindow.h"
 
@@ -78,10 +77,12 @@ static c3_Static    *s_scenarionotfoundStatic = NULL;
 
 sint32 passwordscreen_displayMyWindow( PASSWORDSCREEN_MODE m )
 {
-	// ctp2-redux test mode: "password protected?" -> no password
-	if (autotest_Active() && m == PASSWORDSCREEN_MODE_ASK && g_gameSelectWindow)
+	// ctp2-redux: a direct host does not ask for a password, the address
+	// is what other players need
+	if (m == PASSWORDSCREEN_MODE_ASK && g_gameSelectWindow &&
+	    NETFunc::GetDirectAuto() == NETFunc::DIRECT_AUTO_PASSWORD)
 	{
-		autotest_Log("step: password none");
+		NETFunc::SetDirectAuto(NETFunc::DIRECT_AUTO_OFF);
 		g_gameSelectWindow->PasswordScreenDone( "" );
 		return 0;
 	}

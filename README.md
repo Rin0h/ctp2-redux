@@ -22,7 +22,8 @@ upstream.
 - Starts and plays the intro video through FFmpeg.
 - Multiplayer over a **direct connection** (host / join by IP address, no
   lobby server): 50+ rounds without a crash in manual tests. Network crashes
-  found with AddressSanitizer are fixed.
+  found with AddressSanitizer are fixed. Host and client go straight from
+  their profile to the game setup (nation, rules), no chat lobby.
 - **Automated multiplayer test**: two instances play a game against each
   other in the background, see [below](#automated-multiplayer-test).
 - Upscaling: analysis done, implementation not started.
@@ -41,6 +42,7 @@ pwsh tools/mptest.ps1 -Show              # watch both game windows
 pwsh tools/mptest.ps1 -ShotEvery 5       # screenshot every 5th round (0 = none)
 pwsh tools/mptest.ps1 -Asan              # client built with AddressSanitizer
 pwsh tools/mptest.ps1 -Single -Turns 40  # single player run for comparison
+pwsh tools/mptest.ps1 -AnetLog           # network library with logging (dp.log)
 ```
 
 It needs a Final-SDL x64 build (`tools/win-build.ps1`) and the game data in
@@ -100,9 +102,10 @@ playing off. The AI civilisations play normally. In hidden mode the game uses a 
 draw to the screen. Edge scrolling is also off, because the mouse is
 outside the hidden window and the map would otherwise scroll forever.
 
-Known limitation: the host waits in the lobby until the client is there,
-because a direct-connection client does not see a game the host created
-before it joined (see [PLAN.md](PLAN.md)).
+The game does the rest of the way itself: with a direct connection the host
+goes straight from the profile to the game setup, and a client joins the
+host's game as soon as it is listed. A client may arrive before or after the
+host created the game.
 
 ### Game files and licence
 
@@ -337,6 +340,8 @@ spiegelt das Upstream-Projekt.
 - Multiplayer über **Direktverbindung** (Hosten bzw. Beitreten per
   IP-Adresse, ohne Lobbyserver): in Handtests über 50 Runden ohne Absturz.
   Die Netzwerkabstürze, die AddressSanitizer gefunden hat, sind behoben.
+  Host und Client kommen vom Profil direkt ins Spiel-Setup (Nation, Regeln),
+  ohne Chat-Lobby.
 - **Automatischer Multiplayer-Test**: Zwei Instanzen spielen im Hintergrund
   gegeneinander, siehe unten.
 - Hochskalierung: Analyse abgeschlossen, Umsetzung steht aus.
@@ -356,6 +361,7 @@ pwsh tools/mptest.ps1 -Show              # beide Spielfenster ansehen
 pwsh tools/mptest.ps1 -ShotEvery 5       # Bild jede 5. Runde (0 = keine)
 pwsh tools/mptest.ps1 -Asan              # Client mit AddressSanitizer
 pwsh tools/mptest.ps1 -Single -Turns 40  # Einzelspieler-Lauf zum Vergleich
+pwsh tools/mptest.ps1 -AnetLog           # Netzwerkbibliothek mit Protokoll (dp.log)
 ```
 
 Voraussetzung sind ein Final-SDL-x64-Build (`tools/win-build.ps1`) und die
@@ -407,9 +413,10 @@ Software-Renderer und zeichnet nicht auf den Bildschirm. Außerdem ist das
 Rand-Scrollen aus, denn die Maus liegt außerhalb des versteckten Fensters
 und die Karte würde sonst endlos scrollen.
 
-Bekannte Einschränkung: Der Host wartet in der Lobby, bis der Client da ist.
-Ein Direkt-Client sieht nämlich kein Spiel, das der Host vor seinem
-Beitritt angelegt hat (siehe [PLAN.md](PLAN.md)).
+Den Rest des Weges geht das Spiel selbst: Bei einer Direktverbindung kommt
+der Host vom Profil direkt ins Spiel-Setup, und ein Client tritt dem Spiel
+des Hosts bei, sobald es angezeigt wird. Der Client darf vor oder nach dem
+Anlegen des Spiels kommen.
 
 ### Spieldaten und Lizenz
 

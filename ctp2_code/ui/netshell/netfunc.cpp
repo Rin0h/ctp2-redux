@@ -2383,6 +2383,7 @@ NETFunc::STATUS NETFunc::SetTransport(Transport *t) {
 			return BUSSY;
 		s_directAddress[0] = 0;
 		s_directHost = false;
+		s_directAuto = DIRECT_AUTO_OFF;
 		if(t->GetType() == Transport::INTERNET)
 			t->SetPort(k_DIRECT_PORT); // fixed port, so a host can forward it
 		s_transport = new TransportSetup(t);
@@ -2659,6 +2660,7 @@ NETFunc::STATUS NETFunc::SetDirectHost(void) {
 	if(s_status == PRECONNECT || s_status == LOGIN) {
 		s_directHost = true;
 		s_directAddress[0] = 0;
+		s_directAuto = DIRECT_AUTO_CREATE;
 		s_servername[0] = 0;
 		EnumServers(false);
 		dpSetGameServerEx(s_dp, 0, s_GameType);
@@ -2677,6 +2679,7 @@ NETFunc::STATUS NETFunc::SetDirectAddress(const char *address) {
 		strncpy(s_directAddress, address, sizeof(s_directAddress) - 1);
 		s_directAddress[sizeof(s_directAddress) - 1] = 0;
 		s_directHost = false;
+		s_directAuto = DIRECT_AUTO_JOIN;
 		s_servername[0] = 0;
 		EnumServers(false);
 		dpSetGameServerEx(s_dp, 0, s_GameType);
@@ -3030,6 +3033,7 @@ NETFunc::STATUS NETFunc::Disconnect(void) {
 		s_userId = dp_UID_NONE;
 		s_directAddress[0] = 0;
 		s_directHost = false;
+		s_directAuto = DIRECT_AUTO_OFF;
 		EnumServers(true);
 
 		m_timer.Start(1000);
@@ -3651,4 +3655,5 @@ char NETFunc::s_servername[64] = "";
 char NETFunc::s_playername[dp_PNAMELEN] = "";
 char NETFunc::s_directAddress[128] = "";
 bool NETFunc::s_directHost = false;
+sint32 NETFunc::s_directAuto = NETFunc::DIRECT_AUTO_OFF;
 char NETFunc::s_sessionname[dp_SNAMELEN] = "";
