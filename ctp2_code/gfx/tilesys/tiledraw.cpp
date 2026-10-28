@@ -163,6 +163,21 @@ namespace
         return tileset_StartPixel(a_Position);
     }
 
+    /// Whether a row of a tile image is marked empty in its table; rows
+    /// outside the image are not (ctp2-redux: the table is not read there,
+    /// enlarged images live in memory of their own)
+    inline bool TileRowIsGap(Pixel16 const * a_Table, sint32 a_Row, sint32 a_Start, sint32 a_End)
+    {
+        return a_Row >= a_Start && a_Row <= a_End && (sint16) a_Table[a_Row - a_Start] == -1;
+    }
+
+    /// The data of a row of a tile image; outside the image the empty row
+    inline Pixel16 * TileRow(Pixel16 * a_Table, Pixel16 * a_DataStart, Pixel16 * a_EmptyRow,
+                             sint32 a_Row, sint32 a_Start, sint32 a_End)
+    {
+        return (a_Row < a_Start || a_Row > a_End) ? a_EmptyRow : a_DataStart + a_Table[a_Row - a_Start];
+    }
+
     /// ctp2-redux: a length in game pixels as map pixels (g_tileScale)
     inline sint32 Px(sint32 a_GamePixels)
     {
@@ -1472,15 +1487,15 @@ void TiledMap::DrawBlendedOverlayScaled(aui_Surface *surface,Pixel16 *data, sint
 		}
         else
         {
-			if ((sint16)table[vpos1-vstart] == -1 || (sint16)table[vpos2-vstart] == -1) {
+			if (TileRowIsGap(table, vpos1, vstart, end) || TileRowIsGap(table, vpos2, vstart, end)) {
 				vpos2++;
 				continue;
 			}
 
             Pixel16 *   rowData1    =
-                (vpos1 < vstart) ? emptyRow : dataStart + table[vpos1-vstart];
+                TileRow(table, dataStart, emptyRow, vpos1, vstart, end);
 			Pixel16 *   rowData2    =
-                (vpos2 < vstart) ? emptyRow : dataStart + table[vpos2-vstart];
+                TileRow(table, dataStart, emptyRow, vpos2, vstart, end);
 
 			sint32      haccum      = destWidth*2 - k_TILE_GRID_WIDTH;
 			sint32      hincx       = destWidth*2;
@@ -1619,15 +1634,15 @@ void TiledMap::DrawBlendedOverlayScaledIntoMix(Pixel16 *data, sint32 x, sint32 y
 		if (vaccum < 0) {
 			vaccum += vincx;
 		} else {
-			if ((sint16)table[vpos1-vstart] == -1 || (sint16)table[vpos2-vstart] == -1) {
+			if (TileRowIsGap(table, vpos1, vstart, end) || TileRowIsGap(table, vpos2, vstart, end)) {
 				vpos2++;
 				continue;
 			}
 
 			Pixel16 *   rowData1    =
-                (vpos1 < vstart) ? emptyRow : dataStart + table[vpos1-vstart];
+                TileRow(table, dataStart, emptyRow, vpos1, vstart, end);
             Pixel16 *   rowData2    =
-                (vpos2 < vstart) ? emptyRow : dataStart + table[vpos2-vstart];
+                TileRow(table, dataStart, emptyRow, vpos2, vstart, end);
 			sint32      haccum      = destWidth*2 - k_TILE_GRID_WIDTH;
 			sint32      hincx       = destWidth*2;
 			sint32      hincxy      = (destWidth-k_TILE_GRID_WIDTH) * 2;
@@ -1786,15 +1801,15 @@ void TiledMap::DrawDitheredOverlayScaledIntoMix(Pixel16 *data, sint32 x, sint32 
 			vaccum += vincx;
 		} else {
 
-			if ((sint16)table[vpos1-vstart] == -1 || (sint16)table[vpos2-vstart] == -1) {
+			if (TileRowIsGap(table, vpos1, vstart, end) || TileRowIsGap(table, vpos2, vstart, end)) {
 				vpos2++;
 				continue;
 			}
 
 			Pixel16 *   rowData1    =
-                (vpos1 < vstart) ? emptyRow : dataStart + table[vpos1-vstart];
+                TileRow(table, dataStart, emptyRow, vpos1, vstart, end);
             Pixel16 *   rowData2    =
-                (vpos2 < vstart) ? emptyRow : dataStart + table[vpos2-vstart];
+                TileRow(table, dataStart, emptyRow, vpos2, vstart, end);
 			sint32      haccum      = destWidth*2 - k_TILE_GRID_WIDTH;
 			sint32      hincx       = destWidth*2;
 			sint32      hincxy      = (destWidth-k_TILE_GRID_WIDTH) * 2;
@@ -1945,15 +1960,15 @@ void TiledMap::DrawDitheredOverlayScaled(aui_Surface *surface, Pixel16 *data, si
 		if (vaccum < 0) {
 			vaccum += vincx;
 		} else {
-			if ((sint16)table[vpos1-vstart] == -1 || (sint16)table[vpos2-vstart] == -1) {
+			if (TileRowIsGap(table, vpos1, vstart, end) || TileRowIsGap(table, vpos2, vstart, end)) {
 				vpos2++;
 				continue;
 			}
 
             Pixel16 *   rowData1    =
-                (vpos1 < vstart) ? emptyRow : dataStart + table[vpos1-vstart];
+                TileRow(table, dataStart, emptyRow, vpos1, vstart, end);
             Pixel16 *   rowData2    =
-                (vpos2 < vstart) ? emptyRow : dataStart + table[vpos2-vstart];
+                TileRow(table, dataStart, emptyRow, vpos2, vstart, end);
 
 			sint32  haccum      = destWidth*2 - k_TILE_GRID_WIDTH;
 			sint32  hincx       = destWidth*2;
@@ -2460,15 +2475,15 @@ void TiledMap::DrawColorBlendedOverlayScaled(aui_Surface *surface, Pixel16 *data
 		if (vaccum < 0) {
 			vaccum += vincx;
 		} else {
-			if ((sint16)table[vpos1-vstart] == -1 || (sint16)table[vpos2-vstart] == -1) {
+			if (TileRowIsGap(table, vpos1, vstart, end) || TileRowIsGap(table, vpos2, vstart, end)) {
 				vpos2++;
 				continue;
 			}
 
 			Pixel16	*   rowData1    =
-                (vpos1 < vstart) ? emptyRow : dataStart + table[vpos1-vstart];
+                TileRow(table, dataStart, emptyRow, vpos1, vstart, end);
             Pixel16 *   rowData2    =
-                (vpos2 < vstart) ? emptyRow : dataStart + table[vpos2-vstart];
+                TileRow(table, dataStart, emptyRow, vpos2, vstart, end);
 			sint32      haccum      = destWidth*2 - k_TILE_GRID_WIDTH;
 			sint32      hincx       = destWidth*2;
 			sint32      hincxy      = (destWidth-k_TILE_GRID_WIDTH) * 2;
@@ -2848,15 +2863,15 @@ void TiledMap::DrawScaledOverlay(aui_Surface *surface, Pixel16 *data, sint32 x, 
 			vaccum += vincx;
 		} else {
 
-			if ((sint16)table[vpos1-vstart] == -1 || (sint16)table[vpos2-vstart] == -1) {
+			if (TileRowIsGap(table, vpos1, vstart, end) || TileRowIsGap(table, vpos2, vstart, end)) {
 				vpos2++;
 				continue;
 			}
 
 			Pixel16 *   rowData1 =
-                (vpos1 < vstart) ? emptyRow : dataStart + table[vpos1-vstart];
+                TileRow(table, dataStart, emptyRow, vpos1, vstart, end);
             Pixel16 *   rowData2 =
-                (vpos2 < vstart) ? emptyRow : dataStart + table[vpos2-vstart];
+                TileRow(table, dataStart, emptyRow, vpos2, vstart, end);
 
 			sint32  haccum      = destWidth*2 - k_TILE_GRID_WIDTH;
 			sint32  hincx       = destWidth*2;
@@ -2943,15 +2958,15 @@ void TiledMap::DrawScaledOverlayIntoMix(Pixel16 *data, sint32 x, sint32 y,
 		if (vaccum < 0) {
 			vaccum += vincx;
 		} else {
-			if ((sint16)table[vpos1-vstart] == -1 || (sint16)table[vpos2-vstart] == -1) {
+			if (TileRowIsGap(table, vpos1, vstart, end) || TileRowIsGap(table, vpos2, vstart, end)) {
 				vpos2++;
 				continue;
 			}
 
 			Pixel16	*   rowData1    =
-                (vpos1 < vstart) ? emptyRow : dataStart + table[vpos1-vstart];
+                TileRow(table, dataStart, emptyRow, vpos1, vstart, end);
             Pixel16 *   rowData2    =
-                (vpos2 < vstart) ? emptyRow : dataStart + table[vpos2-vstart];
+                TileRow(table, dataStart, emptyRow, vpos2, vstart, end);
 
 			sint32  haccum = destWidth*2 - k_TILE_GRID_WIDTH;
 			sint32  hincx = destWidth*2;
@@ -4310,15 +4325,15 @@ void TiledMap::DrawColorBlendedOverlayScaled(aui_Surface *surface, Pixel16 *data
 		if (vaccum < 0) {
 			vaccum += vincx;
 		} else {
-			if ((sint16)table[vpos1-vstart] == -1 || (sint16)table[vpos2-vstart] == -1) {
+			if (TileRowIsGap(table, vpos1, vstart, end) || TileRowIsGap(table, vpos2, vstart, end)) {
 				vpos2++;
 				continue;
 			}
 
 			Pixel16	*   rowData1 =
-                (vpos1 < vstart) ? emptyRow : dataStart + table[vpos1-vstart];
+                TileRow(table, dataStart, emptyRow, vpos1, vstart, end);
 			Pixel16 *   rowData2 =
-                (vpos2 < vstart) ? emptyRow : dataStart + table[vpos2-vstart];
+                TileRow(table, dataStart, emptyRow, vpos2, vstart, end);
 
 			sint32  haccum  = destWidth*2 - k_TILE_GRID_WIDTH;
 			sint32  hincx   = destWidth*2;

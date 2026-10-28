@@ -29,6 +29,7 @@
 //----------------------------------------------------------------------------
 
 #include "c3.h"
+#include "tileset.h"     // g_tileScale
 
 #include "battleviewactor.h"
 #include "EffectActor.h"
@@ -171,8 +172,9 @@ void BattleEvent::ProcessPlacement(void)
 				}
 				DPRINTF(k_DBG_GAMESTATE, ("Process placement for actor %lx (unit %lx)\n", data->positionActor, data->positionActor->GetUnitID().m_id));
 
-				data->positionActor->SetX(x);
-				data->positionActor->SetY(y);
+				// ctp2-redux: the battle is drawn in map pixels (g_tileScale)
+				data->positionActor->SetX(x * g_tileScale);
+				data->positionActor->SetY(y * g_tileScale);
 				data->positionActor->SetFacing(data->positionFacing);
 				data->positionActor->SetHitPoints(data->positionHP);
 			}

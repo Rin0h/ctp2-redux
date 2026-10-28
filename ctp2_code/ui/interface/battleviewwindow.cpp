@@ -507,8 +507,14 @@ AUI_ERRCODE BattleViewWindow::DrawThis(aui_Surface *surface, sint32 x, sint32 y)
 	OffsetRect(&rect, -rect.left, -rect.top);
 
 	if (m_battleView && m_battleView->GetBattleSurface())
+	{
+		// ctp2-redux: the battle is drawn in map pixels (see BattleView::Initialize)
+		aui_Surface * battle = m_battleView->GetBattleSurface();
+		battle->SetScale(g_tileScale);
 		g_c3ui->TheBlitter()->Blt(surface, m_battleViewRect.left, m_battleViewRect.top,
-			m_battleView->GetBattleSurface(), &rect, k_AUI_BLITTER_FLAG_COPY);
+			battle, &rect, k_AUI_BLITTER_FLAG_COPY);
+		battle->SetScale(1);
+	}
 
 	m_dirtyList->AddRect( &rect );
 

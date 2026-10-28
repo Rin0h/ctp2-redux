@@ -214,7 +214,7 @@ void BattleViewActor::DrawDirect(aui_Surface * surf, sint32 x, sint32 y)
 
 	if (m_isFortified) {
 		Pixel16 * fortifiedImage = g_tiledMap->GetTileSet()->GetImprovementData(34);
-		g_tiledMap->DrawOverlay(surf, fortifiedImage, x + k_ACTOR_CENTER_OFFSET_X-48,  y+k_ACTOR_CENTER_OFFSET_Y-48);
+		g_tiledMap->DrawOverlay(surf, fortifiedImage, x + k_ACTOR_CENTER_OFFSET_X - 48 * g_tileScale,  y + k_ACTOR_CENTER_OFFSET_Y - 48 * g_tileScale);
 	}
 
 	m_unitSpriteGroup->DrawDirect(surf, m_curUnitAction, m_frame, x+k_ACTOR_CENTER_OFFSET_X, y+k_ACTOR_CENTER_OFFSET_Y,
@@ -240,7 +240,7 @@ void BattleViewActor::DrawHealthBar(aui_Surface * surf) const
 			g_colorSet->GetPlayerColor(m_playerNum));
 
 	iconRect.bottom = iconRect.top;
-	iconRect.top    = iconRect.bottom - 3;
+	iconRect.top    = iconRect.bottom - 3 * g_tileScale;   // ctp2-redux: map pixels
 	if (!IsRectCompletelyOnSurface(iconRect, surf)) {
 		return;
 	}

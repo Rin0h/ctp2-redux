@@ -346,7 +346,7 @@ void GoodActor::DrawSelectionBrackets() const
 			m_x + (sint32)(k_TILE_PIXEL_WIDTH * g_tiledMap->GetScale())/2,
 			m_y + (sint32)(k_TILE_GRID_HEIGHT * g_tiledMap->GetScale())/2);
 
-	InflateRect(&rect, 25, 25);
+	InflateRect(&rect, 25 * g_tileScale, 25 * g_tileScale);   // ctp2-redux: map pixels
 
 	g_tiledMap->AddDirtyRectToMix(rect);
 

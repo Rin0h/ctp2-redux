@@ -55,8 +55,10 @@
 
 class Actor;
 
-static const int k_ACTOR_CENTER_OFFSET_X = 48;
-static const int k_ACTOR_CENTER_OFFSET_Y = 48;
+// ctp2-redux: in map pixels, g_tileScale times game pixels (see tileset.h)
+extern sint32 g_tileScale;
+#define k_ACTOR_CENTER_OFFSET_X		(48 * g_tileScale)
+#define k_ACTOR_CENTER_OFFSET_Y		(48 * g_tileScale)
 
 // "fix" bug #4 by kaan
 #define k_MAX_ACTION_QUEUE_SIZE		12

@@ -30,6 +30,7 @@
 //----------------------------------------------------------------------------
 
 #include "c3.h"
+#include "tileset.h"     // g_tileScale
 #include "battleview.h"
 
 #include <algorithm>
@@ -130,7 +131,10 @@ void BattleView::Initialize(RECT const & battleViewRect)
 
 	m_battleViewRect    = battleViewRect;
 	delete m_battleSurface;
-	m_battleSurface     = aui_Factory::new_Surface(errcode, width, height);
+	// ctp2-redux: in map pixels, like the sprites drawn into it; the scale
+	// is set only while images are copied in or out (the actors draw in
+	// its pixels)
+	m_battleSurface     = aui_Factory::new_Surface(errcode, width * g_tileScale, height * g_tileScale);
 	Assert(m_battleSurface);
 }
 
@@ -383,6 +387,8 @@ void BattleView::UpdateDisplay(void)
 					m_backgroundImage->TheSurface()->LogicalWidth(),
 					m_backgroundImage->TheSurface()->LogicalHeight()};
 
+	m_battleSurface->SetScale(g_tileScale);
+
 	g_c3ui->TheBlitter()->Blt(m_battleSurface, 0, 0, m_backgroundImage->TheSurface(),
 							&rect, k_AUI_BLITTER_FLAG_COPY);
 
@@ -391,9 +397,10 @@ void BattleView::UpdateDisplay(void)
 				m_cityImage->TheSurface()->LogicalWidth(),
 				m_cityImage->TheSurface()->LogicalHeight() };
 
-		g_c3ui->TheBlitter()->Blt(m_battleSurface, m_battleSurface->Width() - cityrect.right, 0,
+		g_c3ui->TheBlitter()->Blt(m_battleSurface, m_battleSurface->LogicalWidth() - cityrect.right, 0,
 								  m_cityImage->TheSurface(), &cityrect, k_AUI_BLITTER_FLAG_COPY);
 	}
+	m_battleSurface->SetScale(1);
 
 	Assert(m_numAttackers <= k_MAX_UNITS_PER_SIDE);
 	Assert(m_numDefenders <= k_MAX_UNITS_PER_SIDE);

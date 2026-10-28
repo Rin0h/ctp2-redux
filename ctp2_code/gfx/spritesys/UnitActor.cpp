@@ -879,8 +879,8 @@ bool UnitActor::Draw(bool fogged)
 		sint32 xoffset = (sint32)(k_ACTOR_CENTER_OFFSET_X * g_tiledMap->GetScale());
 		sint32 yoffset = (sint32)(k_ACTOR_CENTER_OFFSET_Y * g_tiledMap->GetScale());
 
-		sint32 nudgeX = (sint32)((k_ACTOR_CENTER_OFFSET_X - 48) * g_tiledMap->GetScale());
-		sint32 nudgeY = (sint32)((k_ACTOR_CENTER_OFFSET_Y - 48) * g_tiledMap->GetScale());
+		sint32 nudgeX = (sint32)((k_ACTOR_CENTER_OFFSET_X - 48 * g_tileScale) * g_tiledMap->GetScale());
+		sint32 nudgeY = (sint32)((k_ACTOR_CENTER_OFFSET_Y - 48 * g_tileScale) * g_tiledMap->GetScale());
 
 		if (m_unitID.IsValid() && m_unitID.IsCity()) {//emod - 3-10-2007
 			DrawCityImprovements(nudgeX, nudgeY, fogged);
@@ -983,20 +983,22 @@ void UnitActor::DrawShield() const
 
 	drawRect = DrawSpecialIndicators(drawRect, stackSize);
 
+	// ctp2-redux: sizes in map pixels (g_tileScale times game pixels)
+	sint32 const s = g_tileScale;
 	RECT dirtyRect = drawRect;
-	InflateRect(&dirtyRect, 2, 2);
-	dirtyRect.top -= 8;
+	InflateRect(&dirtyRect, 2 * s, 2 * s);
+	dirtyRect.top -= 8 * s;
 	g_tiledMap->AddDirtyRectToMix(dirtyRect);
 
 	RECT healthBarRect = drawRect;
 	if (g_theProfileDB->GetShowEnemyHealth() || m_playerNum == g_selected_item->GetVisiblePlayer())
 	{
-		healthBarRect.bottom = healthBarRect.top + 4;
+		healthBarRect.bottom = healthBarRect.top + 4 * s;
 		if (!IsRectCompletelyOnScreen(healthBarRect)) {
 			return;
 		}
-		drawRect.top += 3;
-		drawRect.bottom += 4; // one extra to disconnect other elements
+		drawRect.top += 3 * s;
+		drawRect.bottom += 4 * s; // one extra to disconnect other elements
 	}
 
 	drawRect = DrawStackingIndicator(drawRect, stackSize);
@@ -1215,7 +1217,7 @@ void UnitActor::DrawSelectionBrackets() const
 			m_x + (sint32)(k_TILE_PIXEL_WIDTH * g_tiledMap->GetScale())/2,
 			m_y + (sint32)(k_TILE_GRID_HEIGHT * g_tiledMap->GetScale())/2);
 
-	InflateRect(&rect, 25, 25);
+	InflateRect(&rect, 25 * g_tileScale, 25 * g_tileScale);   // ctp2-redux: map pixels
 
 	g_tiledMap->AddDirtyRectToMix(rect);
 
@@ -1570,7 +1572,7 @@ void UnitActor::DrawCityImprovements(sint32 nudgeX, sint32 nudgeY, bool fogged) 
 				if (unit.CD()->GetImprovements() & ((uint64)1 << building))
 				{
 					DrawImage(tileSet->GetMapIconData(cityIcon), nudgeX, nudgeY, fogged);
-					nudgeX += 5;
+					nudgeX += 5 * g_tileScale;   // ctp2-redux: map pixels
 				}
 			}
 		}
@@ -1582,7 +1584,7 @@ void UnitActor::DrawCityImprovements(sint32 nudgeX, sint32 nudgeY, bool fogged) 
 				if (unit.CD()->GetBuiltWonders() & (uint64)1 << (uint64)i)
 				{
 					DrawImage(tileSet->GetMapIconData(cityIcon), nudgeX, nudgeY, fogged);
-					nudgeX += 5;
+					nudgeX += 5 * g_tileScale;   // ctp2-redux: map pixels
 				}
 			}
 		}
