@@ -74,6 +74,7 @@ function Prepare-Instance([string]$name) {
         WindowedMode = 'Yes'; ScreenResWidth = '1024'; ScreenResHeight = '768'; TryWindowsResolution = 'No'
         FullScreenMovies = 'No'; SfxVolume = '0'; VoiceVolume = '0'; MusicVolume = '0'
         ClassicInterface = $(if ($Apolyton) { 'No' } else { 'Yes' })
+        DisplayScale = '1'
     }
     $shared = Join-Path $ctpDir 'userprofile.txt'
     $profile = @(if (Test-Path $shared) { Get-Content $shared -Encoding latin1 | Where-Object { $_ -notmatch "^($($settings.Keys -join '|'))=" } })

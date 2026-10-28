@@ -135,8 +135,12 @@ AUI_ERRCODE aui_SDLUI::CreateNativeScreen( BOOL useExclusiveMode )
 		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
 	}
 
+	// ctp2-redux: the window holds the picture enlarged by g_displayScale
+	extern sint32 g_displayScale;
+	sint32 const  scale = (g_displayScale > 0 && !hidden) ? g_displayScale : 1;
+
 	m_SDLWindow = SDL_CreateWindow("Call To Power 2", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-	                               m_width, m_height, sdl_flags);
+	                               m_width * scale, m_height * scale, sdl_flags);
 
 	if (!m_SDLWindow)
 	{
@@ -152,8 +156,11 @@ AUI_ERRCODE aui_SDLUI::CreateNativeScreen( BOOL useExclusiveMode )
 		c3errors_FatalDialog("aui_SDLUI", "SDL renderer creation failed:\n%s\n", SDL_GetError());
 	}
 
-	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+	// sharp whole-pixel enlarging with scaling, else smooth stretching
+	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, g_displayScale > 0 ? "nearest" : "linear");
 	SDL_RenderSetLogicalSize(m_SDLRenderer, m_width, m_height);
+	if (g_displayScale > 0)
+		SDL_RenderSetIntegerScale(m_SDLRenderer, SDL_TRUE);
 	m_SDLTexture = SDL_CreateTexture(m_SDLRenderer, aui_SDLSurface::TransformSurfacePixelFormatToSDL(m_pixelFormat),
 		SDL_TEXTUREACCESS_STREAMING, m_width, m_height);
 

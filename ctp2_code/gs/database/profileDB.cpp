@@ -265,6 +265,7 @@ ProfileDB::ProfileDB()
     m_windowedMode                      (FALSE),
     m_sleepingUnitsBoard                (FALSE),
     m_classicInterface                  (TRUE),
+    m_displayScale                      (0),
     // Add above this line new profile options
     m_vars                              (new PointerList<ProfileVar>),
     m_loadedFromTutorial                (FALSE),
@@ -485,6 +486,7 @@ ProfileDB::ProfileDB()
 
 	Var("SleepingUnitsBoard"          , PV_BOOL  , &m_sleepingUnitsBoard         , NULL);
 	Var("ClassicInterface"            , PV_BOOL  , &m_classicInterface           , NULL, false);
+	Var("DisplayScale"                , PV_NUM   , &m_displayScale               , NULL, false);
 }
 
 void ProfileDB::DefaultSettings(void)

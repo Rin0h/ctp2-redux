@@ -420,6 +420,9 @@ private:
     sint32 m_sleepingUnitsBoard;
     /// ctp2-redux: classic (original) interface layouts, ctp2_data\classic
     sint32 m_classicInterface;
+    /// ctp2-redux: sharp integer scaling of the picture: -1 off (the
+    /// resolution is stretched to the screen), 0 automatic, 1 to 4 fixed
+    sint32 m_displayScale;
 
     PointerList<ProfileVar> *m_vars;
     BOOL m_loadedFromTutorial;
@@ -621,6 +624,7 @@ public:
 
     void SetWindowedMode(BOOL val)                      { m_windowedMode = val; }
     void SetClassicInterface(BOOL val)                  { m_classicInterface = val; }
+    void SetDisplayScale(sint32 scale)                  { m_displayScale = scale; }
     void SetSleepingUnitsBoard(BOOL val)                { m_sleepingUnitsBoard = val; }
 
     sint32      GetNPlayers() const             { return m_nPlayers; }
@@ -881,6 +885,7 @@ public:
 
     BOOL    IsWindowedMode() const              { return m_windowedMode; }
     BOOL    IsClassicInterface() const          { return m_classicInterface; }
+    sint32  GetDisplayScale() const             { return m_displayScale; }
     BOOL    IsSleepingUnitsBoard() const        { return m_sleepingUnitsBoard; }
 };
 

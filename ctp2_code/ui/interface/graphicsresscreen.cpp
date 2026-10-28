@@ -217,6 +217,10 @@ void graphicsresscreen_acceptPress(aui_Control *control, uint32 action, uint32 d
 				g_theProfileDB->SetScreenResWidth(s_selectedDisplayMode->width);
 				g_theProfileDB->SetScreenResHeight(s_selectedDisplayMode->height);
 				g_theProfileDB->SetTryWindowsResolution(FALSE);
+				// ctp2-redux: in full screen the scaling would replace the
+				// chosen resolution by the desktop divided by the factor
+				if (!g_theProfileDB->IsWindowedMode())
+					g_theProfileDB->SetDisplayScale(-1);
 				g_theProfileDB->Save();
 			}
 		}

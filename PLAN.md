@@ -299,6 +299,32 @@ Installation, legt Sicherungen an und schreibt nur in die eigene
 Installation. Die deutsche Fassung (Texte, Videos im Sprachordner) wird dabei
 genauso behandelt wie die englische.
 
+Plan und Entscheidungen (2026-10-28):
+- Ablauf für den Spieler: Release herunterladen, ins GOG-Verzeichnis
+  entpacken (überschreiben), `ctp2-redux-hochskalieren.bat` starten, fertig.
+  Ergebnis landet nur in `ctp2_data\redux_hires` (Original unberührt,
+  Rückgängig = Ordner löschen; fehlt er, laufen die Originalgrafiken).
+- Zwei Bausteine: **A** Skalierung im Spiel (Code, ohne Dateien) – A1
+  ganzzahlig scharf vergrößern (Spiel rechnet in Bildschirm ÷ Faktor),
+  A2 nur Oberfläche vergrößern, Karte in voller Auflösung. **B** Skript mit
+  hochskalierten Dateien – B1 Videos 4x (1280x768), B2 UI-Bilder 2x,
+  B3 Gelände/Sprites 2x (Stufen 2–4 oben).
+- Reihenfolge: A1 → B1 → A2 → B2 → B3. Videos 4x = 1280x768.
+- A1 umgesetzt (2026-10-28): Profil `DisplayScale` (-1 aus, 0 auto, 1–4),
+  Knopf in Optionen → Grafik (automatisch → 1-/2-/3-fach → aus, wirkt nach
+  Neustart). Vollbild: Spiel rechnet in Desktop ÷ Faktor (auto: größter
+  Faktor mit mind. 1024x768, 4K → 1920x1080 ×2), SDL vergrößert ganzzahlig
+  mit „nearest“. Fenster: gewählte Auflösung × Faktor. Wer im Vollbild eine
+  feste Auflösung wählt, schaltet die Skalierung aus (altes Verhalten).
+  `display_ApplyScale` in ctp/display.cpp, aui_sdlui.cpp.
+- Werkzeuge beim Spieler: eigenes `ctp2-assets.exe` (mit dem Spiel gebaut,
+  FFmpeg ist schon drin; zfs/spr/til/Videos entpacken und packen) und
+  Real-ESRGAN ncnn-vulkan (BSD-3, jede Vulkan-GPU, CPU-Notlauf), das Skript
+  lädt es beim ersten Lauf aus den offiziellen GitHub-Releases.
+- Release-Zip: nur Programm, DLLs und eigene Text-/Layoutdateien; keine
+  Original-Grafikpakete (Upstream-`ctp2_data` enthält welche → Zip gezielt
+  zusammenstellen).
+
 KI-Hochskalierung für die Entwicklung läuft lokal in D:\AI (vorhandene
 Tools). Modelle und Lizenzen vor Nutzung prüfen (Real-ESRGAN: BSD-3), damit
 das Skript die Modelle beim Spieler nachladen darf.

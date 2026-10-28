@@ -30,6 +30,8 @@ extern BOOL					g_exclusiveMode;
 extern BOOL					g_createDirectDrawOnSecondary;
 
 #include "profileDB.h"
+
+#include <algorithm>               // std::min
 extern ProfileDB			*g_theProfileDB;
 
 #if defined(__AUI_USE_DIRECTX__)
@@ -262,6 +264,59 @@ BOOL display_InitWindow( HINSTANCE hinst, int cmdshow )
 }
 #endif
 
+#ifndef __AUI_USE_DIRECTX__
+// ctp2-redux: monitor pixels per game pixel, 0 when the picture is stretched
+// (scaling off). With scaling the game runs at the size of the desktop
+// divided by the factor (full screen) or the window is the resolution times
+// the factor, and SDL enlarges the picture by whole pixels, so it stays sharp.
+sint32 g_displayScale = 0;
+
+static sint32 const k_SCALE_MAX        = 4;
+static sint32 const k_SCALE_MIN_WIDTH  = 1024;
+static sint32 const k_SCALE_MIN_HEIGHT = 768;
+
+static void display_ApplyScale()
+{
+	sint32 const wanted = g_theProfileDB->GetDisplayScale();
+	g_displayScale = 0;
+	if (wanted < 0) return;
+
+	SDL_DisplayMode desktop;
+	if (SDL_GetDesktopDisplayMode(0, &desktop) != 0) return;
+
+	sint32 scale = std::min<sint32>(wanted, k_SCALE_MAX);
+	if (g_theProfileDB->IsWindowedMode())
+	{
+		// the window: the chosen resolution, enlarged as far as it fits
+		// (a bit of room for the title bar and the task bar)
+		if (scale == 0)
+		{
+			scale = 1;
+			while (scale < k_SCALE_MAX
+			    && g_ScreenWidth  * (scale + 1) <= desktop.w
+			    && g_ScreenHeight * (scale + 1) <= desktop.h * 9 / 10)
+				++scale;
+		}
+	}
+	else
+	{
+		// full screen: the desktop divided by the factor, at least 1024 x 768
+		if (scale == 0)
+		{
+			scale = 1;
+			while (scale < k_SCALE_MAX
+			    && desktop.w / (scale + 1) >= k_SCALE_MIN_WIDTH
+			    && desktop.h / (scale + 1) >= k_SCALE_MIN_HEIGHT)
+				++scale;
+		}
+		g_ScreenWidth  = desktop.w / scale;
+		g_ScreenHeight = desktop.h / scale;
+	}
+
+	g_displayScale = scale;
+}
+#endif
+
 int display_Initialize(HINSTANCE hInstance, int iCmdShow)
 {
 #ifdef __AUI_USE_DIRECTX__
@@ -326,6 +381,10 @@ int display_Initialize(HINSTANCE hInstance, int iCmdShow)
 		g_ScreenWidth = 800;
 		g_ScreenHeight = 600;
 	}
+
+#ifndef __AUI_USE_DIRECTX__
+	display_ApplyScale();
+#endif
 
 #ifdef __AUI_USE_DIRECTX__
 	display_InitWindow(hInstance, iCmdShow);

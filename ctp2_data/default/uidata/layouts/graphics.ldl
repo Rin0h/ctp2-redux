@@ -180,6 +180,11 @@ GraphicsWindow {
 			string	string1	"str_ldl_Classic_Interface_On"
 		}
 	}
+	# ctp2-redux: sharp scaling (text set by the code), after a restart
+	DisplayScaleButton:GRAPHICS_CHECKBOX {
+		int	xpix	350
+		int	ypix	340
+	}
 	RunInBackgroundButton:GRAPHICS_CHECKBOX {
 		int	xpix	350
 		int	ypix	310

@@ -20,6 +20,7 @@
 #include "civapp.h"
 #include "SpriteGroupList.h"
 #include "MessageBoxDialog.h"
+#include "StrDB.h"              // g_theStringDB
 
 extern C3UI            * g_c3ui;
 extern sint32            g_isGridOn;
@@ -62,6 +63,7 @@ static aui_Switch	*s_walk						= NULL,
 					*s_runInBackground			= NULL,
 					*s_cityProd					= NULL,
 					*s_classicInterface			= NULL, // ctp2-redux
+					*s_displayScale				= NULL, // ctp2-redux
 #if defined(__AUI_USE_SDL__)
 					*s_windowedMode				= NULL,
 #endif
@@ -97,6 +99,7 @@ enum
 	GS_WINDOWEDMODE,
 	GS_RUNINBACKGROUNT,
 	GS_CLASSICINTERFACE,
+	GS_DISPLAYSCALE,
 
 	GS_TOTAL
 };
@@ -123,9 +126,29 @@ static uint32 check[] =
 	GS_WINDOWEDMODE,
 	GS_RUNINBACKGROUNT,
 	GS_CLASSICINTERFACE,
+	GS_DISPLAYSCALE,
 
 	GS_TOTAL
 };
+
+// ctp2-redux: the scaling switch steps through automatic, 1x to 3x and off
+// (profile DisplayScale 0, 1 to 3, -1); lit while scaling is on
+static void graphicsscreen_showScale()
+{
+	if (!s_displayScale) return;
+
+	sint32 const scale = g_theProfileDB->GetDisplayScale();
+	MBCHAR text[256];
+	if (scale < 0)
+		strcpy(text, g_theStringDB->GetNameStr("str_ldl_Display_Scale_Off"));
+	else if (scale == 0)
+		strcpy(text, g_theStringDB->GetNameStr("str_ldl_Display_Scale_Auto"));
+	else
+		sprintf(text, g_theStringDB->GetNameStr("str_ldl_Display_Scale_Fixed"), scale);
+
+	s_displayScale->SetText(text);
+	s_displayScale->SetState(scale < 0 ? 0 : 1);
+}
 
 sint32 TransformCityNameAlphaToSliderValue(sint32 cityNameAlpha)
 {
@@ -194,6 +217,7 @@ void graphicsscreen_initializeValues()
 	s_cityProd        ->SetState(g_theProfileDB->IsShowCityProduction());
 	if (s_classicInterface)
 		s_classicInterface->SetState(g_theProfileDB->IsClassicInterface());
+	graphicsscreen_showScale();
 #if defined(__AUI_USE_SDL__)
 	s_windowedMode    ->SetState(g_theProfileDB->IsWindowedMode());
 #endif
@@ -276,6 +300,10 @@ AUI_ERRCODE graphicsscreen_Initialize( void )
 	sprintf(classicBlock, "%s.%s", windowBlock, "ClassicInterfaceButton");
 	if (aui_Ldl::IsValid(classicBlock))
 		s_classicInterface = spNew_aui_Switch(&errcode, windowBlock, "ClassicInterfaceButton", graphicsscreen_checkPress, &check[GS_CLASSICINTERFACE]);
+	// ctp2-redux: sharp scaling
+	sprintf(classicBlock, "%s.%s", windowBlock, "DisplayScaleButton");
+	if (aui_Ldl::IsValid(classicBlock))
+		s_displayScale = spNew_aui_Switch(&errcode, windowBlock, "DisplayScaleButton", graphicsscreen_checkPress, &check[GS_DISPLAYSCALE]);
 #if defined(__AUI_USE_SDL__)
 	s_windowedMode     = spNew_aui_Switch  (&errcode, windowBlock, "WindowedModeButton",     graphicsscreen_checkPress, &check[GS_WINDOWEDMODE]);
 #endif
@@ -327,6 +355,7 @@ void graphicsscreen_Cleanup()
 	mycleanup(s_runInBackground);
 	mycleanup(s_cityProd);
 	mycleanup(s_classicInterface);
+	mycleanup(s_displayScale);
 #if defined(__AUI_USE_SDL__)
 	mycleanup(s_windowedMode);
 #endif
@@ -433,6 +462,20 @@ void graphicsscreen_checkPress(aui_Control *control, uint32 action, uint32 data,
 	case GS_CITYPROD:
 		func = &ProfileDB::SetShowCityProduction;
 		break;
+	case GS_DISPLAYSCALE:
+	{
+		// takes effect at the next start, like the interface
+		static bool s_hintShown = false;
+		sint32 const scale = g_theProfileDB->GetDisplayScale();
+		g_theProfileDB->SetDisplayScale(scale < 0 ? 0 : (scale >= 3 ? -1 : scale + 1));
+		graphicsscreen_showScale();
+		if (!s_hintShown)
+		{
+			s_hintShown = true;
+			MessageBoxDialog::Information("str_ldl_Display_Scale_Restart", "InfoDisplayScale");
+		}
+		break;
+	}
 	case GS_CLASSICINTERFACE:
 		// ctp2-redux: the layouts are loaded at the start of the game
 		func = &ProfileDB::SetClassicInterface;

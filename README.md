@@ -42,7 +42,12 @@ upstream.
   Apolyton additions are fitted into them. The layouts are in
   `ctp2_data/classic`; switch it in Options → Graphics (takes effect at the
   next start); switched off, the game shows the Apolyton interface.
-- Upscaling: analysis done, implementation not started.
+- **Sharp scaling** for high resolutions (Options → Graphics, profile
+  `DisplayScale`): the game runs at the screen size divided by a whole
+  factor (automatic: 4K → 1920x1080 doubled) and is enlarged pixel by
+  pixel instead of being blurred.
+- Upscaled graphics and videos: plan in PLAN.md (a local script, nothing
+  shipped), not started.
 
 ### Automated multiplayer test
 
@@ -378,7 +383,12 @@ spiegelt das Upstream-Projekt.
   Layouts liegen in `ctp2_data/classic`; umschalten unter Optionen → Grafik
   (wirkt beim nächsten Start); ausgeschaltet zeigt das Spiel die
   Apolyton-Oberfläche.
-- Hochskalierung: Analyse abgeschlossen, Umsetzung steht aus.
+- **Scharfe Skalierung** für hohe Auflösungen (Optionen → Grafik, Profil
+  `DisplayScale`): Das Spiel rechnet in Bildschirmgröße geteilt durch einen
+  ganzen Faktor (automatisch: 4K → 1920x1080 verdoppelt) und wird Pixel für
+  Pixel vergrößert statt weichgezeichnet.
+- Hochskalierte Grafiken und Videos: Plan in PLAN.md (lokales Skript, wir
+  verteilen nichts), noch nicht begonnen.
 
 ### Automatischer Multiplayer-Test
 
