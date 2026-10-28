@@ -55,6 +55,7 @@
 #include "RiskRecord.h"
 
 #include "keypress.h"
+#include "listradiogrid.h"
 
 extern C3UI             *g_c3ui;
 extern ProfileDB        *g_theProfileDB;
@@ -62,6 +63,9 @@ extern ProfileDB        *g_theProfileDB;
 static c3_PopupWindow   *s_spNewGameDiffScreen  = NULL;
 static ctp2_ListBox     *s_diffListBox          = NULL;
 static ctp2_ListBox     *s_riskListBox          = NULL;
+// ctp2-redux classic interface: the original radio buttons instead of the lists
+static ListRadioGrid    *s_diffGrid             = NULL;
+static ListRadioGrid    *s_riskGrid             = NULL;
 
 static c3_Static *       s_skillLevel           = NULL; // Skill level selection
 static c3_Static *       s_barbarianThreat      = NULL; // Barbarian threat level selection
@@ -127,6 +131,9 @@ sint32	spnewgamediffscreen_displayMyWindow(BOOL viewMode,BOOL reinit)
 		s_diffListBox->GetItemByIndex(i)->Enable(!viewMode);
 	for(i = 0; i < s_riskListBox->NumItems(); i++)
 		s_riskListBox->GetItemByIndex(i)->Enable(!viewMode);
+
+	if (s_diffGrid) s_diffGrid->Rebuild();
+	if (s_riskGrid) s_riskGrid->Rebuild();
 
 	auiErr = g_c3ui->AddWindow(s_spNewGameDiffScreen);
 	keypress_RegisterHandler(s_spNewGameDiffScreen);
@@ -253,6 +260,9 @@ AUI_ERRCODE spnewgamediffscreen_Initialize( aui_Control::ControlActionCallback *
 	errcode = aui_Ldl::SetupHeirarchyFromRoot( windowBlock );
 	Assert( AUI_SUCCESS(errcode) );
 
+	s_diffGrid = ListRadioGrid::Create(s_spNewGameDiffScreen, s_diffListBox, "SPNewGameDiffScreen.DiffGrid");
+	s_riskGrid = ListRadioGrid::Create(s_spNewGameDiffScreen, s_riskListBox, "SPNewGameDiffScreen.RiskGrid");
+
 	return AUI_ERRCODE_OK;
 }
 
@@ -284,6 +294,8 @@ AUI_ERRCODE spnewgamediffscreen_Cleanup()
 		keypress_RemoveHandler(s_spNewGameDiffScreen);
 
 #define mycleanup(mypointer) { delete mypointer; mypointer = NULL; }
+		mycleanup(s_diffGrid);
+		mycleanup(s_riskGrid);
 		mycleanup(s_diffListBox);
 		mycleanup(s_riskListBox);
 		mycleanup(s_skillLevel);

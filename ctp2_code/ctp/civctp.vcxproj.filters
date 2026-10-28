@@ -2162,6 +2162,9 @@
     <ClCompile Include="..\ui\interface\spNewGameScreen.cpp">
       <Filter>ui\interface\Etc</Filter>
     </ClCompile>
+    <ClCompile Include="..\ui\interface\listradiogrid.cpp">
+      <Filter>ui\interface\Etc</Filter>
+    </ClCompile>
     <ClCompile Include="..\ui\interface\spnewgametribescreen.cpp">
       <Filter>ui\interface\Etc</Filter>
     </ClCompile>
@@ -4502,6 +4505,9 @@
       <Filter>ui\interface\Etc</Filter>
     </ClInclude>
     <ClInclude Include="..\ui\interface\spnewgamerulesscreen.h">
+      <Filter>ui\interface\Etc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ui\interface\listradiogrid.h">
       <Filter>ui\interface\Etc</Filter>
     </ClInclude>
     <ClInclude Include="..\ui\interface\spnewgametribescreen.h">

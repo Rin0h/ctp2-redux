@@ -103,6 +103,7 @@ libuiinterface_la_SOURCES = \
 	spnewgamerandomcustomscreen.cpp \
 	spnewgamerulesscreen.cpp \
 	spnewgamescreen.cpp \
+	listradiogrid.cpp \
 	spnewgametribescreen.cpp \
 	spnewgamewindow.cpp \
 	spriteeditor.cpp \

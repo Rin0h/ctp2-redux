@@ -190,7 +190,7 @@ SPNewGameTribeScreen {
 		int	columns	5
 		int	colwidth	151
 		int	rowheight	25
-		TribeRadio:CTP2_STANDARD_FONT {
+		Radio:CTP2_STANDARD_FONT {
 			string	image0	"upba2317.tga"
 			string	image1	"upba2318.tga"
 			string	disabledimage0	"upba2323.tga"
@@ -270,66 +270,93 @@ CivItem:CTP2_LIST_ITEM {
 	}
 }
 
+# ctp2-redux classic interface: the original difficulty screen, two columns
+# of radio buttons. The levels come from the databases (DiffGrid, RiskGrid:
+# columns, colwidth, rowheight), the lists stay hidden as the model.
 SPNewGameDiffScreen {
 	string	pattern	"uptg20e.tga"
 	string	xanchor		"center"
 	string	yanchor		"center"
 	int	widthpix	400
 	int	heightpix	270
-
 	Name:CTP_GREY_TITLE_FONT {
-		int ypix      25
-		int widthpct  50
-		int heightpix 20
-
 		string	parent	"c3_PopupTitle"
 		string xanchor "center"
 		string yanchor "top"
+		int widthpct 50
+		int heightpix 20
+		int	ypix	20
 		string	text	"str_ldl_Difficulty"
 	}
-
 	SkillLevel:CTP2_STANDARD_FONT {
-		int xpix      25
-		int ypix      47
-		int widthpix  170
-		int heightpix 20
-
+		int	xpix	28
+		int	ypix	35
+		int	widthpix	170
+		int	heightpix	20
 		string	text	"str_ldl_Skill_Level"
 	}
-
 	BarbarianThreat:CTP2_STANDARD_FONT {
-		int xpix      200
-		int ypix      47
-		int widthpix  170
-		int heightpix 20
-
+		int	xpix	198
+		int	ypix	35
+		int	widthpix	170
+		int	heightpix	20
 		string	text	"str_ldl_Barbarian_Threat"
 	}
-
 	BackButton:CTP2_STANDARD_FONT {
 		int	xpix	320
 		int	ypix	135
 		int	widthpix	40
 		int	heightpix	20
-
 		string	text	"str_ldl_BACK"
 	}
-
+	DiffGrid {
+		int	xpix	40
+		int	ypix	60
+		int	widthpix	146
+		int	heightpix	180
+		int	columns	1
+		int	rowheight	30
+		Radio:CTP2_STANDARD_FONT {
+			string	image0	"upba2317.tga"
+			string	image1	"upba2318.tga"
+			string	disabledimage0	"upba2323.tga"
+			string	disabledimage1	"upba2324.tga"
+			int	xpix	0
+			int	ypix	0
+			int	widthpix	146
+			int	heightpix	24
+		}
+	}
+	RiskGrid {
+		int	xpix	210
+		int	ypix	60
+		int	widthpix	146
+		int	heightpix	150
+		int	columns	1
+		int	rowheight	30
+		Radio:CTP2_STANDARD_FONT {
+			string	image0	"upba2317.tga"
+			string	image1	"upba2318.tga"
+			string	disabledimage0	"upba2323.tga"
+			string	disabledimage1	"upba2324.tga"
+			int	xpix	0
+			int	ypix	0
+			int	widthpix	146
+			int	heightpix	24
+		}
+	}
 	DiffBox:CTP2_LISTBOX {
 		int xpix      40
 		int ypix      77
 		int widthpix  133
 		int heightpix 132
-
 		int focusindex 1
 	}
-
 	RiskBox:CTP2_LISTBOX {
 		int xpix      215
 		int ypix      77
 		int widthpix  133
 		int heightpix 132
-
 		int focusindex 2
 	}
 }

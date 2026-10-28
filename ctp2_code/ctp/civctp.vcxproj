@@ -16465,6 +16465,7 @@
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">Disabled</Optimization>
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|ARM'">Disabled</Optimization>
     </ClCompile>
+    <ClCompile Include="..\ui\interface\listradiogrid.cpp" />
     <ClCompile Include="..\ui\interface\spnewgametribescreen.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Logging|Win32'">MaxSpeed</Optimization>
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Logging|x64'">MaxSpeed</Optimization>
@@ -20251,6 +20252,7 @@
     <ClInclude Include="..\ui\interface\spnewgameplayersscreen.h" />
     <ClInclude Include="..\ui\interface\spnewgamerandomcustomscreen.h" />
     <ClInclude Include="..\ui\interface\spnewgamerulesscreen.h" />
+    <ClInclude Include="..\ui\interface\listradiogrid.h" />
     <ClInclude Include="..\ui\interface\spnewgametribescreen.h" />
     <ClInclude Include="..\ui\interface\spnewgamewindow.h" />
     <ClInclude Include="..\ui\interface\spriteeditor.h" />

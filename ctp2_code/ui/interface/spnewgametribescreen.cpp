@@ -64,8 +64,6 @@
 #include "aui_radio.h"
 #include "aui_switchgroup.h"
 #include "aui_uniqueid.h"
-#include "aui_ldl.h"
-#include "ldl_data.hpp"             // ldl_datablock
 #include "c3_button.h"
 #include "c3_dropdown.h"
 #include "c3_listitem.h"
@@ -79,6 +77,7 @@
 #include "CivilisationRecord.h"
 #include "gamefile.h"
 #include "keypress.h"
+#include "listradiogrid.h"
 #include "player.h"                 // g_player
 #include "profileDB.h"              // g_theProfileDB
 #include "SelItem.h"
@@ -106,76 +105,19 @@ sint32						s_tribeIndex    = INDEX_TRIBE_INVALID;
 sint32						s_skipIndex = 0;
 
 // ctp2-redux classic interface: the original grid of radio buttons instead
-// of the list. The list stays the model (scenarios add and remove tribes,
-// the selection is read from it); the grid shows its items and is rebuilt
-// whenever the screen opens.
-static aui_SwitchGroup *        s_tribeGrid         = NULL;
-static std::vector<aui_Radio *> s_tribeGridRadios;
-static char const *             k_TRIBE_GRID_BLOCK  = "SPNewGameTribeScreen.TribeGrid";
+// of the list (scenarios add and remove tribes, so it is rebuilt whenever
+// the screen opens)
+static ListRadioGrid *      s_tribeGrid = NULL;
 
-static void spnewgametribescreen_gridPress(aui_Control *control, uint32 action, uint32 data, Cookie cookie);
-
-static void spnewgametribescreen_clearGrid()
+// The tribe the screen shows: the selected list item, or else the tribe
+// chosen before
+static sint32 spnewgametribescreen_shownTribe()
 {
-	for (size_t i = 0; i < s_tribeGridRadios.size(); ++i)
-	{
-		s_tribeGrid->RemoveSwitch(s_tribeGridRadios[i]->Id());
-		delete s_tribeGridRadios[i];
-	}
-	s_tribeGridRadios.clear();
-}
+	ctp2_ListItem *item = (ctp2_ListItem *)s_CivListBox->GetSelectedItem();
+	if (item)
+		return item->GetUserDataSint32();
 
-// One radio per list item, column by column like the original (columns,
-// column width and row height from the TribeGrid layout block).
-static void spnewgametribescreen_rebuildGrid()
-{
-	if (!s_tribeGrid) return;
-
-	spnewgametribescreen_clearGrid();
-
-	ldl_datablock * block   = aui_Ldl::FindDataBlock(k_TRIBE_GRID_BLOCK);
-	sint32 const    columns = block && block->GetInt("columns")   > 0 ? block->GetInt("columns")   : 4;
-	sint32 const    colW    = block && block->GetInt("colwidth")  > 0 ? block->GetInt("colwidth")  : 151;
-	sint32 const    rowH    = block && block->GetInt("rowheight") > 0 ? block->GetInt("rowheight") : 30;
-	sint32 const    count   = s_CivListBox->NumItems();
-	sint32 const    rows    = (count + columns - 1) / columns;
-
-	MBCHAR radioBlock[k_AUI_LDL_MAXBLOCK + 1];
-	sprintf(radioBlock, "%s.%s", k_TRIBE_GRID_BLOCK, "TribeRadio");
-
-	ctp2_ListItem * selected = (ctp2_ListItem *)s_CivListBox->GetSelectedItem();
-	sint32 const    wanted   = s_tribeIndex >= 0 ? s_tribeIndex : (sint32)g_theProfileDB->GetCivIndex();
-
-	for (sint32 i = 0; i < count; ++i)
-	{
-		ctp2_ListItem * item = (ctp2_ListItem *)s_CivListBox->GetItemByIndex(i);
-		ctp2_Static *   text = (ctp2_Static *)item->GetChildByIndex(0);
-
-		AUI_ERRCODE errcode = AUI_ERRCODE_OK;
-		aui_Radio * radio   = new aui_Radio(&errcode, aui_UniqueId(), radioBlock,
-		                                    spnewgametribescreen_gridPress, Cookie(i));
-		if (!AUI_NEWOK(radio, errcode)) { delete radio; continue; }
-
-		radio->Offset((i / rows) * colW, (i % rows) * rowH);
-		radio->SetText(text ? text->GetText() : "");
-		s_tribeGrid->AddSwitch(radio);
-		// the selected list item, or else the tribe chosen before
-		if (selected ? item == selected : item->GetUserDataSint32() == wanted)
-			radio->SetState(1);
-		s_tribeGridRadios.push_back(radio);
-	}
-}
-
-static void spnewgametribescreen_gridPress(aui_Control *control, uint32 action, uint32 data, Cookie cookie)
-{
-	if ( action != (uint32)AUI_SWITCH_ACTION_ON ) return;
-
-	sint32 const i = cookie.m_sin32Type;
-	if (i < 0 || i >= s_CivListBox->NumItems()) return;
-
-	// selecting the list item also runs spnewgametribescreen_switchPress
-	// (leader name of the tribe)
-	s_CivListBox->SelectItem(i);
+	return s_tribeIndex >= 0 ? s_tribeIndex : (sint32)g_theProfileDB->GetCivIndex();
 }
 
 sint32 spnewgametribescreen_getTribeIndex( void )
@@ -265,7 +207,31 @@ sint32	spnewgametribescreen_displayMyWindow( Cookie cookie, BOOL edit )
 
 	keypress_RegisterHandler(g_spNewGameTribeScreen);
 
-	spnewgametribescreen_rebuildGrid();
+	// Nothing selected yet (first opening): select the tribe chosen before,
+	// without the select callback, which would replace the leader name by
+	// the default one of the tribe
+	if (!s_CivListBox->GetSelectedItem())
+	{
+		sint32 const tribe = spnewgametribescreen_shownTribe();
+		for (sint32 i = 0; i < s_CivListBox->NumItems(); ++i)
+		{
+			if (((ctp2_ListItem *)s_CivListBox->GetItemByIndex(i))->GetUserDataSint32() == tribe)
+			{
+				s_CivListBox->SetActionFuncAndCookie(NULL, nullptr);
+				s_CivListBox->SelectItem(i);
+				s_CivListBox->SetActionFuncAndCookie(spnewgametribescreen_switchPress, nullptr);
+				break;
+			}
+		}
+
+		MBCHAR name[100];
+		s_leaderNameTextField->GetFieldText(name, 100);
+		if (!name[0])
+			s_leaderNameTextField->SetFieldText(g_theProfileDB->GetLeaderName());
+	}
+
+	if (s_tribeGrid)
+		s_tribeGrid->Rebuild();
 
 	if ( edit && !(g_isScenario && g_startInfoType == STARTINFOTYPE_NOLOCS))
 		s_leaderNameTextField->Enable( TRUE );
@@ -281,8 +247,7 @@ sint32 spnewgametribescreen_removeMyWindow(uint32 action, MBCHAR *lname)
 {
 	if ( action != (uint32)AUI_BUTTON_ACTION_EXECUTE ) return 0;
 
-	ctp2_ListItem *item = (ctp2_ListItem *)s_CivListBox->GetSelectedItem();
-	sint32 index   = item->GetUserDataSint32();
+	sint32 index   = spnewgametribescreen_shownTribe();
 
 	if ( lname )
 		s_leaderNameTextField->GetFieldText( lname, 100 );
@@ -370,19 +335,7 @@ AUI_ERRCODE spnewgametribescreen_Initialize( aui_Control::ControlActionCallback 
 	s_CivListBox->SetMultiSelect(FALSE);
 	s_CivListBox->SetActionFuncAndCookie(spnewgametribescreen_switchPress, nullptr);
 
-	if (aui_Ldl::IsValid(k_TRIBE_GRID_BLOCK))
-	{
-		s_tribeGrid = new aui_SwitchGroup(&errcode, aui_UniqueId(), k_TRIBE_GRID_BLOCK);
-		if (AUI_NEWOK(s_tribeGrid, errcode))
-		{
-			g_spNewGameTribeScreen->AddControl(s_tribeGrid);
-			s_CivListBox->Hide();
-		}
-		else
-		{
-			allocated::clear(s_tribeGrid);
-		}
-	}
+	s_tribeGrid = ListRadioGrid::Create(g_spNewGameTribeScreen, s_CivListBox, "SPNewGameTribeScreen.TribeGrid");
 
 	return AUI_ERRCODE_OK;
 }
@@ -414,12 +367,7 @@ AUI_ERRCODE spnewgametribescreen_Cleanup()
 		g_c3ui->RemoveWindow(g_spNewGameTribeScreen->Id());
 		keypress_RemoveHandler(g_spNewGameTribeScreen);
 
-		if (s_tribeGrid)
-		{
-			spnewgametribescreen_clearGrid();
-			g_spNewGameTribeScreen->RemoveControl(s_tribeGrid->Id());
-			allocated::clear(s_tribeGrid);
-		}
+		allocated::clear(s_tribeGrid);
 		allocated::clear(s_CivListBox);
 		allocated::clear(s_leaderNameStatic);
 		allocated::clear(s_leaderNameTextField);

@@ -446,6 +446,7 @@ ctp_ctp2_SOURCES = \
 	ui/interface/spnewgamerandomcustomscreen.cpp \
 	ui/interface/spnewgamerulesscreen.cpp \
 	ui/interface/spnewgamescreen.cpp \
+	ui/interface/listradiogrid.cpp \
 	ui/interface/spnewgametribescreen.cpp \
 	ui/interface/spnewgamewindow.cpp \
 	ui/interface/spriteeditor.cpp \
