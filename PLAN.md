@@ -139,9 +139,11 @@ jedes Volk gleich viele Startsiedler (`s_networkSettlers`, aus den
 `AIStartUnits` je nach Schwierigkeit plus einen Extra-Siedler bei
 schlechter Startposition (`gameinit.cpp:449-477`). Wachstum, Nahrung,
 Steuern, Bauschleifen und Zugbeginn laufen in beiden Modi gleich (gemessen
-mit den Detailzeilen und Zählern je Zugbeginn). Entscheidung offen: Standard
-für „Siedler:“ ändern oder KI im Netzwerkspiel wie im Einzelspieler
-ausstatten (Regeländerung, Besitzer fragen). Unsichtbar heißt: verstecktes Fenster,
+mit den Detailzeilen und Zählern je Zugbeginn). Entscheidung des Besitzers:
+bleibt so (Vanilla); wer mehr will, stellt im Setup „Siedler:“ höher. Auch
+im Einzelspieler gründet die KI in 40 Runden keine Stadt aus einem selbst
+gebauten Siedler, der Anfang ist einfach langsam. Für den Schnelltest
+reicht, dass die KI wirklich spielt. Unsichtbar heißt: verstecktes Fenster,
 Software-Renderer ohne Present, kein Rand-Scrollen (die Maus liegt außerhalb
 und `CivApp::ProcessUI` scrollte sonst endlos). Bekannt: der Host wartet in
 der Lobby auf den Client, weil ein Direkt-Client ein bereits angelegtes Spiel
