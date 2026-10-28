@@ -15,6 +15,8 @@
 //   autoname=<name>       player profile name
 //   autoshow              keep the window visible (hidden by default)
 //   autoshots=<n>         screenshot every n rounds (default 1, 0 = none)
+//   autoplay=0            only end the turns; by default the test player
+//                         settles, walks, fills build queues, picks research
 //
 // The game clicks through the netshell by itself, ends its own turns, and
 // writes autotest_result.txt next to the executable before it quits:

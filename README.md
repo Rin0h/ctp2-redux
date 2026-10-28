@@ -48,7 +48,11 @@ the working copy. The exit code is 0 if the test passed. A test passes when:
 - both instances reach the requested round, without a crash or a hang;
 - there are no database checksum (CRC) errors;
 - the client never asked the host for a resync. A resync request means the
-  client's game state drifted away from the host's.
+  client's game state drifted away from the host's;
+- host and client log identical values (cities, units, gold, advances) for
+  the AI civilisations. The client's round counter runs one turn ahead, so
+  the host's round N is compared with the client's round N+1. Between those
+  two moments only the host itself moves.
 
 **What you get:**
 - a summary in the console, including cities, units, gold and advances per
@@ -73,12 +77,21 @@ implemented in `ctp2_code/ctp/ctp2_utils/autotest.cpp`:
 | `autohumans=<n>` | host only: human players to wait for (default 2) |
 | `autoname=<name>` | player profile name |
 | `autoshots=<n>` | screenshot every n rounds (default 1, 0 = none) |
+| `autoplay=0` | test player only ends its turns (default: plays, see below) |
 | `autoshow` | keep the window visible (hidden by default) |
 
-The network windows press the same buttons a player would press, and in the
-game the test ends its own turn. The test players do not play their
-civilisation: settlers stay where they are. The AI civilisations play
-normally. In hidden mode the game uses a software renderer and does not
+The network windows press the same buttons a player would press. In the
+game, each test player plays a simple turn before ending it:
+- settlers found a city where they stand, if that is allowed;
+- other units walk one step to a free neighbouring tile (no attacks);
+- every empty build queue gets a random buildable unit or building;
+- if no research is set, it picks a random one.
+
+These actions use the same game events and city and player calls as the
+keyboard and the city screen. So a client's actions travel to the host
+exactly like real clicks. The random choices come from the test's own
+random generator, never from the game's. `mptest.ps1 -Idle` switches the
+playing off. The AI civilisations play normally. In hidden mode the game uses a software renderer and does not
 draw to the screen. Edge scrolling is also off, because the mouse is
 outside the hidden window and the map would otherwise scroll forever.
 
@@ -347,7 +360,11 @@ bestanden, wenn:
 - keine Prüfsummenfehler (CRC) der Datenbanken auftreten;
 - der Client nie einen Neuabgleich beim Host anfordert. Eine solche
   Anforderung bedeutet, dass der Spielstand des Clients von dem des Hosts
-  abgewichen ist.
+  abgewichen ist;
+- Host und Client für die KI-Völker dieselben Werte protokollieren (Städte,
+  Einheiten, Gold, Fortschritte). Der Rundenzähler des Clients läuft einen
+  Zug voraus, deshalb wird Runde N des Hosts mit Runde N+1 des Clients
+  verglichen. Zwischen diesen beiden Momenten zieht nur der Host selbst.
 
 **Was man bekommt:**
 - eine Zusammenfassung in der Konsole, mit Städten, Einheiten, Gold und
@@ -363,9 +380,20 @@ bestanden, wenn:
 **Wie es funktioniert:** Das Skript übergibt dem Spiel Kommandozeilen-
 Schalter, umgesetzt in `ctp2_code/ctp/ctp2_utils/autotest.cpp`. Die Tabelle
 der Schalter steht im englischen Teil oben. Die Netzwerkfenster drücken
-dieselben Knöpfe wie ein Spieler, und im Spiel beendet der Test seinen Zug
-selbst. Die Testspieler spielen ihr Volk nicht, ihre Siedler bleiben stehen.
-Die KI-Völker spielen normal. Im versteckten Modus nutzt das Spiel einen
+dieselben Knöpfe wie ein Spieler. Im Spiel macht jeder Testspieler einen
+einfachen Zug, bevor er ihn beendet:
+- Siedler gründen dort, wo sie stehen, eine Stadt, wenn das erlaubt ist;
+- andere Einheiten gehen ein Feld auf ein freies Nachbarfeld (keine
+  Angriffe);
+- jede leere Bauschleife bekommt eine zufällige baubare Einheit oder ein
+  Gebäude;
+- ist keine Forschung gewählt, wählt er eine zufällig.
+
+Diese Aktionen nutzen dieselben Spielereignisse und Stadt- und
+Spieleraufrufe wie Tastatur und Stadtbildschirm. Die Aktionen eines Clients
+gehen deshalb genau wie echte Klicks an den Host. Der Zufall kommt aus einem
+eigenen Zufallsgenerator des Tests, nie aus dem des Spiels.
+`mptest.ps1 -Idle` schaltet das Spielen ab. Die KI-Völker spielen normal. Im versteckten Modus nutzt das Spiel einen
 Software-Renderer und zeichnet nicht auf den Bildschirm. Außerdem ist das
 Rand-Scrollen aus, denn die Maus liegt außerhalb des versteckten Fensters
 und die Karte würde sonst endlos scrollen.

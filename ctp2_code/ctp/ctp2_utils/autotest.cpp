@@ -42,6 +42,17 @@
 #include "Gold.h"
 #include "Advances.h"
 #include "UnitDynArr.h"
+#include "Army.h"
+#include "ArmyData.h"
+#include "citydata.h"
+#include "BldQue.h"
+#include "World.h"
+#include "Cell.h"
+#include "MapPoint.h"
+#include "UnitRecord.h"
+#include "BuildingRecord.h"
+#include "Globals.h"              // k_GAME_OBJ_TYPE_*
+#include <random>
 #ifdef __AUI_USE_SDL__
 #include "aui_sdlui.h"          // aui_SDLUI::RequestScreenshot
 #endif
@@ -58,6 +69,8 @@ namespace
 	int         s_humanPlayers  = 2;
 	bool        s_hidden        = true;
 	int         s_shotEvery     = 1;
+	bool        s_play          = true;
+	int         s_playedRound   = -1;
 	int         s_lastShotRound = -1;
 
 	std::set<std::string> s_stepsDone;
@@ -90,6 +103,87 @@ namespace
 		while (*e && *e != ' ' && *e != '\t' && *e != '"') e++;
 		value.assign(p, e - p);
 		return true;
+	}
+
+	// Play the own civilisation a little, through the same game events and
+	// city/player calls the user interface uses, so the actions travel over
+	// the network like real clicks. Uses its own random generator: the
+	// game's generator must stay in step with the other instance.
+	void PlayTurn(int me, int round)
+	{
+		Player *p = g_player[me];
+		if (!p || !p->m_all_armies || !p->m_all_cities) return;
+
+		static std::mt19937 rng(12345u + 977u * (unsigned)me);
+		int settles = 0, moves = 0, builds = 0;
+
+		// research
+		sint32 adv = p->m_advances->GetResearching();
+		if (adv < 0 || p->HasAdvance(adv) || !p->m_advances->CanResearch(adv))
+		{
+			std::vector<sint32> options;
+			for (sint32 a = 0; a < p->m_advances->GetNum(); a++)
+				if (p->m_advances->CanResearch(a)) options.push_back(a);
+			if (!options.empty())
+			{
+				adv = options[rng() % options.size()];
+				p->SetResearching(adv);
+				autotest_Log("play: research %d", (int)adv);
+			}
+		}
+
+		// armies: settlers found a city where possible, the others walk
+		for (sint32 i = 0; i < p->m_all_armies->Num(); i++)
+		{
+			Army army = p->m_all_armies->Access(i);
+			if (!army.IsValid()) continue;
+			MapPoint pos;
+			army.GetPos(pos);
+			Cell *cell = g_theWorld->GetCell(pos);
+
+			if (army.CanSettle(pos) && !cell->HasCity() && !cell->GetCityOwner().IsValid())
+			{
+				g_gevManager->AddEvent(GEV_INSERT_Tail, GEV_SettleOrder, GEA_Army, army.m_id, GEA_End);
+				settles++;
+				continue;
+			}
+
+			// one step into a free, enterable neighbour cell (no attacks)
+			for (int tries = 0; tries < 8; tries++)
+			{
+				WORLD_DIRECTION d = (WORLD_DIRECTION)(rng() % 8);
+				MapPoint next;
+				if (!pos.GetNeighborPosition(d, next)) continue;
+				Cell *nc = g_theWorld->GetCell(next);
+				if (nc->GetNumUnits() > 0 || nc->HasCity() || !army.CanEnter(next)) continue;
+				g_gevManager->AddEvent(GEV_INSERT_Tail, GEV_MoveToOrder, GEA_Army, army.m_id,
+				                       GEA_Direction, d, GEA_End);
+				moves++;
+				break;
+			}
+		}
+
+		// cities: something buildable into every empty build queue
+		for (sint32 i = 0; i < p->m_all_cities->Num(); i++)
+		{
+			Unit city = p->m_all_cities->Access(i);
+			CityData *cd = city.IsValid() ? city.GetCityData() : NULL;
+			if (!cd || cd->GetBuildQueue()->GetLen() > 0) continue;
+
+			std::vector<std::pair<sint32, sint32> > options;   // category, type
+			for (sint32 t = 0; t < g_theUnitDB->NumRecords(); t++)
+				if (cd->CanBuildUnit(t)) options.push_back(std::make_pair((sint32)k_GAME_OBJ_TYPE_UNIT, t));
+			for (sint32 t = 0; t < g_theBuildingDB->NumRecords(); t++)
+				if (cd->CanBuildBuilding(t)) options.push_back(std::make_pair((sint32)k_GAME_OBJ_TYPE_IMPROVEMENT, t));
+			if (options.empty()) continue;
+
+			std::pair<sint32, sint32> pick = options[rng() % options.size()];
+			if (pick.first == k_GAME_OBJ_TYPE_UNIT) cd->BuildUnit(pick.second);
+			else                                     cd->BuildImprovement(pick.second);
+			builds++;
+		}
+
+		autotest_Log("play: round %d settle %d move %d build %d", round, settles, moves, builds);
 	}
 
 	void LogStats(int round)
@@ -132,6 +226,7 @@ void autotest_ParseCommandLine(const char *cmdLine)
 	if (ReadValue(cmdLine, "autohumans=", v)) s_humanPlayers = atoi(v.c_str());
 	if (ReadValue(cmdLine, "autoname=", v))   s_name         = v;
 	if (ReadValue(cmdLine, "autoshots=", v))  s_shotEvery    = atoi(v.c_str());
+	if (ReadValue(cmdLine, "autoplay=", v))   s_play         = atoi(v.c_str()) != 0;
 	if (strstr(cmdLine, "autoshow"))          s_hidden       = false;
 	if (s_turns < 1) s_turns = 1;
 	if (s_name.empty()) s_name = (s_role == ROLE_HOST) ? "AutoHost" : "AutoClient";
@@ -295,9 +390,22 @@ void autotest_Process(bool gameLoaded)
 	if (s_myTurnSince < 0.0)
 		s_myTurnSince = Now();
 
-	// Screenshot of the turn start, half a second before the turn ends.
+	// Turn: after a moment (city updates, messages) play the civilisation,
+	// take the screenshot when the actions are through, then end the turn.
+	const double playAt = 1.0;
+	const double shotAt = s_play ? 2.5 : 1.0;
+	const double endAt  = s_play ? 3.0 : 1.5;
+
+	if (s_play && round != s_playedRound && Now() - s_myTurnSince > playAt)
+	{
+		s_playedRound = round;
+		if (sci_advancescreen_isOnScreen())
+			sci_advancescreen_removeMyWindow(AUI_BUTTON_ACTION_EXECUTE);
+		PlayTurn(me, round);
+	}
+
 	if (s_shotEvery > 0 && round % s_shotEvery == 0 && round != s_lastShotRound &&
-	    Now() - s_myTurnSince > 1.0)
+	    Now() - s_myTurnSince > shotAt)
 	{
 		s_lastShotRound = round;
 #ifdef __AUI_USE_SDL__
@@ -308,9 +416,8 @@ void autotest_Process(bool gameLoaded)
 #endif
 	}
 
-	// Give the turn start a moment (city updates, messages), then end it;
-	// retry every few seconds in case a request was swallowed.
-	if (Now() - s_myTurnSince > 1.5 && Now() - s_lastEndTurn > 4.0)
+	// Retry the end of turn every few seconds in case a request was swallowed.
+	if (Now() - s_myTurnSince > endAt && Now() - s_lastEndTurn > 4.0)
 	{
 		if (sci_advancescreen_isOnScreen())
 			sci_advancescreen_removeMyWindow(AUI_BUTTON_ACTION_EXECUTE);

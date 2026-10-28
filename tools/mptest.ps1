@@ -7,6 +7,10 @@
 #   pwsh tools/mptest.ps1 -Asan                # client with AddressSanitizer
 #   pwsh tools/mptest.ps1 -Show                # watch the two windows
 #   pwsh tools/mptest.ps1 -ShotEvery 5         # screenshot every 5th round (0 = none)
+#   pwsh tools/mptest.ps1 -Idle                # test players only end their turns
+#
+# By default the two test players play a simple turn (settle, walk, fill
+# build queues, pick research), so their actions go over the network.
 #
 # Each instance logs a stats line per player and round (cities, units,
 # gold, advances) and saves a screenshot of its own turn start as
@@ -17,7 +21,8 @@
 #
 # What it checks: both instances reach the requested round, nobody crashes
 # or hangs, no database CRC errors, no resync requests (= client state did
-# not drift from the host).
+# not drift from the host), and host and client log identical values for
+# the AI civilisations (cities, units, gold, advances).
 
 param(
     [int]$Turns = 20,
@@ -26,6 +31,7 @@ param(
     [switch]$Asan,
     [switch]$Show,
     [int]$ShotEvery = 1,
+    [switch]$Idle,
     [string]$Port = '21157'
 )
 
@@ -67,7 +73,8 @@ if ($Asan) {
 }
 
 $showArg = if ($Show) { ' autoshow' } else { '' }
-$common = "nointromovie autoturns=$Turns autoshots=$ShotEvery$showArg"
+$playArg = if ($Idle) { ' autoplay=0' } else { '' }
+$common = "nointromovie autoturns=$Turns autoshots=$ShotEvery$playArg$showArg"
 
 Write-Host "Host:   $hostDir"
 Write-Host "Client: $clientDir  ($clientExe)"
@@ -139,6 +146,38 @@ foreach ($d in $hostDir, $clientDir) {
     if ($shots.Count) { Write-Host "Screenshots: $($shots.Count) in $d (autotest_round_<nnn>.png)" }
 }
 
+# --- desync check: the AI civilisations as host and client see them.
+# The client's round counter runs one turn ahead; between the host's round N
+# start and the client's round N+1 start only the host itself moves, so the
+# AI values must be identical.
+function Read-AiStats([string]$dir) {
+    $m = @{}
+    Get-Content (Join-Path $dir 'autotest_log.txt') -ErrorAction SilentlyContinue | ForEach-Object {
+        if ($_ -match ' stats round (\d+) player (\d+) ai: (.*)$') { $m["$($matches[1])/$($matches[2])"] = $matches[3] }
+    }
+    return $m
+}
+$hostAi   = Read-AiStats $hostDir
+$clientAi = Read-AiStats $clientDir
+$compared = 0; $mismatches = @()
+foreach ($key in $hostAi.Keys) {
+    $round, $player = $key.Split('/')
+    if ([int]$round -ge $Turns) { continue }   # the client has left by then
+    $ckey = "$([int]$round + 1)/$player"
+    if (-not $clientAi.ContainsKey($ckey)) { continue }
+    $compared++
+    if ($hostAi[$key] -ne $clientAi[$ckey]) {
+        $mismatches += "  round $round player ${player}: host '$($hostAi[$key])' client '$($clientAi[$ckey])'"
+    }
+}
+Write-Host ''
+if ($mismatches.Count) {
+    Write-Host "Desync check: $($mismatches.Count) of $compared AI values differ between host and client:"
+    $mismatches | Sort-Object | ForEach-Object { Write-Host $_ }
+} else {
+    Write-Host "Desync check: $compared AI values identical on host and client"
+}
+
 if ($Asan) {
     $asanOut = Join-Path $clientDir 'asan_output.txt'
     $n = (Select-String -Path $asanOut -Pattern 'ERROR: AddressSanitizer' -ErrorAction SilentlyContinue | Measure-Object).Count
@@ -146,6 +185,6 @@ if ($Asan) {
     Write-Host "ASan: $n reports, $w writes/double frees/use-after-free  ($asanOut)"
 }
 
-if ($results | Where-Object { -not $_.ok }) { Write-Host 'MULTIPLAYER TEST FAILED'; exit 1 }
+if (($results | Where-Object { -not $_.ok }) -or $mismatches.Count) { Write-Host 'MULTIPLAYER TEST FAILED'; exit 1 }
 Write-Host 'MULTIPLAYER TEST PASSED'
 exit 0

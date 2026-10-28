@@ -122,10 +122,13 @@ Absturz/Hänger, keine CRC-Fehler, keine Resync-Anforderung.
 `autoshots=`, `autoshow` (`ctp/ctp2_utils/autotest.cpp`). Verlauf sichtbar
 über Statuszeilen je Spieler und Runde (Städte, Einheiten, Gold,
 Fortschritte) und `autotest_round_<nnn>.png` vom eigenen Zugbeginn, auch
-bei verstecktem Fenster. Bedienung ausführlich im README. Idee: die
-Statuszeilen von Host und Client automatisch vergleichen (Desync-Prüfung);
-Testspieler ihr Volk von der KI spielen lassen, damit mehr Aktionen übers
-Netz laufen. Unsichtbar heißt: verstecktes Fenster,
+bei verstecktem Fenster. Bedienung ausführlich im README. Die Testspieler
+spielen einfache Züge (Stadt gründen, Einheiten ziehen, Bauschleife füllen,
+Forschung wählen) über dieselben Aufrufe wie die Oberfläche, also auch
+Client→Host-Aktionen. Desync-Prüfung: KI-Werte Host Runde N = Client Runde
+N+1. Noch offen: Angriffe/Kämpfe, Diplomatie, Handel im Test; die
+KI-Ansätze für einen Client-Roboterspieler (`CtpAi::NetworkClientBeginTurn`)
+sind halb fertig, der KI-Planer läuft auf Clients nicht. Unsichtbar heißt: verstecktes Fenster,
 Software-Renderer ohne Present, kein Rand-Scrollen (die Maus liegt außerhalb
 und `CivApp::ProcessUI` scrollte sonst endlos). Bekannt: der Host wartet in
 der Lobby auf den Client, weil ein Direkt-Client ein bereits angelegtes Spiel
