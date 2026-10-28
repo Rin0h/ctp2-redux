@@ -242,7 +242,8 @@ namespace
 			             known);
 
 			// what the civilisation is doing (not compared host/client)
-			int qlen = -1, qcat = -1, qtype = -1, store = -1, prod = -1, sci = 0, pop = 0;
+			int qlen = -1, qcat = -1, qtype = -1, store = -1, prod = -1, sci = 0, pop = 0, food = -1, partial = -1, growth = -1;
+			double foodNet = 0.0, foodGross = 0.0;
 			double sciTax = -1.0;
 			p->GetScienceTaxRate(sciTax);
 			if (p->m_all_cities && p->m_all_cities->Num() > 0)
@@ -252,6 +253,11 @@ namespace
 				qlen  = q->GetLen();
 				if (q->GetHead()) { qcat = q->GetHead()->m_category; qtype = q->GetHead()->m_type; }
 				store = cd->GetStoredCityProduction();
+				food  = cd->GetStoredCityFood();
+				partial = cd->GetPartialPopulation();
+				growth  = cd->GetGrowthRate();
+				foodNet   = cd->GetNetCityFood();
+				foodGross = cd->GetGrossCityFood();
 				prod  = cd->GetNetCityProduction();
 				for (sint32 c = 0; c < p->m_all_cities->Num(); c++)
 				{
@@ -259,10 +265,10 @@ namespace
 					pop += p->m_all_cities->Access(c).GetCityData()->PopCount();
 				}
 			}
-			autotest_Log("detail round %d player %d: queue %d head %d/%d stored %d prod %d science %d tax %.2f gov %d pop %d researching %d armies %d",
+			autotest_Log("detail round %d player %d: queue %d head %d/%d stored %d prod %d science %d tax %.2f gov %d pop %d researching %d armies %d food %d net %.1f gross %.1f partial %d growth %d",
 			             round, i, qlen, qcat, qtype, store, prod, sci, sciTax, (int)p->GetGovernmentType(), pop,
 			             p->m_advances ? (int)p->m_advances->GetResearching() : -1,
-			             p->m_all_armies ? (int)p->m_all_armies->Num() : -1);
+			             p->m_all_armies ? (int)p->m_all_armies->Num() : -1, food, foodNet, foodGross, partial, growth);
 		}
 	}
 }

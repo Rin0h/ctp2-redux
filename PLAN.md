@@ -130,12 +130,18 @@ N+1. Noch offen: Angriffe/Kämpfe, Diplomatie, Handel im Test; die
 KI-Ansätze für einen Client-Roboterspieler (`CtpAi::NetworkClientBeginTurn`)
 sind halb fertig, der KI-Planer läuft auf Clients nicht.
 
-Offene Beobachtung (2026-10-28): Im Netzwerkspiel entwickeln sich KI und
-Testspieler langsamer als im Einzelspieler mit gleichem Profil (Karte 48x96,
-Schwierigkeit 2, Steuersatz 50 %, gleiche Regierung): nach 28-40 Runden
-1-2 statt 2-3 Städte, kleinere Städte, weniger Forschung. Bauschleifen der
-KI funktionieren. Wird mit mehreren Läufen je Modus geprüft
-(`mptest.ps1 -Single` gegen `mptest.ps1`, Detailzeilen im Log). Unsichtbar heißt: verstecktes Fenster,
+Geklärt (2026-10-28): Im Netzwerkspiel entwickeln sich alle Völker
+langsamer als im Einzelspieler (je 3 Läufe à 40 Runden: KI 1,0 statt 2,1
+Städte, 4,5 statt 6 Fortschritte). Ursache ist die Startausstattung, kein
+Fehler: Im Netzwerk-Setup („Regeln“: „Gold:“ 100, „Siedler:“ 1) bekommt
+jedes Volk gleich viele Startsiedler (`s_networkSettlers`, aus den
+„PW points“ des Setups), im Einzelspieler bekommt die KI
+`AIStartUnits` je nach Schwierigkeit plus einen Extra-Siedler bei
+schlechter Startposition (`gameinit.cpp:449-477`). Wachstum, Nahrung,
+Steuern, Bauschleifen und Zugbeginn laufen in beiden Modi gleich (gemessen
+mit den Detailzeilen und Zählern je Zugbeginn). Entscheidung offen: Standard
+für „Siedler:“ ändern oder KI im Netzwerkspiel wie im Einzelspieler
+ausstatten (Regeländerung, Besitzer fragen). Unsichtbar heißt: verstecktes Fenster,
 Software-Renderer ohne Present, kein Rand-Scrollen (die Maus liegt außerhalb
 und `CivApp::ProcessUI` scrollte sonst endlos). Bekannt: der Host wartet in
 der Lobby auf den Client, weil ein Direkt-Client ein bereits angelegtes Spiel
