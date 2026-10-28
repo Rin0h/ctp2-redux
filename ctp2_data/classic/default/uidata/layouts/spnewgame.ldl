@@ -193,15 +193,18 @@ InitPlayWindow {
 		bool	nodatabase	true
 		string	text	"THIS MATERIAL IS NOT MADE OR SUPPORTED BY ACTIVISION."
 		int	xpix	180
-		int	ypix	559
+		int	ypix	19
 		int	widthpix	440
-		int	heightpix	13
+		int	heightpix	11
 	int	fontsize	9
+	int	fontcolorred	230
+	int	fontcolorgreen	210
+	int	fontcolorblue	160
 	}
 	Disclaimer2:CTP2_STATIC_BASE {
 		string	text	"str_ldl_Disclaimer_Redux"
 		int	xpix	180
-		int	ypix	572
+		int	ypix	565
 		int	widthpix	440
 		int	heightpix	13
 	int	fontsize	9
@@ -209,7 +212,7 @@ InitPlayWindow {
 	Disclaimer3:CTP2_STATIC_BASE {
 		string	text	"str_ldl_Disclaimer_Apolyton"
 		int	xpix	180
-		int	ypix	585
+		int	ypix	580
 		int	widthpix	440
 		int	heightpix	13
 	int	fontsize	9
