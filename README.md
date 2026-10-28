@@ -57,8 +57,9 @@ upstream.
   is shipped, deleting `redux_hires` undoes it. The videos are upscaled
   the same way frame by frame (H.264 by Windows Media Foundation, via an
   `ffmpeg.exe` built from the game's own FFmpeg), and so is the terrain of
-  the map (tiles, transitions, hills, rivers, roads); units and cities on
-  the map follow.
+  the map (tiles, transitions, hills, rivers, roads) and its units, cities,
+  goods and effects (the game writes out their frames itself, `ctp2
+  spriteexport:<folder>`).
 
 ### Automated multiplayer test
 
@@ -409,8 +410,9 @@ spiegelt das Upstream-Projekt.
   verteilen nichts, `redux_hires` löschen macht es rückgängig. Die Videos
   werden genauso Bild für Bild hochskaliert (H.264 über Windows Media
   Foundation, mit einem `ffmpeg.exe` aus dem FFmpeg des Spiels), ebenso das
-  Gelände der Karte (Kacheln, Übergänge, Berge, Flüsse, Straßen); Einheiten
-  und Städte auf der Karte folgen.
+  Gelände der Karte (Kacheln, Übergänge, Berge, Flüsse, Straßen) und ihre
+  Einheiten, Städte, Güter und Effekte (das Spiel gibt deren Einzelbilder
+  selbst aus, `ctp2 spriteexport:<Ordner>`).
 
 ### Automatischer Multiplayer-Test
 

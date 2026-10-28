@@ -390,9 +390,22 @@ Plan und Entscheidungen (2026-10-28):
     `TileSet::ScaleUp` nimmt diese Teile (HDTerrain), Rest Nearest. 1554
     Teile, 25 MB, wenige Sekunden. Assistent: Schritt 3 Gelände, Schritt 4
     Einheiten/Städte/Güter (Etappe 3) folgt. Gelände-Modell: realesrgan-x4plus
-    (Vergleich _local/vergleich_gelaende_modelle.png, Besitzer wählte es:
+    (Vergleich `_local/vergleich_gelaende_modelle.png`, Besitzer wählte es:
     natürlicher, weniger dunkle Konturen als animevideov3), 4x gerechnet und
-    auf den Faktor verkleinert (-TerrainModel).
+    auf den Faktor verkleinert (`-TerrainModel`).
+    Etappe 3 erledigt (2026-10-29): `ctp2 spriteexport:<Ordner>` (kein
+    Fenster, nach CivPaths) lädt alle 467 .spr und schreibt jedes Einzelbild
+    als 32-Bit-TGA, Name = FNV-1a-Hash der Bilddaten (Alpha: 255 Kopie,
+    1–254 geglättet, 0 leer; Schatten Magenta mit Alpha 0). Skript
+    (`Ctp2Sprites`, x4plus, `-SpriteModel`): Farbe + Abdeckungsmaske hoch,
+    Maske ≥240 Kopie, 16–239 geglättetes Pixel mit Alpha, Schatten nearest;
+    Sprite-RLE, alles in `redux_hires/<N>x/sprites/sprites.hd` mit Index.
+    `Sprite::ScaleFrame` nimmt das HD-Bild per Hash (`spriteutils_HDFrame`),
+    sonst nearest. 31084 Bilder, ~1,3 GB, ~14 min. Real-ESRGAN liefert bei
+    langen Läufen Rauschen (RTX 5090): Häppchen à 2000 je Prozess, jedes
+    Bild wird gegen das Original geprüft und bei Rauschen einzeln neu
+    gerechnet (sonst nearest). Zu große Bilder (>65535 Wörter) bleiben
+    nearest.
   - B1 Videos (Skript-Infrastruktur aus M3) – erledigt 2026-10-28: Videos
     Bild für Bild durch Real-ESRGAN, `redux_hires/<N>x/videos/<name>.mkv`
     (H.264 über Media Foundation, Originalton), eigenes ffmpeg.exe aus dem
