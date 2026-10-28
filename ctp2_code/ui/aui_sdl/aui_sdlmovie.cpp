@@ -1838,8 +1838,9 @@ static int read_thread(void *arg)
 		if (!is->paused &&
 			(!is->audio_st || (is->auddec.finished == is->audioq.serial && frame_queue_nb_remaining(&is->sampq) == 0)) &&
 			(!is->video_st || (is->viddec.finished == is->videoq.serial && frame_queue_nb_remaining(&is->pictq) == 0))) {
+			// a regular end: no SDL_QUIT below (it would also end the game)
 			is->played = 1;
-			ret = AVERROR_EOF;
+			ret = 0;
 			goto fail;
 		}
 		ret = av_read_frame(ic, pkt);
