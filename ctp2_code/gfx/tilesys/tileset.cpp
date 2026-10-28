@@ -50,6 +50,7 @@
 #include "tiledmap.h"   // g_tiledMap
 
 #include "CivPaths.h"   // g_civPaths
+#include "autotest.h"
 #include "rimutils.h"
 #include "MapIconRecord.h"
 
@@ -920,6 +921,84 @@ namespace
 	};
 }
 
+namespace
+{
+	// ctp2-redux: the upscaled terrain made by the upscaling script (Ctp2Tiles
+	// in tools/upscale/ctp2-redux-hochskalieren.ps1), in
+	// redux_hires/<scale>x/tiles/<tile set>.hd: a header ("CTPHDT1", scale,
+	// count) and records of type (1 base tile, 2 transition stream, 3 hat,
+	// 4 river, 5 improvement), key and data in the in-memory format
+	class HDTerrain
+	{
+	public:
+		HDTerrain(sint32 scale, std::vector<Pixel16 *> & owner)
+		{
+			MBCHAR name[_MAX_PATH];
+			strcpy(name, TileSetFile());
+			char * dot = strrchr(name, '.');
+			if (dot) strcpy(dot, ".hd");
+
+			MBCHAR path[_MAX_PATH];
+			snprintf(path, sizeof(path), "%s%sredux_hires%s%dx%stiles%s%s", g_civPaths->GetDataPath(),
+			         FILE_SEP, FILE_SEP, scale, FILE_SEP, FILE_SEP, name);
+			FILE * file = fopen(path, "rb");
+			if (!file) return;
+			fseek(file, 0, SEEK_END);
+			long const size = ftell(file);
+			fseek(file, 0, SEEK_SET);
+			if (size < 16)
+			{
+				fclose(file);
+				return;
+			}
+			Pixel16 * buffer = new Pixel16[(size + 1) / 2];
+			size_t const read = fread(buffer, 1, size, file);
+			fclose(file);
+			uint8 const * bytes = reinterpret_cast<uint8 const *>(buffer);
+			sint32 fileScale = 0, count = 0;
+			memcpy(&fileScale, bytes + 8, 4);
+			memcpy(&count, bytes + 12, 4);
+			if (read != (size_t) size || memcmp(bytes, "CTPHDT1", 7) != 0 || fileScale != scale)
+			{
+				delete [] buffer;
+				return;
+			}
+			owner.push_back(buffer);
+
+			long at = 16;
+			for (sint32 i = 0; i < count && at + 10 <= size; ++i)
+			{
+				uint16 a = 0, b = 0;
+				uint32 words = 0;
+				memcpy(&a, bytes + at + 2, 2);
+				memcpy(&b, bytes + at + 4, 2);
+				memcpy(&words, bytes + at + 6, 4);
+				if (at + 10 + (long) words * 2 > size) break;
+				m_records[Key(bytes[at], bytes[at + 1], a, b)] = buffer + (at + 10) / 2;
+				at += 10 + (long) words * 2;
+			}
+			if (autotest_Active())
+				autotest_Log("terrain %s: %d HD parts", name, (int) m_records.size());
+		}
+
+		// the HD data of a part, NULL when there is none
+		Pixel16 * Find(sint32 type, sint32 k, sint32 a, sint32 b = 0) const
+		{
+			std::map<uint64, Pixel16 *>::const_iterator i = m_records.find(Key(type, k, a, b));
+			return (i != m_records.end()) ? i->second : NULL;
+		}
+
+	private:
+		static uint64 Key(sint32 type, sint32 k, sint32 a, sint32 b)
+		{
+			return ((uint64) (type & 0xFF) << 40) | ((uint64) (k & 0xFF) << 32)
+			     | ((uint64) (a & 0xFFFF) << 16) | (uint64) (b & 0xFFFF);
+		}
+
+		std::map<uint64, Pixel16 *> m_records;
+	};
+}
+
 //----------------------------------------------------------------------------
 //
 // Name       : TileSet::ScaleUp
@@ -932,10 +1011,14 @@ namespace
 //              stream 0-3; these markers cover the same 352 pixels in every
 //              tile, so a stream is enlarged along that layout.
 //
+//              Parts the upscaling script made in HD (HDTerrain) are taken
+//              from there instead.
+//
 //----------------------------------------------------------------------------
 void TileSet::ScaleUp(sint32 scale)
 {
 	static DiamondIndex const diamond;
+	HDTerrain const hd(scale, m_scaledData);
 
 	// the marker layout of each transition stream: stream index per pixel
 	std::vector<sint32> layout[k_TRANSITIONS_PER_TILE];
@@ -969,7 +1052,11 @@ void TileSet::ScaleUp(sint32 scale)
 		BaseTile * tile = m_baseTiles[i];
 		if (!tile) continue;
 
-		if (Pixel16 const * data = tile->GetTileData())
+		if (Pixel16 * hdTile = hd.Find(1, 0, tile->GetTileNum()))
+		{
+			tile->SetTileData(hdTile);
+		}
+		else if (Pixel16 const * data = tile->GetTileData())
 		{
 			scaled.clear();
 			for (sint32 y = 0; y < k_TILE_PIXEL_HEIGHT_1X * scale; ++y)
@@ -984,7 +1071,11 @@ void TileSet::ScaleUp(sint32 scale)
 			tile->SetTileData(copy);
 			tile->SetTileDataLen(static_cast<uint16>(std::min<size_t>(scaled.size() * 2, 0xFFFF)));
 		}
-		if (Pixel16 * hat = tileutils_ScaleTile16(tile->GetHatData(), scale))
+		if (Pixel16 * hdHat = hd.Find(3, 0, tile->GetTileNum()))
+		{
+			tile->SetHatData(hdHat);
+		}
+		else if (Pixel16 * hat = tileutils_ScaleTile16(tile->GetHatData(), scale))
 		{
 			m_scaledData.push_back(hat);
 			tile->SetHatData(hat);
@@ -1005,6 +1096,12 @@ void TileSet::ScaleUp(sint32 scale)
 				if (known != done.end())
 				{
 					m_transitions[from][to][k] = known->second;
+					continue;
+				}
+				if (Pixel16 * upscaled = hd.Find(2, k, from, to))
+				{
+					done[stream] = upscaled;
+					m_transitions[from][to][k] = upscaled;
 					continue;
 				}
 
@@ -1029,7 +1126,11 @@ void TileSet::ScaleUp(sint32 scale)
 
 	for (sint32 i = 0; i < m_numRiverTransforms; ++i)
 	{
-		if (Pixel16 * river = tileutils_ScaleTile16(m_riverData[i], scale))
+		if (Pixel16 * hdRiver = hd.Find(4, 0, i))
+		{
+			m_riverData[i] = hdRiver;
+		}
+		else if (Pixel16 * river = tileutils_ScaleTile16(m_riverData[i], scale))
 		{
 			m_scaledData.push_back(river);
 			m_riverData[i] = river;
@@ -1037,7 +1138,11 @@ void TileSet::ScaleUp(sint32 scale)
 	}
 	for (sint32 i = 0; i < k_MAX_IMPROVEMENTS; ++i)
 	{
-		if (Pixel16 * improvement = tileutils_ScaleTile16(m_improvementData[i], scale))
+		if (Pixel16 * hdImprovement = hd.Find(5, 0, i))
+		{
+			m_improvementData[i] = hdImprovement;
+		}
+		else if (Pixel16 * improvement = tileutils_ScaleTile16(m_improvementData[i], scale))
 		{
 			m_scaledData.push_back(improvement);
 			m_improvementData[i] = improvement;

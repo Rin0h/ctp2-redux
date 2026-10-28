@@ -56,7 +56,9 @@ upstream.
   windows and text at monitor resolution and takes these images. Nothing
   is shipped, deleting `redux_hires` undoes it. The videos are upscaled
   the same way frame by frame (H.264 by Windows Media Foundation, via an
-  `ffmpeg.exe` built from the game's own FFmpeg). Map graphics follow.
+  `ffmpeg.exe` built from the game's own FFmpeg), and so is the terrain of
+  the map (tiles, transitions, hills, rivers, roads); units and cities on
+  the map follow.
 
 ### Automated multiplayer test
 
@@ -406,8 +408,9 @@ spiegelt das Upstream-Projekt.
   Fenster und Schrift in Monitorauflösung und nimmt diese Bilder. Wir
   verteilen nichts, `redux_hires` löschen macht es rückgängig. Die Videos
   werden genauso Bild für Bild hochskaliert (H.264 über Windows Media
-  Foundation, mit einem `ffmpeg.exe` aus dem FFmpeg des Spiels).
-  Kartengrafik folgt.
+  Foundation, mit einem `ffmpeg.exe` aus dem FFmpeg des Spiels), ebenso das
+  Gelände der Karte (Kacheln, Übergänge, Berge, Flüsse, Straßen); Einheiten
+  und Städte auf der Karte folgen.
 
 ### Automatischer Multiplayer-Test
 

@@ -48,7 +48,7 @@ $texts = @{
         Create         = 'Erzeugen'
         Finish         = 'Fertigstellen'
         Welcome1       = ('Dieser Assistent erzeugt aus deiner eigenen Call-to-Power-II-Installation HD-Fassungen ' +
-                          'der Spielgrafik: Oberflächenbilder, Mauszeiger und Videos werden mit künstlicher ' +
+                          'der Spielgrafik: Oberflächenbilder, Mauszeiger, Videos und das Gelände der Karte werden mit künstlicher ' +
                           'Intelligenz (Real-ESRGAN) auf deinem Rechner hochgerechnet.')
         Welcome2       = ('Deine Originaldateien bleiben unverändert. Die HD-Dateien landen im Ordner ' +
                           'ctp2_data\redux_hires; das Spiel nimmt sie automatisch, wenn die Skalierung passt.')
@@ -76,8 +76,12 @@ $texts = @{
                           'jederzeit abbrechen und später weitermachen – fertige Dateien bleiben erhalten.')
         Step1          = 'Schritt 1 – Oberfläche: Bilder und Mauszeiger'
         Step2          = 'Schritt 2 – Videos: Intro und Wunder-Filme'
-        Step3          = 'Schritt 3 – Kartengrafik (Gelände, Einheiten, Städte)'
-        Step3Later     = 'folgt in einer späteren Version'
+        Step3          = 'Schritt 3 – Gelände: Kacheln, Küsten, Flüsse, Berge, Wälder, Straßen'
+        Step3Note      = '{0} · ca. {1} MB · etwa eine Minute'
+        Step4          = 'Schritt 4 – Einheiten, Städte und Güter auf der Karte'
+        Step4Later     = 'folgt in einer späteren Version'
+        Terrain        = 'Teil'
+        RunTerrain     = 'Gelände wird hochgerechnet: {0} %'
         Step1Note      = '{0} · ca. {1} MB · wenige Minuten'
         Step2Note      = "{0} · ca. {1} MB`ndauert lange: je Video ca. eine halbe Minute mit schneller Grafikkarte, mit schwächerer mehrere Minuten"
         NoFfmpeg       = 'ffmpeg.exe fehlt neben dem Spiel oder diesem Assistenten – Videos bleiben im Original.'
@@ -132,7 +136,7 @@ $texts = @{
         Create         = 'Create'
         Finish         = 'Finish'
         Welcome1       = ('This assistant makes HD versions of the game graphics from your own Call to Power II ' +
-                          'installation: interface images, mouse cursors and videos are upscaled on your computer ' +
+                          'installation: interface images, mouse cursors, videos and the terrain of the map are upscaled on your computer ' +
                           'with artificial intelligence (Real-ESRGAN).')
         Welcome2       = ('Your original files stay untouched. The HD files go to the folder ctp2_data\redux_hires; ' +
                           'the game takes them automatically when the scaling matches.')
@@ -160,8 +164,12 @@ $texts = @{
                           'time and go on later – finished files are kept.')
         Step1          = 'Step 1 – Interface: images and mouse cursors'
         Step2          = 'Step 2 – Videos: intro and wonder movies'
-        Step3          = 'Step 3 – Map graphics (terrain, units, cities)'
-        Step3Later     = 'comes with a later version'
+        Step3          = 'Step 3 – Terrain: tiles, coasts, rivers, hills, forests, roads'
+        Step3Note      = '{0} · about {1} MB · about a minute'
+        Step4          = 'Step 4 – Units, cities and goods on the map'
+        Step4Later     = 'comes with a later version'
+        Terrain        = 'part'
+        RunTerrain     = 'Upscaling the terrain: {0} %'
         Step1Note      = '{0} · about {1} MB · a few minutes'
         Step2Note      = "{0} · about {1} MB`ntakes long: about half a minute per video with a fast graphics card, several minutes with a slower one"
         NoFfmpeg       = 'ffmpeg.exe is missing next to the game or this assistant – the videos stay original.'
@@ -322,7 +330,7 @@ $form = New-Object Windows.Forms.Form
 $form.AutoScaleMode   = 'None'
 $form.Font            = New-Object Drawing.Font 'Segoe UI', 9
 $form.Text            = $title
-$form.ClientSize      = New-Object Drawing.Size 640, 470
+$form.ClientSize      = New-Object Drawing.Size 640, 520
 $form.FormBorderStyle = 'FixedDialog'
 $form.MaximizeBox     = $false
 $form.StartPosition   = 'CenterScreen'
@@ -341,7 +349,7 @@ $headText = New-Object Windows.Forms.Label
 $headText.SetBounds(22, 40, 600, 22)
 $header.Controls.Add($headText)
 
-foreach ($y in 70, 418) {
+foreach ($y in 70, 468) {
     $rule = New-Object Windows.Forms.Label
     $rule.SetBounds(0, $y, 640, 2)
     $rule.BorderStyle = 'Fixed3D'
@@ -351,7 +359,7 @@ foreach ($y in 70, 418) {
 function New-Button([string]$text, [int]$x) {
     $b = New-Object Windows.Forms.Button
     $b.Text = $text
-    $b.SetBounds($x, 430, 100, 28)
+    $b.SetBounds($x, 480, 100, 28)
     $form.Controls.Add($b)
     return $b
 }
@@ -361,7 +369,7 @@ $cancelButton = New-Button $T.Cancel 520
 
 function New-Page {
     $p = New-Object Windows.Forms.Panel
-    $p.SetBounds(20, 85, 600, 320)
+    $p.SetBounds(20, 85, 600, 370)
     $p.Visible = $false
     $form.Controls.Add($p)
     return $p
@@ -434,11 +442,13 @@ $imagesBox  = Add-Check $pageParts $T.Step1 46 $true
 $imagesNote = Add-Label $pageParts '' 70 22 20
 $videosBox  = Add-Check $pageParts $T.Step2 100 $true
 $videosNote = Add-Label $pageParts '' 124 40 20
-$mapBox     = Add-Check $pageParts $T.Step3 170 $true
-$mapBox.Enabled = $false
-Add-Label $pageParts $T.Step3Later 194 22 20 | Out-Null
-$forceBox  = Add-Check $pageParts $T.Force 222
-$partsNote = Add-Label $pageParts '' 252 68
+$terrainBox  = Add-Check $pageParts $T.Step3 170 $true
+$terrainNote = Add-Label $pageParts '' 194 22 20
+$spritesBox  = Add-Check $pageParts $T.Step4 224 $true
+$spritesBox.Enabled = $false
+Add-Label $pageParts $T.Step4Later 248 22 20 | Out-Null
+$forceBox  = Add-Check $pageParts $T.Force 276
+$partsNote = Add-Label $pageParts '' 304 66
 
 # page 4: progress
 $pageRun = New-Page
@@ -452,7 +462,7 @@ $logBox.Multiline  = $true
 $logBox.ReadOnly   = $true
 $logBox.ScrollBars = 'Vertical'
 $logBox.Font       = New-Object Drawing.Font 'Consolas', 8.5
-$logBox.SetBounds(0, 64, 598, 252)
+$logBox.SetBounds(0, 64, 598, 302)
 $pageRun.Controls.Add($logBox)
 
 # page 5: done
@@ -504,7 +514,7 @@ function Get-StepStatus([int]$s) {
     $p = [Diagnostics.Process]::Start($psi)
     $out = $p.StandardOutput.ReadToEnd()
     $p.WaitForExit()
-    $result = @{ bilder = @(0, 0); videos = @(0, 0) }
+    $result = @{ bilder = @(0, 0); videos = @(0, 0); gelaende = @(0, 0) }
     foreach ($m in [regex]::Matches($out, '##STATUS (\w+) (\d+) (\d+)')) {
         $result[$m.Groups[1].Value] = @([int]$m.Groups[2].Value, [int]$m.Groups[3].Value)
     }
@@ -528,6 +538,7 @@ function Get-OpenSteps([int]$s) {
     $open = @()
     if (-not (Test-StepDone $st.bilder)) { $open += $T.Step1 }
     if ((Find-Ffmpeg $script:info) -and -not (Test-StepDone $st.videos)) { $open += $T.Step2 }
+    if (-not (Test-StepDone $st.gelaende)) { $open += $T.Step3 }
     return $open
 }
 
@@ -537,18 +548,21 @@ function Update-Parts {
     $st = Get-StepStatus $s
     $imagesDone = Test-StepDone $st.bilder
     $videosDone = Test-StepDone $st.videos
+    $terrainDone = Test-StepDone $st.gelaende
     $hasFfmpeg  = Find-Ffmpeg $script:info
 
     $imagesNote.Text = $T.Step1Note -f (Get-StepText $st.bilder $T.Images), [int](660 * $f)
     $videosBox.Enabled = $hasFfmpeg
     $videosNote.Text = if ($hasFfmpeg) { $T.Step2Note -f (Get-StepText $st.videos $T.Videos), [int](390 * $f) } else { $T.NoFfmpeg }
+    $terrainNote.Text = $T.Step3Note -f (Get-StepText $st.gelaende $T.Terrain), [int](25 * $f)
 
     # only the next open step is ticked, so a slow computer does one at a time
-    $imagesBox.Checked = -not $imagesDone
-    $videosBox.Checked = $hasFfmpeg -and $imagesDone -and -not $videosDone
+    $imagesBox.Checked  = -not $imagesDone
+    $videosBox.Checked  = $hasFfmpeg -and $imagesDone -and -not $videosDone
+    $terrainBox.Checked = $imagesDone -and ($videosDone -or -not $hasFfmpeg) -and -not $terrainDone
 
     $notes = @()
-    if ($imagesDone -and ($videosDone -or -not $hasFfmpeg)) { $notes += $T.AllDone }
+    if ($imagesDone -and ($videosDone -or -not $hasFfmpeg) -and $terrainDone) { $notes += $T.AllDone }
     $tool = Get-ChildItem -Path (Join-Path $script:info.Data 'redux_hires\_werkzeug') -Recurse -Filter 'realesrgan-ncnn-vulkan.exe' -ErrorAction SilentlyContinue
     if (-not $tool) { $notes += $T.EsrganDownload }
     try {
@@ -561,7 +575,7 @@ function Update-Parts {
 }
 
 function Update-CreateButton {
-    if ($script:page -eq 3) { $nextButton.Enabled = $imagesBox.Checked -or $videosBox.Checked }
+    if ($script:page -eq 3) { $nextButton.Enabled = $imagesBox.Checked -or $videosBox.Checked -or $terrainBox.Checked }
 }
 
 function Show-Page([int]$n) {
@@ -621,24 +635,30 @@ function Read-Log {
         $text = $oem.GetString($bytes, 0, $last + 1)
     } finally { $stream.Close() }
 
-    $both = $imagesBox.Checked -and $videosBox.Checked
-    # images take a few minutes, videos most of the time
-    $imageShare = if ($both) { 0.2 } else { 1.0 }
+    # the share of each chosen step: images a few minutes, terrain about one,
+    # videos most of the time
+    $weights = @(@($imagesBox.Checked, 1.0), @($terrainBox.Checked, 0.5), @($videosBox.Checked, 4.0))
+    $sum = 0.0; foreach ($w in $weights) { if ($w[0]) { $sum += $w[1] } }
+    $segments = @(); $at = 0.0
+    foreach ($w in $weights) {
+        $share = if ($w[0] -and $sum -gt 0) { $w[1] / $sum } else { 0.0 }
+        $segments += ,@($at, $share); $at += $share
+    }
     foreach ($l in ($text -split "`r?`n")) {
         if ($l -match '^##FORTSCHRITT (\S+) (\d+) (\d+)') {
             $part = $Matches[1]; $done = [int]$Matches[2]; $total = [math]::Max(1, [int]$Matches[3])
             $f = $done / $total
             switch ($part) {
-                'vorbereiten' { $runStatus.Text = $T.RunPrepare -f $done, $total; Set-Progress (0.1 * $f * $imageShare) }
-                'bilder'      { $runStatus.Text = $T.RunImages -f [int](100 * $f);  Set-Progress ((0.1 + 0.8 * $f) * $imageShare) }
-                'einlesen'    { $runStatus.Text = $T.RunImport -f $done, $total;  Set-Progress ((0.9 + 0.1 * $f) * $imageShare) }
+                'vorbereiten' { $runStatus.Text = $T.RunPrepare -f $done, $total; Set-Progress ($segments[0][0] + 0.1 * $f * $segments[0][1]) }
+                'bilder'      { $runStatus.Text = $T.RunImages -f [int](100 * $f);  Set-Progress ($segments[0][0] + (0.1 + 0.8 * $f) * $segments[0][1]) }
+                'einlesen'    { $runStatus.Text = $T.RunImport -f $done, $total;  Set-Progress ($segments[0][0] + (0.9 + 0.1 * $f) * $segments[0][1]) }
+                'gelaende'    { $runStatus.Text = $T.RunTerrain -f [int](100 * $f); Set-Progress ($segments[1][0] + $f * $segments[1][1]) }
                 'videos'      { $script:videoIndex = $done; $script:videoTotal = $total }
                 'videobilder' { $runStatus.Text = $T.RunVideo -f ($script:videoIndex + 1), $script:videoTotal, $done, $total }
             }
             if ($part -eq 'videos' -or $part -eq 'videobilder') {
-                $start = if ($both) { 0.2 } else { 0.0 }
                 $inner = if ($part -eq 'videobilder') { $f } else { 0 }
-                Set-Progress ($start + (1 - $start) * ($script:videoIndex + $inner) / [math]::Max(1, $script:videoTotal))
+                Set-Progress ($segments[2][0] + $segments[2][1] * ($script:videoIndex + $inner) / [math]::Max(1, $script:videoTotal))
             }
         } elseif ($l.Trim()) {
             $logBox.AppendText($l.TrimEnd() + "`r`n")
@@ -685,6 +705,7 @@ function Start-Run {
     $flags = "-Scale $s -Language $lang"
     if (-not $imagesBox.Checked) { $flags += ' -NoImages' }
     if (-not $videosBox.Checked) { $flags += ' -NoVideos' }
+    if (-not $terrainBox.Checked) { $flags += ' -NoTerrain' }
     if ($forceBox.Checked)       { $flags += ' -Force' }
     $command = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$engine`" -Install `"$($script:info.Folder)`" $flags > `"$($script:logFile)`" 2>&1"
     $psi = New-Object Diagnostics.ProcessStartInfo 'cmd.exe', "/c `"$command`""
@@ -755,6 +776,7 @@ $folderBox.add_TextChanged({ Update-FolderStatus })
 foreach ($r in $scaleRadios.Values) { $r.add_CheckedChanged({ if ($script:page -eq 3) { Update-Parts } }) }
 $imagesBox.add_CheckedChanged({ Update-CreateButton })
 $videosBox.add_CheckedChanged({ Update-CreateButton })
+$terrainBox.add_CheckedChanged({ Update-CreateButton })
 
 $backButton.add_Click({ if ($script:page -gt 0) { Show-Page ($script:page - 1) } })
 
@@ -828,6 +850,7 @@ if ($Screenshots) {
         # a real run of step 1 (quick when its files exist), profile untouched
         $imagesBox.Checked = $true
         $videosBox.Checked = $false
+        $terrainBox.Checked = $false
         $setProfileBox.Checked = $false
         Show-Page 4
         Start-Run

@@ -381,6 +381,15 @@ Plan und Entscheidungen (2026-10-28):
     Beschriftungen über `Px()`. Tour: Zoom halb/klein.
     Offen: Linien (Grenzen, Wege, Auswahl) sind 1 Kartenpixel dünn; kleiner
     Schnitt an Einheiten bei halbem Zoom; Kampffenster ungeprüft.
+    Etappe 2 erledigt (2026-10-28): Skript-Klasse `Ctp2Tiles` liest
+    gtset565.til, exportiert Basiskacheln (Raute, Marker und Außenfläche aus
+    Nachbarn gefüllt), Übergangsströme (am 352er-Muster in die Raute gelegt),
+    Hüte/Flüsse/Ausbauten (Farbe + Maske), rechnet mit Real-ESRGAN hoch und
+    schreibt `redux_hires/<N>x/tiles/gtset565.hd` (Datensätze Typ/Schlüssel/
+    Daten im Speicherformat; Marker, Schatten, Einfärben per Nearest).
+    `TileSet::ScaleUp` nimmt diese Teile (HDTerrain), Rest Nearest. 1554
+    Teile, 25 MB, wenige Sekunden. Assistent: Schritt 3 Gelände, Schritt 4
+    Einheiten/Städte/Güter (Etappe 3) folgt.
   - B1 Videos (Skript-Infrastruktur aus M3) – erledigt 2026-10-28: Videos
     Bild für Bild durch Real-ESRGAN, `redux_hires/<N>x/videos/<name>.mkv`
     (H.264 über Media Foundation, Originalton), eigenes ffmpeg.exe aus dem

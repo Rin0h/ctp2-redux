@@ -4,7 +4,7 @@
 #   ctp2-redux-hochskalieren.bat               (double-click: setup window,
 #                                               ctp2-redux-hd-setup.ps1)
 #   powershell -File ctp2-redux-hochskalieren.ps1 [-Install <folder>] [-Scale 3] [-Force]
-#                                               [-NoImages] [-NoVideos] [-Status]
+#                                               [-NoImages] [-NoVideos] [-NoTerrain] [-Status]
 #                                               [-Language de|en]
 #
 # -Status only counts what is done (lines "##STATUS bilder|videos <done> <total>")
@@ -32,6 +32,7 @@ param(
     [switch]$Force,
     [switch]$NoImages,
     [switch]$NoVideos,
+    [switch]$NoTerrain,
     [switch]$Status,
     [string]$Language = ''
 )
@@ -357,7 +358,7 @@ public static class Ctp2Assets
 
     // --- after the upscaling ---------------------------------------------------
 
-    static byte[] LoadPng(string path, out int width, out int height)
+    public static byte[] LoadPng(string path, out int width, out int height)
     {
         using (Bitmap src = new Bitmap(path))
         using (Bitmap bmp = src.Clone(new Rectangle(0, 0, src.Width, src.Height), PixelFormat.Format24bppRgb))
@@ -477,6 +478,337 @@ public static class Ctp2Assets
         File.WriteAllBytes(tgaPath, tga);
     }
 }
+
+// The terrain of the map (gtset565.til): base tiles, transitions, hats,
+// rivers and improvements, exported for the upscaler and taken back into
+// the in-memory format of the game (see TileSet::ScaleUp).
+public static class Ctp2Tiles
+{
+    const int W = 94, H = 48, GRID = 72;
+    const int Diamond = 2304;   // pixels of the tile diamond
+    const int Transitions = 4;
+    // kinds of the pixels of an overlay
+    const byte Clear = 0, Copy = 1, Shadow = 2, Colorize = 3;
+
+    class Overlay { public int Start, End; public byte[] Kind; public ushort[] Color; }
+
+    static byte[] data;
+    static List<int> baseNums = new List<int>();
+    static Dictionary<int, ushort[]> bases = new Dictionary<int, ushort[]>();
+    static List<int[]> transKeys = new List<int[]>();          // from, to, k
+    static List<ushort[]> transData = new List<ushort[]>();
+    static Dictionary<string, Overlay> overlays = new Dictionary<string, Overlay>();
+    static int[][] layout = new int[Transitions][];            // stream index per diamond pixel
+
+    static int Start(int y) { return y < 24 ? 2 * (23 - y) : 2 * (y - 24); }
+
+    static ushort U16(int p) { return BitConverter.ToUInt16(data, p); }
+
+    static ushort[] Words(int p, int count)
+    {
+        ushort[] w = new ushort[count];
+        for (int i = 0; i < count; i++) w[i] = U16(p + 2 * i);
+        return w;
+    }
+
+    // the kinds and colors of a tile image (RLE as in tileutils_EncodeTile16)
+    static Overlay DecodeOverlay(int p)
+    {
+        Overlay o = new Overlay();
+        o.Start = U16(p); o.End = U16(p + 2);
+        int rows = o.End - o.Start + 1;
+        int table = p + 4, rowsData = table + 2 * rows;
+        o.Kind = new byte[(o.End + 1) * W];
+        o.Color = new ushort[(o.End + 1) * W];
+        for (int j = 0; j < rows; j++)
+        {
+            ushort offset = U16(table + 2 * j);
+            if (offset == 0xFFFF) continue;
+            int q = rowsData + 2 * offset, x = 0, y = o.Start + j;
+            ushort tag;
+            do
+            {
+                tag = U16(q); q += 2;
+                int kind = (tag >> 8) & 0xF, len = tag & 0xFF;
+                for (int i = 0; i < len; i++, x++)
+                {
+                    if (x >= W) { if (kind == 0xC) q += 2; continue; }
+                    int at = y * W + x;
+                    if (kind == 0xC) { o.Kind[at] = Copy; o.Color[at] = U16(q); q += 2; }
+                    else if (kind == 0xD) o.Kind[at] = Shadow;
+                    else if (kind == 0xB) o.Kind[at] = Colorize;
+                }
+            } while ((tag & 0xF000) == 0);
+        }
+        return o;
+    }
+
+    public static int Load(string path)
+    {
+        data = File.ReadAllBytes(path);
+        int p = 0;
+        int transforms = U16(p); p += 2 + transforms * 15 * 2;
+        int tcount = BitConverter.ToInt32(data, p); int tsize = BitConverter.ToInt32(data, p + 4); p += 8;
+        for (int i = 0; i < tcount; i++)
+        {
+            int from = (short)U16(p), to = (short)U16(p + 2); p += 4;
+            for (int k = 0; k < Transitions; k++, p += tsize)
+            {
+                transKeys.Add(new int[] { from, to, k });
+                transData.Add(Words(p, tsize / 2));
+            }
+        }
+        int nbase = BitConverter.ToInt32(data, p); p += 4;
+        for (int i = 0; i < nbase; i++)
+        {
+            int num = U16(p); int tlen = U16(p + 4); p += 6;
+            if (tlen == 2 * Diamond) { baseNums.Add(num); bases[num] = Words(p, tlen / 2); }
+            p += tlen;
+            int hlen = U16(p); p += 2;
+            if (hlen > 0) overlays["hat_" + num] = DecodeOverlay(p);
+            p += hlen;
+        }
+        int rivers = U16(p); p += 2;
+        for (int i = 0; i < rivers; i++)
+        {
+            p += 20;
+            int len = BitConverter.ToInt32(data, p); p += 4;
+            if (len > 0) overlays["riv_" + i] = DecodeOverlay(p);
+            p += len;
+        }
+        int improvements = U16(p); p += 2;
+        for (int i = 0; i < improvements; i++)
+        {
+            int num = U16(p); int len = BitConverter.ToInt32(data, p + 2); p += 6;
+            if (len > 0) overlays["imp_" + num] = DecodeOverlay(p);
+            p += len;
+        }
+
+        // the stream layout of each transition: the same 352 pixels in every tile
+        foreach (int num in baseNums)
+        {
+            ushort[] tile = bases[num];
+            for (int k = 0; k < Transitions; k++)
+            {
+                if (layout[k] != null) continue;
+                int[] index = new int[W * H];
+                int n = 0, i = 0;
+                for (int y = 0; y < H; y++)
+                    for (int x = 0; x < W; x++)
+                    {
+                        index[y * W + x] = -1;
+                        bool inside = x >= Start(y) && x < W - Start(y);
+                        if (inside && tile[i++] == k) index[y * W + x] = n++;
+                    }
+                if (n >= 100) layout[k] = index;
+            }
+        }
+        return baseNums.Count + transData.Count + overlays.Count;
+    }
+
+    static readonly byte[] Magenta = { 255, 0, 255 };
+
+    static void Put(byte[] rgb, int at, ushort color)
+    {
+        int r = (color >> 11) & 31, g = (color >> 5) & 63, b = color & 31;
+        rgb[at * 3] = (byte)((r << 3) | (r >> 2));
+        rgb[at * 3 + 1] = (byte)((g << 2) | (g >> 4));
+        rgb[at * 3 + 2] = (byte)((b << 3) | (b >> 2));
+    }
+
+    static void Fill(byte[] rgb)
+    {
+        for (int i = 0; i < rgb.Length; i += 3) { rgb[i] = 255; rgb[i + 1] = 0; rgb[i + 2] = 255; }
+    }
+
+    static void SaveFilled(byte[] rgb, int w, int h, string path)
+    {
+        Ctp2Assets.BlackKey = false;
+        Ctp2Assets.SavePng(Ctp2Assets.FillTransparent(rgb, w, h), w, h, path);
+    }
+
+    // the images for the upscaler (unknown pixels filled from the neighbours,
+    // so the diamonds get no dark fringes)
+    public static void Export(string dir)
+    {
+        foreach (int num in baseNums)
+        {
+            byte[] rgb = new byte[W * H * 3]; Fill(rgb);
+            ushort[] tile = bases[num];
+            int i = 0;
+            for (int y = 0; y < H; y++)
+                for (int x = Start(y); x < W - Start(y); x++, i++)
+                    if (tile[i] >= 4) Put(rgb, y * W + x, tile[i]);
+            SaveFilled(rgb, W, H, Path.Combine(dir, "t_base_" + num + ".png"));
+        }
+        for (int t = 0; t < transData.Count; t++)
+        {
+            int k = transKeys[t][2];
+            if (layout[k] == null) continue;
+            byte[] rgb = new byte[W * H * 3]; Fill(rgb);
+            ushort[] stream = transData[t];
+            for (int at = 0; at < W * H; at++)
+                if (layout[k][at] >= 0 && layout[k][at] < stream.Length) Put(rgb, at, stream[layout[k][at]]);
+            SaveFilled(rgb, W, H, Path.Combine(dir, "t_tr_" + t + ".png"));
+        }
+        foreach (KeyValuePair<string, Overlay> e in overlays)
+        {
+            Overlay o = e.Value;
+            int h = o.End + 1;
+            byte[] rgb = new byte[W * h * 3]; Fill(rgb);
+            byte[] mask = new byte[W * h * 3];
+            bool any = false;
+            for (int at = 0; at < W * h; at++)
+                if (o.Kind[at] == Copy) { Put(rgb, at, o.Color[at]); mask[at * 3] = mask[at * 3 + 1] = mask[at * 3 + 2] = 255; any = true; }
+            if (!any) continue;
+            SaveFilled(rgb, W, h, Path.Combine(dir, "t_" + e.Key + ".png"));
+            Ctp2Assets.SavePng(mask, W, h, Path.Combine(dir, "t_" + e.Key + Ctp2Assets.MaskSuffix + ".png"));
+        }
+    }
+
+    static ushort To565(byte[] rgb, int at)
+    {
+        int r = rgb[at * 3] >> 3, g = rgb[at * 3 + 1] >> 2, b = rgb[at * 3 + 2] >> 3;
+        return (ushort)((r << 11) | (g << 5) | b);
+    }
+
+    static byte[] Upscaled(string dir, string name, int w, int h)
+    {
+        string path = Path.Combine(dir, name + ".png");
+        if (!File.Exists(path)) return null;
+        int uw, uh;
+        byte[] rgb = Ctp2Assets.LoadPng(path, out uw, out uh);
+        return (uw == w && uh == h) ? rgb : null;
+    }
+
+    static List<byte[]> records = new List<byte[]>();
+
+    static void Record(int type, int k, int a, int b, List<ushort> words)
+    {
+        byte[] r = new byte[10 + words.Count * 2];
+        r[0] = (byte)type; r[1] = (byte)k;
+        BitConverter.GetBytes((ushort)a).CopyTo(r, 2);
+        BitConverter.GetBytes((ushort)b).CopyTo(r, 4);
+        BitConverter.GetBytes(words.Count).CopyTo(r, 6);
+        for (int i = 0; i < words.Count; i++) BitConverter.GetBytes(words[i]).CopyTo(r, 10 + 2 * i);
+        records.Add(r);
+    }
+
+    // a tile image in the RLE of the game: rows encoded once each, runs of
+    // at most 255, the last one marked as end of line; NULL when too large
+    static List<ushort> EncodeOverlay(byte[] kind, ushort[] color, int w, int start, int end)
+    {
+        List<ushort> offsets = new List<ushort>(), runs = new List<ushort>();
+        for (int y = start; y <= end; y++)
+        {
+            bool empty = true;
+            for (int x = 0; x < w; x++) if (kind[y * w + x] != Clear) { empty = false; break; }
+            if (empty) { offsets.Add(0xFFFF); continue; }
+            if (runs.Count >= 0xFFFF) return null;
+            offsets.Add((ushort)runs.Count);
+            int xx = 0, last = 0;
+            while (xx < w)
+            {
+                byte k = kind[y * w + xx];
+                int len = 1;
+                while (xx + len < w && kind[y * w + xx + len] == k && len < 255) len++;
+                int id = k == Copy ? 0xC : k == Shadow ? 0xD : k == Colorize ? 0xB : 0xA;
+                last = runs.Count;
+                runs.Add((ushort)((id << 8) | len));
+                if (k == Copy) for (int i = 0; i < len; i++) runs.Add(color[y * w + xx + i]);
+                xx += len;
+            }
+            runs[last] = (ushort)(runs[last] | 0xE000);
+        }
+        if (runs.Count > 0xFFFF) return null;
+        List<ushort> words = new List<ushort>();
+        words.Add((ushort)start); words.Add((ushort)end);
+        words.AddRange(offsets); words.AddRange(runs);
+        return words;
+    }
+
+    // the upscaled images in the format of the game, as one file
+    public static int Import(string dir, int s, string target)
+    {
+        records.Clear();
+        int ws = W * s, hs = H * s;
+        foreach (int num in baseNums)
+        {
+            byte[] up = Upscaled(dir, "t_base_" + num, ws, hs);
+            if (up == null) continue;
+            ushort[] tile = bases[num];
+            // the source pixel of every diamond position
+            int[] srcIndex = new int[W * H];
+            int i = 0;
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                    srcIndex[y * W + x] = (x >= Start(y) && x < W - Start(y)) ? i++ : -1;
+            List<ushort> words = new List<ushort>();
+            for (int y = 0; y < hs; y++)
+            {
+                int st = s * Start(y / s);
+                for (int x = st; x < ws - st; x++)
+                {
+                    ushort src = tile[srcIndex[(y / s) * W + x / s]];
+                    if (src < 4) { words.Add(src); continue; }   // transition marker
+                    ushort c = To565(up, y * ws + x);
+                    words.Add(c < 4 ? (ushort)4 : c);
+                }
+            }
+            Record(1, 0, num, 0, words);
+        }
+        for (int t = 0; t < transData.Count; t++)
+        {
+            int k = transKeys[t][2];
+            if (layout[k] == null) continue;
+            byte[] up = Upscaled(dir, "t_tr_" + t, ws, hs);
+            if (up == null) continue;
+            List<ushort> words = new List<ushort>();
+            for (int y = 0; y < hs; y++)
+            {
+                int st = s * Start(y / s);
+                for (int x = st; x < ws - st; x++)
+                    if (layout[k][(y / s) * W + x / s] >= 0) words.Add(To565(up, y * ws + x));
+            }
+            Record(2, k, transKeys[t][0], transKeys[t][1], words);
+        }
+        foreach (KeyValuePair<string, Overlay> e in overlays)
+        {
+            Overlay o = e.Value;
+            int h = o.End + 1;
+            byte[] up = Upscaled(dir, "t_" + e.Key, ws, h * s);
+            byte[] mask = Upscaled(dir, "t_" + e.Key + Ctp2Assets.MaskSuffix, ws, h * s);
+            if (up == null) continue;
+            byte[] kind = new byte[ws * h * s];
+            ushort[] color = new ushort[ws * h * s];
+            for (int y = 0; y < h * s; y++)
+                for (int x = 0; x < ws; x++)
+                {
+                    int at = y * ws + x;
+                    byte src = o.Kind[(y / s) * W + x / s];
+                    bool visible = mask != null ? mask[at * 3 + 1] >= 128 : src == Copy;
+                    if (visible) { kind[at] = Copy; color[at] = To565(up, at); }
+                    else if (src == Shadow || src == Colorize) kind[at] = src;
+                }
+            List<ushort> words = EncodeOverlay(kind, color, ws, o.Start * s, o.End * s + s - 1);
+            if (words == null) continue;
+            string[] parts = e.Key.Split('_');
+            int type = parts[0] == "hat" ? 3 : parts[0] == "riv" ? 4 : 5;
+            Record(type, 0, int.Parse(parts[1]), 0, words);
+        }
+
+        using (FileStream f = File.Create(target))
+        {
+            byte[] head = new byte[16];
+            System.Text.Encoding.ASCII.GetBytes("CTPHDT1").CopyTo(head, 0);
+            BitConverter.GetBytes(s).CopyTo(head, 8);
+            BitConverter.GetBytes(records.Count).CopyTo(head, 12);
+            f.Write(head, 0, head.Length);
+            foreach (byte[] r in records) f.Write(r, 0, r.Length);
+        }
+        return records.Count;
+    }
+}
 '@
 
 Say (L "Spielordner: $Install" "Game folder: $Install")
@@ -588,6 +920,35 @@ if (-not $NoImages) {
         }
         Say (L "Bilder: $ok von $($todo.Count) fertig." "Images: $ok of $($todo.Count) done.")
         if ($ok -eq $todo.Count) { MarkLanguage 'bilder' }
+    }
+}
+
+# --- the terrain of the map (base tiles, transitions, hats, rivers, roads) ------
+# goes to one file in the format of the game, which reads it when the map
+# is drawn in the pixels of the frame (TileSet::ScaleUp)
+$tileSource  = Join-Path $data 'default\graphics\tiles\gtset565.til'
+$terrainFile = Join-Path $target 'tiles\gtset565.hd'
+if ($Status) {
+    $done = if ((Test-Path $terrainFile) -and -not $Force) { 1 } else { 0 }
+    Write-Host "##STATUS gelaende $done 1"
+} elseif (-not $NoTerrain) {
+    if (-not (Test-Path $tileSource)) {
+        Say (L 'Gelaende: gtset565.til nicht gefunden.' 'Terrain: gtset565.til not found.')
+    } elseif ((Test-Path $terrainFile) -and -not $Force) {
+        Say (L 'Gelaende: schon hochskaliert.' 'Terrain: upscaled already.')
+    } else {
+        $tilesIn  = Join-Path $work 'gelaende_ein'
+        $tilesOut = Join-Path $work 'gelaende_aus'
+        foreach ($d in @($tilesIn, $tilesOut, (Split-Path $terrainFile))) { New-Item -ItemType Directory -Force $d | Out-Null }
+        $count = [Ctp2Tiles]::Load($tileSource)
+        Say (L "Gelaende: $count Teile (Kacheln, Uebergaenge, Berge und Waelder, Fluesse, Ausbauten)" "Terrain: $count parts (tiles, transitions, hills and forests, rivers, improvements)")
+        [Ctp2Tiles]::Export($tilesIn)
+        if (Invoke-Esrgan $tilesIn $tilesOut 'png' 'gelaende') {
+            $made = [Ctp2Tiles]::Import($tilesOut, $Scale, $terrainFile)
+            Say (L "Gelaende: $made Teile fertig." "Terrain: $made parts done.")
+        } else {
+            Say (L 'Gelaende: Hochskalieren fehlgeschlagen.' 'Terrain: upscaling failed.')
+        }
     }
 }
 
