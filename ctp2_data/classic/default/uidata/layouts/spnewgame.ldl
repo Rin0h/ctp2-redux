@@ -193,7 +193,7 @@ InitPlayWindow {
 		bool	nodatabase	true
 		string	text	"THIS MATERIAL IS NOT MADE OR SUPPORTED BY ACTIVISION."
 		int	xpix	180
-		int	ypix	19
+		int	ypix	24
 		int	widthpix	440
 		int	heightpix	11
 	int	fontsize	9
