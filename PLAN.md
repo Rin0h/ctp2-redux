@@ -389,7 +389,10 @@ Plan und Entscheidungen (2026-10-28):
     Daten im Speicherformat; Marker, Schatten, Einfärben per Nearest).
     `TileSet::ScaleUp` nimmt diese Teile (HDTerrain), Rest Nearest. 1554
     Teile, 25 MB, wenige Sekunden. Assistent: Schritt 3 Gelände, Schritt 4
-    Einheiten/Städte/Güter (Etappe 3) folgt.
+    Einheiten/Städte/Güter (Etappe 3) folgt. Gelände-Modell: realesrgan-x4plus
+    (Vergleich _local/vergleich_gelaende_modelle.png, Besitzer wählte es:
+    natürlicher, weniger dunkle Konturen als animevideov3), 4x gerechnet und
+    auf den Faktor verkleinert (-TerrainModel).
   - B1 Videos (Skript-Infrastruktur aus M3) – erledigt 2026-10-28: Videos
     Bild für Bild durch Real-ESRGAN, `redux_hires/<N>x/videos/<name>.mkv`
     (H.264 über Media Foundation, Originalton), eigenes ffmpeg.exe aus dem

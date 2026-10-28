@@ -33,6 +33,7 @@ param(
     [switch]$NoImages,
     [switch]$NoVideos,
     [switch]$NoTerrain,
+    [string]$TerrainModel = 'realesrgan-x4plus',   # terrain: photo model (2026-10-28 comparison)
     [switch]$Status,
     [string]$Language = ''
 )
@@ -728,6 +729,30 @@ public static class Ctp2Tiles
     }
 
     // the upscaled images in the format of the game, as one file
+    // the upscaled images from factor 'from' down to factor 's' (bicubic)
+    public static void Resize(string dir, int s, int from)
+    {
+        foreach (string path in Directory.GetFiles(dir, "*.png"))
+        {
+            using (Bitmap src = new Bitmap(path))
+            using (Bitmap dst = new Bitmap(src.Width * s / from, src.Height * s / from, PixelFormat.Format24bppRgb))
+            {
+                using (Graphics g = Graphics.FromImage(dst))
+                {
+                    g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                    g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+                    using (ImageAttributes edges = new ImageAttributes())
+                    {
+                        edges.SetWrapMode(System.Drawing.Drawing2D.WrapMode.TileFlipXY);
+                        g.DrawImage(src, new Rectangle(0, 0, dst.Width, dst.Height), 0, 0, src.Width, src.Height, GraphicsUnit.Pixel, edges);
+                    }
+                }
+                src.Dispose();
+                dst.Save(path, ImageFormat.Png);
+            }
+        }
+    }
+
     public static int Import(string dir, int s, string target)
     {
         records.Clear();
@@ -815,9 +840,9 @@ Say (L "Spielordner: $Install" "Game folder: $Install")
 Say (L "Sprache: $gameLanguage, Ziel: $target" "Language: $gameLanguage, target: $target")
 
 # --- upscale (the work folder must hold only the pictures of this step) -------
-function Invoke-Esrgan([string]$from, [string]$to, [string]$format, [string]$part) {
+function Invoke-Esrgan([string]$from, [string]$to, [string]$format, [string]$part, [string]$model = $Model, [int]$factor = $Scale) {
     # its progress goes to stderr; a log keeps PowerShell from taking it as an error
-    $quoted = @('-i', "`"$from`"", '-o', "`"$to`"", '-n', $Model, '-s', "$Scale", '-f', $format)
+    $quoted = @('-i', "`"$from`"", '-o', "`"$to`"", '-n', $model, '-s', "$factor", '-f', $format)
     $count = @(Get-ChildItem -Path $from -File).Count
     foreach ($extra in @(@(), @('-g', '-1'))) {
         if ($extra.Count) { Say (L 'Mit der Grafikkarte ging es nicht, versuche es mit dem Prozessor (langsam) ...' "The graphics card did not work, trying the processor (slow) ...") }
@@ -943,7 +968,11 @@ if ($Status) {
         $count = [Ctp2Tiles]::Load($tileSource)
         Say (L "Gelaende: $count Teile (Kacheln, Uebergaenge, Berge und Waelder, Fluesse, Ausbauten)" "Terrain: $count parts (tiles, transitions, hills and forests, rivers, improvements)")
         [Ctp2Tiles]::Export($tilesIn)
-        if (Invoke-Esrgan $tilesIn $tilesOut 'png' 'gelaende') {
+        # models of the realesrgan-x4 family only make 4x; their results are
+        # made smaller to the scale
+        $terrainFactor = if ($TerrainModel -like 'realesrgan-x4*') { 4 } else { $Scale }
+        if (Invoke-Esrgan $tilesIn $tilesOut 'png' 'gelaende' $TerrainModel $terrainFactor) {
+            if ($terrainFactor -ne $Scale) { [Ctp2Tiles]::Resize($tilesOut, $Scale, $terrainFactor) }
             $made = [Ctp2Tiles]::Import($tilesOut, $Scale, $terrainFile)
             Say (L "Gelaende: $made Teile fertig." "Terrain: $made parts done.")
         } else {
