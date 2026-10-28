@@ -1452,6 +1452,8 @@ str_ldl_SPNGPS_PlayerText			"Setzt den Startspieler. Bestimmt die Farbe der Zivi
 str_ldl_Disclaimer1				"DIESES MATERIAL WIRD WEDER VON ACTIVISION HERGESTELLT NOCH UNTERSTÜTZT."
 str_ldl_Disclaimer2				"Diese Version von Call To Power 2 wurde bei http://apolyton.net entwickelt"
 str_ldl_Disclaimer3				"Kontakt: ctp2source@apolyton.net"
+str_ldl_Disclaimer_Redux		"ctp2-redux von RinoLetsPlay - Falco Alex, impressum@rinoletsplay.de"
+str_ldl_Disclaimer_Apolyton		"Auf Basis der Apolyton Edition: ctp2source@apolyton.net"
 
 ### Version String ###
 

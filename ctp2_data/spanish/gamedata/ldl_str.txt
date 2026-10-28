@@ -1452,6 +1452,8 @@ str_ldl_SPNGPS_PlayerText			"Establece el jugador inicial. Determina el color de
 str_ldl_Disclaimer1				"ESTE MATERIAL NO ESTÁ HECHO NI ESTÁ SOPORTADO POR ACTIVISION."
 str_ldl_Disclaimer2				"Esta versión de Call To Power 2 ha sido desarrollada en http://apolyton.net"
 str_ldl_Disclaimer3				"Contacte a los autores en ctp2source@apolyton.net"
+str_ldl_Disclaimer_Redux		"ctp2-redux by RinoLetsPlay - Falco Alex, impressum@rinoletsplay.de"
+str_ldl_Disclaimer_Apolyton		"Based on the Apolyton Edition: ctp2source@apolyton.net"
 
 ### Version String ###
 

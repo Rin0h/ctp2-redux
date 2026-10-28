@@ -112,6 +112,9 @@ spritetest_spPress(aui_Control *control, uint32 action, uint32 data, Cookie cook
 
 void
 initialplayscreen_spPress(aui_Control *control, uint32 action, uint32 data, Cookie cookie );
+// ctp2-redux: back from the classic single player screen to the main menu
+void
+spscreen_returnPress(aui_Control *control, uint32 action, uint32 data, Cookie cookie );
 void
 initialplayscreen_mpPress(aui_Control *control, uint32 action, uint32 data, Cookie cookie );
 void

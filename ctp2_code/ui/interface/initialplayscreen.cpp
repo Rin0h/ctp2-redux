@@ -76,6 +76,9 @@ namespace Os
 
 static C3Window				*s_initplayWindow		= NULL;
 static const MBCHAR			*s_initplayWindowLDLBlock = "InitPlayWindow";
+// ctp2-redux: original single player screen (classic interface)
+static C3Window				*s_spWindow			= NULL;
+static const MBCHAR			*s_spWindowLDLBlock	= "SPWindow";
 
 sint32	initialplayscreen_displayMyWindow()
 {
@@ -139,9 +142,12 @@ AUI_ERRCODE initialplayscreen_Initialize( void )
 											initialplayscreen_creditsPress, nullptr);
 	Assert(errcode == AUI_ERRCODE_OK);
 
+	// Apolyton layout: the single player buttons are on the main menu.
+	// ctp2-redux classic layout: they are there too (outside the screen),
+	// and the original "single player" button opens the original single
+	// player screen, if the layout has one.
 	if (aui_Ldl::GetObject(s_initplayWindowLDLBlock, "NewGameButton"))
     {
-	    // Assume Apolyton initial screen layout
 	    (void) aui_Ldl::SetActionFuncAndCookie
             (s_initplayWindowLDLBlock, "NewGameButton", initialplayscreen_newgamePress, nullptr);
 	    (void) aui_Ldl::SetActionFuncAndCookie
@@ -151,11 +157,12 @@ AUI_ERRCODE initialplayscreen_Initialize( void )
 	    (void) aui_Ldl::SetActionFuncAndCookie
             (s_initplayWindowLDLBlock, "OptionsButton", initialplayscreen_optionsPress, nullptr);
     }
-    else
+	if (aui_Ldl::GetObject(s_initplayWindowLDLBlock, "SPButton"))
     {
-        // Original game layout compatibility handler (sort of)
         (void) aui_Ldl::SetActionFuncAndCookie
-            (s_initplayWindowLDLBlock, "SPButton", initialplayscreen_newgamePress, nullptr);
+            (s_initplayWindowLDLBlock, "SPButton",
+             aui_Ldl::IsValid(s_spWindowLDLBlock) ? initialplayscreen_spPress : initialplayscreen_newgamePress,
+             nullptr);
     }
 
 	// Display executable version
@@ -172,6 +179,16 @@ AUI_ERRCODE initialplayscreen_Initialize( void )
 
 void initialplayscreen_Cleanup(void)
 {
+	if (s_spWindow)
+	{
+		if (g_c3ui)
+		{
+			g_c3ui->RemoveWindow(s_spWindow->Id());
+		}
+		(void) aui_Ldl::DeleteHierarchyFromRoot(s_spWindowLDLBlock);
+		s_spWindow = NULL;
+	}
+
 	if (s_initplayWindow)
     {
         if (g_c3ui)
@@ -288,6 +305,91 @@ initialplayscreen_creditsPress(aui_Control *control, uint32 action, uint32 data,
 	if ( action != (uint32)AUI_BUTTON_ACTION_EXECUTE ) return;
 
 	open_CreditsScreen();
+}
+
+//----------------------------------------------------------------------------
+// ctp2-redux: the original single player screen (classic interface), back
+// from the Activision code (spscreen.cpp, removed in 2007). Built from the
+// SPWindow layout block like the main menu.
+//----------------------------------------------------------------------------
+
+static sint32 spscreen_removeMyWindow(uint32 action)
+{
+	if ( action != (uint32)AUI_BUTTON_ACTION_EXECUTE ) return 0;
+	if (g_c3ui && s_spWindow)
+	{
+		(void) g_c3ui->RemoveWindow(s_spWindow->Id());
+	}
+	return 1;
+}
+
+static void spscreen_newgamePress(aui_Control *control, uint32 action, uint32 data, Cookie cookie)
+{
+	if (spscreen_removeMyWindow(action))
+		spnewgamescreen_displayMyWindow();
+}
+
+static void spscreen_loadgamePress(aui_Control *control, uint32 action, uint32 data, Cookie cookie)
+{
+	if ( action != (uint32)AUI_BUTTON_ACTION_EXECUTE ) return;
+	loadsavescreen_displayMyWindow(LSS_LOAD_GAME);
+}
+
+static void spscreen_tutorialPress(aui_Control *control, uint32 action, uint32 data, Cookie cookie)
+{
+	if (spscreen_removeMyWindow(action))
+	{
+		g_theProfileDB->SetTutorialAdvice(TRUE);
+		g_civApp->PostStartGameAction();
+	}
+}
+
+static void spscreen_optionsPress(aui_Control *control, uint32 action, uint32 data, Cookie cookie)
+{
+	// closing the options returns to the main menu
+	if (spscreen_removeMyWindow(action))
+		optionsscreen_displayMyWindow(0);
+}
+
+void spscreen_returnPress(aui_Control *control, uint32 action, uint32 data, Cookie cookie)
+{
+	if (spscreen_removeMyWindow(action))
+		initialplayscreen_displayMyWindow();
+}
+
+static void spscreen_quitPress(aui_Control *control, uint32 action, uint32 data, Cookie cookie)
+{
+	if (spscreen_removeMyWindow(action))
+		ExitGame();
+}
+
+void initialplayscreen_spPress(aui_Control *control, uint32 action, uint32 data, Cookie cookie)
+{
+	if ( action != (uint32)AUI_BUTTON_ACTION_EXECUTE ) return;
+
+	if (!s_spWindow)
+	{
+		s_spWindow = (C3Window *)aui_Ldl::BuildHierarchyFromRoot(s_spWindowLDLBlock);
+		if (!s_spWindow) return;
+
+		struct { const char *name; void (*callback)(aui_Control *, uint32, uint32, Cookie); } const buttons[] =
+		{
+			{ "NewGameButton",  spscreen_newgamePress  },
+			{ "LoadGameButton", spscreen_loadgamePress },
+			{ "TutorialButton", spscreen_tutorialPress },
+			{ "OptionsButton",  spscreen_optionsPress  },
+			{ "ReturnButton",   spscreen_returnPress   },
+			{ "QuitButton",     spscreen_quitPress     },
+		};
+		for (size_t i = 0; i < sizeof(buttons) / sizeof(buttons[0]); i++)
+		{
+			if (aui_Ldl::GetObject(s_spWindowLDLBlock, buttons[i].name))
+				(void) aui_Ldl::SetActionFuncAndCookie(s_spWindowLDLBlock, buttons[i].name, buttons[i].callback, nullptr);
+		}
+	}
+
+	if (initialplayscreen_removeMyWindow(action))
+		g_c3ui->AddWindow(s_spWindow);
 }
 
 // Code for new buttons taked from spscreen.cpp (and altered)

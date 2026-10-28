@@ -17,6 +17,14 @@ aui_FileFormat * C3MemMap::GetFileFormat(MBCHAR const * filename)
 			return new TargaImageFormat;
 		if ( !strnicmp( extension, "tif", 3 ) )
 			return new TiffImageFormat;
+		// ctp2-redux: "name.rim" takes the picture from the .zfs packages
+		// even when a loose name.tga overrides it (classic interface)
+		if ( !strnicmp( extension, "rim", 3 ) )
+			return new TargaImageFormat;
+		// ctp2-redux: "name.rim" takes the picture from the .zfs packages
+		// even when a loose name.tga overrides it (classic interface)
+		if ( !strnicmp( extension, "rim", 3 ) )
+			return new TargaImageFormat;
 	}
 
     return aui_MemMap::GetFileFormat(filename);
