@@ -1,8 +1,14 @@
 # ctp2-redux: upscales the graphics of your own Call to Power II
 # installation for the HD display (sharp scaling 2x to 4x).
 #
-#   ctp2-redux-hochskalieren.bat               (double-click, in the game folder)
+#   ctp2-redux-hochskalieren.bat               (double-click: setup window,
+#                                               ctp2-redux-hd-setup.ps1)
 #   powershell -File ctp2-redux-hochskalieren.ps1 [-Install <folder>] [-Scale 3] [-Force]
+#                                               [-NoImages] [-NoVideos] [-Status]
+#                                               [-Language de|en]
+#
+# -Status only counts what is done (lines "##STATUS bilder|videos <done> <total>")
+# for the setup window, which runs the work in steps.
 #
 # Reads the images of the game (packages pic565.zfs/pat565.zfs and loose
 # .tga files in graphics\pictures and graphics\patterns), enlarges them with
@@ -23,7 +29,11 @@
 param(
     [string]$Install = '',
     [int]$Scale = 0,
-    [switch]$Force
+    [switch]$Force,
+    [switch]$NoImages,
+    [switch]$NoVideos,
+    [switch]$Status,
+    [string]$Language = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -33,15 +43,20 @@ $EsrganUrl  = 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0
 $EsrganExe  = 'realesrgan-ncnn-vulkan.exe'
 $Model      = 'realesr-animevideov3'
 
+# messages in German or English (default: the language of Windows)
+if (-not $Language) { $Language = if ([Globalization.CultureInfo]::CurrentUICulture.TwoLetterISOLanguageName -eq 'de') { 'de' } else { 'en' } }
+function L([string]$de, [string]$en) { if ($Language -eq 'en') { return $en } return $de }
 function Say([string]$text) { Write-Host $text }
-function Fail([string]$text) { Write-Host ''; Write-Host "FEHLER: $text" -ForegroundColor Red; exit 1 }
+# for the setup window (ctp2-redux-hd-setup.ps1): part, done, total
+function Progress([string]$part, [int]$done, [int]$total) { Write-Host "##FORTSCHRITT $part $done $total" }
+function Fail([string]$text) { Write-Host ''; Write-Host "$(L 'FEHLER' 'ERROR'): $text" -ForegroundColor Red; exit 1 }
 
 # --- the installation ---------------------------------------------------------
 if (-not $Install) { $Install = $PSScriptRoot }
 $Install = (Resolve-Path $Install).Path
 $data = Join-Path $Install 'ctp2_data'
 if (-not (Test-Path (Join-Path $data 'default\graphics\pictures\pic565.zfs'))) {
-    Fail "Keine Spieldaten gefunden unter '$data'. Das Skript gehoert in den Spielordner (dort, wo ctp2_data liegt)."
+    Fail (L "Keine Spieldaten gefunden unter '$data'. Das Skript gehoert in den Spielordner (dort, wo ctp2_data liegt)." "No game data found in '$data'. The script belongs in the game folder (where ctp2_data is).")
 }
 
 # the program folder (GOG: ctp2_program\ctp, working copy: ctp2_code\ctp)
@@ -77,27 +92,27 @@ if ($Scale -le 0) {
     $profileScale = Get-ProfileScale
     if ($null -eq $profileScale -or $profileScale -eq 0) {
         $Scale = Get-AutoScale
-        Say "Skalierung: automatisch -> $Scale-fach"
+        Say (L "Skalierung: automatisch -> $Scale-fach" "Scaling: automatic -> $($Scale)x")
     } elseif ($profileScale -lt 0) {
-        Fail 'Die Skalierung ist im Spiel ausgeschaltet (Optionen -> Grafik). Stelle sie ein oder starte das Skript mit -Scale 2, 3 oder 4.'
+        Fail (L 'Die Skalierung ist im Spiel ausgeschaltet (Optionen -> Grafik). Stelle sie ein oder starte das Skript mit -Scale 2, 3 oder 4.' "Scaling is off in the game (Options -> Graphics). Turn it on or start the script with -Scale 2, 3 or 4.")
     } else {
         $Scale = $profileScale
-        Say "Skalierung laut Spielprofil: $Scale-fach"
+        Say (L "Skalierung laut Spielprofil: $Scale-fach" "Scaling from the game profile: $($Scale)x")
     }
 }
 if ($Scale -lt 2 -or $Scale -gt 4) {
-    Say "Bei $Scale-fach gibt es nichts hochzuskalieren (moeglich: 2, 3, 4)."
+    Say (L "Bei $Scale-fach gibt es nichts hochzuskalieren (moeglich: 2, 3, 4)." "Nothing to upscale at $($Scale)x (possible: 2, 3, 4).")
     exit 0
 }
 
 # --- the language folder (localized images override default ones) -----------
-$language = 'english'
+$gameLanguage = 'english'
 if ($program) {
     foreach ($f in @('civpaths.txt', 'x64\civpaths.txt')) {
         $path = Join-Path $program $f
         if (Test-Path $path) {
             $lines = @(Get-Content $path | Where-Object { $_.Trim() })
-            if ($lines.Count -ge 4) { $language = $lines[3].Trim() }
+            if ($lines.Count -ge 4) { $gameLanguage = $lines[3].Trim() }
             break
         }
     }
@@ -111,23 +126,30 @@ $work    = Join-Path $hires '_arbeit'
 $inDir   = Join-Path $work 'ein'
 $outDir  = Join-Path $work 'aus'
 $origDir = Join-Path $work 'original'
-foreach ($d in @($target, $tools, $inDir, $outDir, $origDir)) { New-Item -ItemType Directory -Force $d | Out-Null }
+foreach ($d in @($target, $tools, $inDir, $outDir, $origDir)) {
+    if ($Status -and $d -eq $target) { continue }
+    New-Item -ItemType Directory -Force $d | Out-Null
+}
+# images the game has but that cannot be read count as done
+$skippedList = Join-Path $target '_uebersprungen.txt'
+$skipped = @{}
+if (Test-Path $skippedList) { foreach ($n in Get-Content $skippedList) { $skipped[$n] = $true } }
 
 # --- Real-ESRGAN, once ----------------------------------------------------------
 $esrgan = Get-ChildItem -Path $tools -Recurse -Filter $EsrganExe -ErrorAction SilentlyContinue | Select-Object -First 1
-if (-not $esrgan) {
-    Say 'Lade Real-ESRGAN (einmalig, ca. 45 MB) von github.com/xinntao/Real-ESRGAN ...'
+if (-not $esrgan -and -not $Status) {
+    Say (L 'Lade Real-ESRGAN (einmalig, ca. 45 MB) von github.com/xinntao/Real-ESRGAN ...' "Downloading Real-ESRGAN (once, about 45 MB) from github.com/xinntao/Real-ESRGAN ...")
     $zip = Join-Path $tools 'realesrgan.zip'
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         Invoke-WebRequest -Uri $EsrganUrl -OutFile $zip -UseBasicParsing
     } catch {
-        Fail "Download fehlgeschlagen: $($_.Exception.Message)"
+        Fail (L "Download fehlgeschlagen: $($_.Exception.Message)" "Download failed: $($_.Exception.Message)")
     }
     Expand-Archive -Path $zip -DestinationPath (Join-Path $tools 'realesrgan') -Force
     Remove-Item $zip
     $esrgan = Get-ChildItem -Path $tools -Recurse -Filter $EsrganExe | Select-Object -First 1
-    if (-not $esrgan) { Fail 'Real-ESRGAN wurde nicht gefunden.' }
+    if (-not $esrgan) { Fail (L 'Real-ESRGAN wurde nicht gefunden.' "Real-ESRGAN was not found.") }
 }
 
 # --- the pixel work (C#) --------------------------------------------------------
@@ -435,99 +457,115 @@ public static class Ctp2Assets
 }
 '@
 
-# --- collect the images (later sources override earlier ones, like the game) --
-Say "Spielordner: $Install"
-Say "Sprache: $language, Ziel: $target"
-$rims  = @{}
-$loose = @{}
-foreach ($dir in @('default', $language)) {
-    foreach ($kind in @(@{ folder = 'pictures'; zfs = 'pic565.zfs' }, @{ folder = 'patterns'; zfs = 'pat565.zfs' })) {
-        $base = Join-Path $data "$dir\graphics\$($kind.folder)"
-        $zfs = Join-Path $base $kind.zfs
-        if (Test-Path $zfs) {
-            $entries = [Ctp2Assets]::ReadZfs($zfs)
-            foreach ($name in $entries.Keys) {
-                if ($name -like '*.rim') { $rims[[IO.Path]::GetFileNameWithoutExtension($name).ToLower()] = $entries[$name] }
-            }
-        }
-        if (Test-Path $base) {
-            foreach ($f in Get-ChildItem -Path $base -Filter '*.tga') {
-                $loose[$f.BaseName.ToLower()] = $f.FullName
-            }
-        }
-    }
-}
-# a loose .tga overrides the picture of the package; where both exist the
-# package version is kept as <name>_rim (the classic interface asks for
-# name.rim to get the original picture, see LoadHD in the game)
-$sources = [ordered]@{}
-foreach ($name in $rims.Keys) {
-    $key = $name
-    if ($loose.ContainsKey($name)) { $key = $name + '_rim' }
-    $sources[$key] = @{ rim = $rims[$name] }
-}
-foreach ($name in $loose.Keys) { $sources[$name] = @{ tga = $loose[$name] } }
-# the mouse cursors (black is their transparent color)
-foreach ($dir in @('default', $language)) {
-    $base = Join-Path $data "$dir\graphics\cursors"
-    if (Test-Path $base) {
-        foreach ($f in Get-ChildItem -Path $base -Filter '*.tga') { $sources[$f.BaseName.ToLower()] = @{ tga = $f.FullName; black = $true } }
-    }
-}
-Say "Bilder gefunden: $($sources.Count)"
+Say (L "Spielordner: $Install" "Game folder: $Install")
+Say (L "Sprache: $gameLanguage, Ziel: $target" "Language: $gameLanguage, target: $target")
 
-# --- export (only what is not done yet) -----------------------------------------
-$todo = @()
-foreach ($name in $sources.Keys) {
-    if (-not $Force -and (Test-Path (Join-Path $target "$name.tga"))) { continue }
-    $src = $sources[$name]
-    $w = 0; $h = 0
-    try {
-        if ($src.rim) { $rgb = [Ctp2Assets]::DecodeRim($src.rim, [ref]$w, [ref]$h) }
-        else          { $rgb = [Ctp2Assets]::DecodeTga([IO.File]::ReadAllBytes($src.tga), [ref]$w, [ref]$h) }
-        if ($w -lt 1 -or $h -lt 1) { continue }
-        [Ctp2Assets]::BlackKey = [bool]$src.black
-        [Ctp2Assets]::Export($rgb, $w, $h, $name, $inDir, $origDir)
-        $todo += $name
-    } catch {
-        Say "  uebersprungen: $name ($($_.Exception.Message))"
-    }
-}
 # --- upscale (the work folder must hold only the pictures of this step) -------
-function Invoke-Esrgan([string]$from, [string]$to, [string]$format) {
+function Invoke-Esrgan([string]$from, [string]$to, [string]$format, [string]$part) {
     # its progress goes to stderr; a log keeps PowerShell from taking it as an error
     $quoted = @('-i', "`"$from`"", '-o', "`"$to`"", '-n', $Model, '-s', "$Scale", '-f', $format)
     $count = @(Get-ChildItem -Path $from -File).Count
     foreach ($extra in @(@(), @('-g', '-1'))) {
-        if ($extra.Count) { Say 'Mit der Grafikkarte ging es nicht, versuche es mit dem Prozessor (langsam) ...' }
-        Start-Process -FilePath $esrgan.FullName -ArgumentList ($quoted + $extra) -NoNewWindow -Wait `
-            -RedirectStandardError (Join-Path $work 'esrgan.log') -RedirectStandardOutput (Join-Path $work 'esrgan-out.log') | Out-Null
-        if (@(Get-ChildItem -Path $to -File).Count -ge $count) { return $true }
+        if ($extra.Count) { Say (L 'Mit der Grafikkarte ging es nicht, versuche es mit dem Prozessor (langsam) ...' "The graphics card did not work, trying the processor (slow) ...") }
+        $process = Start-Process -FilePath $esrgan.FullName -ArgumentList ($quoted + $extra) -NoNewWindow -PassThru `
+            -RedirectStandardError (Join-Path $work 'esrgan.log') -RedirectStandardOutput (Join-Path $work 'esrgan-out.log')
+        while (-not $process.WaitForExit(1000)) { Progress $part (@(Get-ChildItem -Path $to -File).Count) $count }
+        $done = @(Get-ChildItem -Path $to -File).Count
+        Progress $part $done $count
+        if ($done -ge $count) { return $true }
     }
     return $false
 }
 
+# --- collect the images (later sources override earlier ones, like the game) --
 $ok = 0
-if ($todo.Count -eq 0) {
-    Say 'Bilder: alles schon hochskaliert. (Mit -Force neu erzeugen.)'
-} else {
-    Say "Hochzuskalieren: $($todo.Count) Bilder"
-    Say "Skaliere mit Real-ESRGAN ($Model, $Scale-fach) ... das kann je nach Grafikkarte einige Minuten dauern."
-    Invoke-Esrgan $inDir $outDir 'png' | Out-Null
-
-    # --- import -----------------------------------------------------------------
-    foreach ($name in $todo) {
-        $up = Join-Path $outDir "$name.png"
-        if (-not (Test-Path $up)) { Say "  fehlt: $name"; continue }
-        try {
-            [Ctp2Assets]::BlackKey = [bool]$sources[$name].black
-            [Ctp2Assets]::Import($up, (Join-Path $origDir "$name.png"), $Scale, (Join-Path $target "$name.tga"))
-            $ok++
-        } catch {
-            Say "  fehlgeschlagen: $name ($($_.Exception.Message))"
+if (-not $NoImages) {
+    $rims  = @{}
+    $loose = @{}
+    foreach ($dir in @('default', $gameLanguage)) {
+        foreach ($kind in @(@{ folder = 'pictures'; zfs = 'pic565.zfs' }, @{ folder = 'patterns'; zfs = 'pat565.zfs' })) {
+            $base = Join-Path $data "$dir\graphics\$($kind.folder)"
+            $zfs = Join-Path $base $kind.zfs
+            if (Test-Path $zfs) {
+                $entries = [Ctp2Assets]::ReadZfs($zfs)
+                foreach ($name in $entries.Keys) {
+                    if ($name -like '*.rim') { $rims[[IO.Path]::GetFileNameWithoutExtension($name).ToLower()] = $entries[$name] }
+                }
+            }
+            if (Test-Path $base) {
+                foreach ($f in Get-ChildItem -Path $base -Filter '*.tga') {
+                    $loose[$f.BaseName.ToLower()] = $f.FullName
+                }
+            }
         }
     }
-    Say "Bilder: $ok von $($todo.Count) fertig."
+    # a loose .tga overrides the picture of the package; where both exist the
+    # package version is kept as <name>_rim (the classic interface asks for
+    # name.rim to get the original picture, see LoadHD in the game)
+    $sources = [ordered]@{}
+    foreach ($name in $rims.Keys) {
+        $key = $name
+        if ($loose.ContainsKey($name)) { $key = $name + '_rim' }
+        $sources[$key] = @{ rim = $rims[$name] }
+    }
+    foreach ($name in $loose.Keys) { $sources[$name] = @{ tga = $loose[$name] } }
+    # the mouse cursors (black is their transparent color)
+    foreach ($dir in @('default', $gameLanguage)) {
+        $base = Join-Path $data "$dir\graphics\cursors"
+        if (Test-Path $base) {
+            foreach ($f in Get-ChildItem -Path $base -Filter '*.tga') { $sources[$f.BaseName.ToLower()] = @{ tga = $f.FullName; black = $true } }
+        }
+    }
+    Say (L "Bilder gefunden: $($sources.Count)" "Images found: $($sources.Count)")
+    if ($Status) {
+        $done = @($sources.Keys | Where-Object { $skipped[$_] -or (Test-Path (Join-Path $target "$_.tga")) }).Count
+        Write-Host "##STATUS bilder $done $($sources.Count)"
+        $sources = [ordered]@{}
+    }
+
+    # --- export (only what is not done yet) -----------------------------------------
+    $todo = @()
+    $n = 0
+    foreach ($name in $sources.Keys) {
+        if (($n++ % 100) -eq 0) { Progress 'vorbereiten' $n $sources.Count }
+        if (-not $Force -and ($skipped[$name] -or (Test-Path (Join-Path $target "$name.tga")))) { continue }
+        $src = $sources[$name]
+        $w = 0; $h = 0
+        try {
+            if ($src.rim) { $rgb = [Ctp2Assets]::DecodeRim($src.rim, [ref]$w, [ref]$h) }
+            else          { $rgb = [Ctp2Assets]::DecodeTga([IO.File]::ReadAllBytes($src.tga), [ref]$w, [ref]$h) }
+            if ($w -lt 1 -or $h -lt 1) { continue }
+            [Ctp2Assets]::BlackKey = [bool]$src.black
+            [Ctp2Assets]::Export($rgb, $w, $h, $name, $inDir, $origDir)
+            $todo += $name
+        } catch {
+            Say (L "  uebersprungen: $name ($($_.Exception.Message))" "  skipped: $name ($($_.Exception.Message))")
+            if (-not $skipped[$name]) { Add-Content -Path $skippedList -Value $name; $skipped[$name] = $true }
+        }
+    }
+    if ($todo.Count -eq 0) {
+        Say (L 'Bilder: alles schon hochskaliert. (Mit -Force neu erzeugen.)' "Images: all upscaled already. (-Force makes them again.)")
+    } else {
+        Say (L "Hochzuskalieren: $($todo.Count) Bilder" "To upscale: $($todo.Count) images")
+        Say (L "Skaliere mit Real-ESRGAN ($Model, $Scale-fach) ... das kann je nach Grafikkarte einige Minuten dauern." "Upscaling with Real-ESRGAN ($Model, $($Scale)x) ... depending on the graphics card this takes some minutes.")
+        Invoke-Esrgan $inDir $outDir 'png' 'bilder' | Out-Null
+
+        # --- import -----------------------------------------------------------------
+        $n = 0
+        foreach ($name in $todo) {
+            if (($n++ % 100) -eq 0) { Progress 'einlesen' $n $todo.Count }
+            $up = Join-Path $outDir "$name.png"
+            if (-not (Test-Path $up)) { Say (L "  fehlt: $name" "  missing: $name"); continue }
+            try {
+                [Ctp2Assets]::BlackKey = [bool]$sources[$name].black
+                [Ctp2Assets]::Import($up, (Join-Path $origDir "$name.png"), $Scale, (Join-Path $target "$name.tga"))
+                $ok++
+            } catch {
+                Say (L "  fehlgeschlagen: $name ($($_.Exception.Message))" "  failed: $name ($($_.Exception.Message))")
+            }
+        }
+        Say (L "Bilder: $ok von $($todo.Count) fertig." "Images: $ok of $($todo.Count) done.")
+    }
 }
 
 # --- the videos -------------------------------------------------------------------
@@ -546,22 +584,30 @@ function Invoke-Ffmpeg([string[]]$arguments) {
 }
 
 $videos = [ordered]@{}
-foreach ($dir in @('default', $language)) {
+foreach ($dir in @('default', $gameLanguage)) {
     $base = Join-Path $data "$dir\videos"
     if (Test-Path $base) {
         foreach ($f in Get-ChildItem -Path $base -Filter '*.avi') { $videos[$f.BaseName.ToLower()] = $f.FullName }
     }
 }
 $videoDir = Join-Path $target 'videos'
-$videoTodo = @($videos.Keys | Where-Object { $Force -or -not (Test-Path (Join-Path $videoDir "$_.mkv")) })
+$videoTodo = @($videos.Keys | Where-Object { -not $NoVideos } | Where-Object { $Force -or -not (Test-Path (Join-Path $videoDir "$_.mkv")) })
+if ($Status) {
+    $done = @($videos.Keys | Where-Object { Test-Path (Join-Path $videoDir "$_.mkv") }).Count
+    Write-Host "##STATUS videos $done $($videos.Count)"
+    Remove-Item -Recurse -Force $work
+    exit 0
+}
 $videoOk = 0
-if (-not $ffmpeg) {
-    Say 'Videos: ffmpeg.exe nicht gefunden (gehoert neben dieses Skript), Videos bleiben im Original.'
+if ($NoVideos) {
+    # not wanted
+} elseif (-not $ffmpeg) {
+    Say (L 'Videos: ffmpeg.exe nicht gefunden (gehoert neben dieses Skript), Videos bleiben im Original.' "Videos: ffmpeg.exe not found (belongs next to this script), the videos stay original.")
 } elseif ($videoTodo.Count -eq 0) {
-    Say 'Videos: alles schon hochskaliert.'
+    Say (L 'Videos: alles schon hochskaliert.' "Videos: all upscaled already.")
 } else {
     New-Item -ItemType Directory -Force $videoDir | Out-Null
-    Say "Videos: $($videoTodo.Count) hochzuskalieren, je etwa eine halbe Minute ..."
+    Say (L "Videos: $($videoTodo.Count) hochzuskalieren, je etwa eine halbe Minute ..." "Videos: $($videoTodo.Count) to upscale ...")
     $frames   = Join-Path $work 'video_ein'
     $upFrames = Join-Path $work 'video_aus'
     $bitrate  = "$([int]($Scale * $Scale * 500))k"
@@ -569,6 +615,7 @@ if (-not $ffmpeg) {
     foreach ($name in $videoTodo) {
         $n++
         Say "  ($n/$($videoTodo.Count)) $name"
+        Progress 'videos' ($n - 1) $videoTodo.Count
         $source = $videos[$name]
         foreach ($d in @($frames, $upFrames)) {
             Remove-Item -Recurse -Force $d -ErrorAction SilentlyContinue
@@ -581,21 +628,23 @@ if (-not $ffmpeg) {
         if ($match) { $rate = $match.Matches[0].Groups[1].Value }
 
         if ((Invoke-Ffmpeg @('-i', $source, '-fps_mode', 'passthrough', (Join-Path $frames '%05d.bmp'))) -ne 0) {
-            Say "    uebersprungen: Video nicht lesbar"; continue
+            Say (L "    uebersprungen: Video nicht lesbar" "    skipped: video not readable"); continue
         }
-        if (-not (Invoke-Esrgan $frames $upFrames 'webp')) { Say "    uebersprungen: Hochskalieren fehlgeschlagen"; continue }
+        if (-not (Invoke-Esrgan $frames $upFrames 'webp' 'videobilder')) { Say (L "    uebersprungen: Hochskalieren fehlgeschlagen" "    skipped: upscaling failed"); continue }
 
         # H.264 by Windows (Media Foundation), MPEG-4 where that is missing; the sound stays
-        $out = Join-Path $videoDir "$name.mkv"
+        # written under a temporary name, so a cancelled run leaves no half video
+        $out = Join-Path $videoDir "$name.tmp.mkv"
         $encodeFrom = @('-framerate', $rate, '-i', (Join-Path $upFrames '%05d.webp'), '-i', $source, '-map', '0:v', '-map', '1:a?', '-c:a', 'copy')
         $code = Invoke-Ffmpeg ($encodeFrom + @('-c:v', 'h264_mf', '-b:v', $bitrate, '-pix_fmt', 'nv12', $out))
         if ($code -ne 0) { $code = Invoke-Ffmpeg ($encodeFrom + @('-c:v', 'mpeg4', '-q:v', '2', $out)) }
-        if ($code -eq 0) { $videoOk++ } else { Remove-Item $out -ErrorAction SilentlyContinue; Say "    fehlgeschlagen (siehe ffmpeg)" }
+        if ($code -eq 0) { Move-Item -Force $out (Join-Path $videoDir "$name.mkv"); $videoOk++ } else { Remove-Item $out -ErrorAction SilentlyContinue; Say (L "    fehlgeschlagen (siehe ffmpeg)" "    failed (see ffmpeg)") }
     }
-    Say "Videos: $videoOk von $($videoTodo.Count) fertig."
+    Progress 'videos' $videoTodo.Count $videoTodo.Count
+    Say (L "Videos: $videoOk von $($videoTodo.Count) fertig." "Videos: $videoOk of $($videoTodo.Count) done.")
 }
 Remove-Item -Recurse -Force $work
 
 Say ''
-Say "Fertig. HD-Dateien in $target."
-Say 'Die HD-Dateien gelten fuer die eingestellte Skalierung. Rueckgaengig: den Ordner redux_hires loeschen.'
+Say (L "Fertig. HD-Dateien in $target." "Done. HD files in $target.")
+Say (L 'Die HD-Dateien gelten fuer die eingestellte Skalierung. Rueckgaengig: den Ordner redux_hires loeschen.' "The HD files are for the chosen scaling. To undo: delete the folder redux_hires.")

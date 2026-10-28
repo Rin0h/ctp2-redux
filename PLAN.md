@@ -365,7 +365,19 @@ Plan und Entscheidungen (2026-10-28):
     Längen u32. Farbe per KI, Schlüsselfarben (Übergang 0–3, Colorize,
     Schatten, Chroma) über Nearest-Masken. Risiko: u16-Zeilenoffsets bei 4x
     (ggf. nur 2x/3x), Speicher N², Arbeitskarte/Ressourcenkarte/tilecontrol.
-  - B1 Videos (Skript-Infrastruktur aus M3).
+  - B1 Videos (Skript-Infrastruktur aus M3) – erledigt 2026-10-28: Videos
+    Bild für Bild durch Real-ESRGAN, `redux_hires/<N>x/videos/<name>.mkv`
+    (H.264 über Media Foundation, Originalton), eigenes ffmpeg.exe aus dem
+    FFmpeg des Spiels (LGPL, baut win-build.ps1). 35 Videos ≈ 22 min, 386 MB
+    bei 3x.
+  - Einrichtungsassistent (Wunsch des Besitzers 2026-10-28): die .bat öffnet
+    `ctp2-redux-hd-setup.ps1` (WinForms, Sprache Deutsch/Englisch beim
+    Start): Spielordner (auch GOG-Registry), Skalierung mit Spielfläche je
+    Stufe (stellt das Spielprofil mit ein), Schritte 1 Oberfläche, 2 Videos,
+    3 Karte (später) mit Stand („12 von 35“); nur der nächste offene Schritt
+    vorgewählt, damit schwache Rechner Etappen machen; Abbrechen jederzeit,
+    nächster Lauf macht weiter. Arbeitsskript: `-NoImages/-NoVideos/-Status/
+    -Language`, Fortschritt als `##FORTSCHRITT`-Zeilen.
 - Werkzeuge beim Spieler: eigenes `ctp2-assets.exe` (mit dem Spiel gebaut,
   FFmpeg ist schon drin; zfs/spr/til/Videos entpacken und packen) und
   Real-ESRGAN ncnn-vulkan (BSD-3, jede Vulkan-GPU, CPU-Notlauf), das Skript

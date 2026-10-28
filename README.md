@@ -47,7 +47,10 @@ upstream.
   factor (automatic: 4K → 1920x1080 doubled) and is enlarged pixel by
   pixel instead of being blurred.
 - **HD interface graphics**: `tools/upscale/ctp2-redux-hochskalieren.bat`
-  (in the game folder) upscales the interface images of your own
+  (in the game folder) opens a setup window (German or English) that leads
+  through game folder, scaling and the steps – 1 interface, 2 videos – each
+  of which can be done on its own, cancelled and continued later. It
+  upscales the interface images of your own
   installation with Real-ESRGAN (realesr-animevideov3, downloaded once from
   its GitHub release) into `ctp2_data/redux_hires/<scale>x`; the game draws
   windows and text at monitor resolution and takes these images. Nothing
@@ -394,7 +397,10 @@ spiegelt das Upstream-Projekt.
   ganzen Faktor (automatisch: 4K → 1920x1080 verdoppelt) und wird Pixel für
   Pixel vergrößert statt weichgezeichnet.
 - **HD-Oberflächengrafiken**: `tools/upscale/ctp2-redux-hochskalieren.bat`
-  (im Spielordner) skaliert die Oberflächenbilder der eigenen Installation
+  (im Spielordner) öffnet einen Einrichtungsassistenten (Deutsch oder
+  Englisch) mit Spielordner, Skalierung und Schritten – 1 Oberfläche,
+  2 Videos –, die sich einzeln erledigen, abbrechen und später fortsetzen
+  lassen. Er skaliert die Oberflächenbilder der eigenen Installation
   mit Real-ESRGAN (realesr-animevideov3, einmalig von dessen GitHub-Seite
   geladen) nach `ctp2_data/redux_hires/<Faktor>x`; das Spiel zeichnet
   Fenster und Schrift in Monitorauflösung und nimmt diese Bilder. Wir

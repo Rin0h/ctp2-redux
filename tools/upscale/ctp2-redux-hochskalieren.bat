@@ -1,6 +1,3 @@
 @echo off
-rem ctp2-redux: HD-Grafiken aus der eigenen Installation erzeugen (siehe .ps1)
-cd /d "%~dp0"
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0ctp2-redux-hochskalieren.ps1" %*
-echo.
-pause
+rem ctp2-redux: HD-Einrichtung / HD setup (window with steps, see ctp2-redux-hd-setup.ps1)
+start "" powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%~dp0ctp2-redux-hd-setup.ps1" %*
