@@ -35,6 +35,12 @@ upstream.
   show the file for sending it by hand.
 - **Automated multiplayer test**: two instances play a game against each
   other in the background, see [below](#automated-multiplayer-test).
+- **Classic interface** (profile option `ClassicInterface`, on by default):
+  the screens and windows of the original game from 2000 instead of the
+  ones the Apolyton Edition redesigned (main menu, new game pop-ups, city
+  window with tabs, domestic manager, diplomacy wizard, army manager); the
+  Apolyton additions are fitted into them. The layouts are in
+  `ctp2_data/classic`; switched off, the game shows the Apolyton interface.
 - Upscaling: analysis done, implementation not started.
 
 ### Automated multiplayer test
@@ -363,6 +369,13 @@ spiegelt das Upstream-Projekt.
   als Anhang öffnet sich) oder die Datei zum selbst Verschicken zu zeigen.
 - **Automatischer Multiplayer-Test**: Zwei Instanzen spielen im Hintergrund
   gegeneinander, siehe unten.
+- **Klassische Oberfläche** (Profiloption `ClassicInterface`, Standard an):
+  die Bildschirme und Fenster des Originals von 2000 statt der von der
+  Apolyton Edition umgestalteten (Hauptmenü, Fenster von „Neues Spiel“,
+  Stadtfenster mit Reitern, Inlandsmanager, Diplomatie-Assistent,
+  Truppenmanager); die Apolyton-Ergänzungen sind darin eingepasst. Die
+  Layouts liegen in `ctp2_data/classic`; ausgeschaltet zeigt das Spiel die
+  Apolyton-Oberfläche.
 - Hochskalierung: Analyse abgeschlossen, Umsetzung steht aus.
 
 ### Automatischer Multiplayer-Test

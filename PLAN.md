@@ -411,8 +411,12 @@ keins (Platz war auskommentiert).
 Handel, Einheiten, Wissenschaft, Info, Bibliothek usw. haben schon
 Originalgröße und -optik, Apolyton hat dort nur Spalten/Knöpfe ergänzt
 oder Listen um ein paar Pixel ausgerichtet (Commit 914e8c947) – bleiben.
-Noch offen: Armeemanager (Apolyton 2021 auf Dialogfenster umgestellt),
-Steuerleiste (2 Kartenknöpfe), Szenario-Editor.
+Truppenmanager (`armymanager.ldl`): wieder 485x225; Liste zeigt die
+Truppennamen (etwas breiter), Truppentext zwischen den Knöpfen, kleine
+Einheitensymbole (`am_UnitIcon` wählt nach Feldgröße).
+Steuerleiste und Szenario-Editor: nur kleine Ergänzungen im Originalstil,
+bleiben. Damit sind alle Fenster durch; offen ist der Umschalter in den
+Optionen (bisher nur Profilzeile `ClassicInterface=Yes/No`).
 Hinweis Besitzer: Die Oberfläche muss später ohnehin skaliert werden, damit
 sie unter anderen Auflösungen läuft; Plan dazu folgt.
 
