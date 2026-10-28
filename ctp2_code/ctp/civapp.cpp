@@ -1272,6 +1272,10 @@ sint32 CivApp::InitializeApp(HINSTANCE hInstance, int iCmdShow)
 #if defined(_DEBUG) || defined(DEBUG)
 	flags |= SDL_INIT_NOPARACHUTE;
 #endif// _DEBUG || DEBUG
+	// ctp2-redux: real pixels with Windows display scaling (e.g. 200 % on 4K);
+	// without it Windows reports a smaller desktop and blurs the picture
+	// up, so the sharp scaling (display_ApplyScale) would scale twice
+	SDL_SetHint(SDL_HINT_WINDOWS_DPI_AWARENESS, "permonitorv2");
 	int rc = SDL_Init(flags);
 	if (rc != 0)
 	{
