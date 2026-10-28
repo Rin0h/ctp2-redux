@@ -8,7 +8,7 @@ serverselectwindow:nswindow {
 
 	int	widthpix	450
 
-	int	heightpix	260
+	int	heightpix	290
 
 
 	titlestatictext : nstitlestatictext {
@@ -142,26 +142,40 @@ serverselectwindow:nswindow {
 		string	text	"str_ldl_DIRECT_HOST"
 	}
 	myaddressstatictext:nsstatictext {
-		int	xpix	73
-		int	ypix	172
-		int	widthpix	312
+		int	xpix	25
+		int	ypix	173
+		int	widthpix	320
 		int	heightpix	20
 		string	text	""
-		int	srcxpix	73
-		int	srcypix	172
-		int	srcwidthpix	312
+		int	srcxpix	25
+		int	srcypix	173
+		int	srcwidthpix	320
 		int	srcheightpix	20
 	}
 	myaddress6statictext:nsstatictext {
-		int	xpix	73
-		int	ypix	192
-		int	widthpix	312
+		int	xpix	25
+		int	ypix	209
+		int	widthpix	320
 		int	heightpix	20
 		string	text	""
-		int	srcxpix	73
-		int	srcypix	192
-		int	srcwidthpix	312
+		int	srcxpix	25
+		int	srcypix	209
+		int	srcwidthpix	320
 		int	srcheightpix	20
+	}
+	copybutton:nscommonbutton {
+		int	xpix	355
+		int	ypix	166
+		int	widthpix	70
+		int	heightpix	21
+		string	text	"str_ldl_DIRECT_COPY"
+	}
+	copy6button:nscommonbutton {
+		int	xpix	355
+		int	ypix	202
+		int	widthpix	70
+		int	heightpix	21
+		string	text	"str_ldl_DIRECT_COPY"
 	}
 	closebutton:nsclosebutton {
 

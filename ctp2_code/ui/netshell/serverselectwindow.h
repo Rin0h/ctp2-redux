@@ -22,6 +22,7 @@ protected:
 public:
 	void	Update( bool wait = false );
 	void	UpdateMyAddress( void );
+	void	CopyAddress( int which );   // 0 = IPv4 line, 1 = IPv6 line
 	virtual AUI_ERRCODE Idle( void );
 
 	enum CONTROL
@@ -38,6 +39,8 @@ public:
 		CONTROL_DIRECTHOSTBUTTON,
 		CONTROL_MYADDRESSSTATICTEXT,
 		CONTROL_MYADDRESS6STATICTEXT,
+		CONTROL_COPYBUTTON,
+		CONTROL_COPY6BUTTON,
 
 		CONTROL_LAST,
 		CONTROL_MAX = CONTROL_LAST - CONTROL_FIRST
@@ -46,6 +49,10 @@ public:
 protected:
 	aui_Action *m_dbActionArray[ 1 ];
 
+	// ctp2-redux: the own addresses, for the copy buttons
+	MBCHAR	m_copyText[ 2 ][ 128 ];
+	time_t	m_copiedAt[ 2 ];
+
 	AUI_ACTION_BASIC(OKButtonAction);
 	AUI_ACTION_BASIC(CancelButtonAction);
 	AUI_ACTION_BASIC(ServerListBoxAction);
@@ -53,6 +60,8 @@ protected:
 	AUI_ACTION_BASIC(DirectJoinButtonAction);
 	AUI_ACTION_BASIC(DirectHostButtonAction);
 	AUI_ACTION_BASIC(DirectTextFieldAction);
+	AUI_ACTION_BASIC(CopyButtonAction);
+	AUI_ACTION_BASIC(Copy6ButtonAction);
 };
 
 #endif

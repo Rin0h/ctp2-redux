@@ -53,6 +53,10 @@
 #include "passwordscreen.h"
 #include "dialogboxwindow.h"
 #include "spnewgamewindow.h"              // spNew_ctp2_Button
+#include "ctp2_button.h"
+#ifdef __AUI_USE_SDL__
+#include <SDL2/SDL_clipboard.h>
+#endif
 
 static DialogBoxWindow *s_dbw = NULL;
 // When the "waiting for servers" dialog was opened. Without a reachable
@@ -183,6 +187,26 @@ AUI_ERRCODE ServerSelectWindow::CreateControls( void )
 	if ( !AUI_NEWOK(control,errcode) ) return errcode;
 	m_controls[ CONTROL_MYADDRESS6STATICTEXT ] = control;
 
+	control = spNew_ctp2_Button(
+		&errcode,
+		"serverselectwindow",
+		"copybutton",
+		NULL);
+	Assert( AUI_NEWOK(control,errcode) );
+	if ( !AUI_NEWOK(control,errcode) ) return errcode;
+	m_controls[ CONTROL_COPYBUTTON ] = control;
+
+	control = spNew_ctp2_Button(
+		&errcode,
+		"serverselectwindow",
+		"copy6button",
+		NULL);
+	Assert( AUI_NEWOK(control,errcode) );
+	if ( !AUI_NEWOK(control,errcode) ) return errcode;
+	m_controls[ CONTROL_COPY6BUTTON ] = control;
+	memset( m_copyText, 0, sizeof(m_copyText) );
+	m_copiedAt[ 0 ] = m_copiedAt[ 1 ] = 0;
+
 	aui_Ldl::SetupHeirarchyFromRoot( "serverselectwindow" );
 
 
@@ -218,6 +242,16 @@ AUI_ERRCODE ServerSelectWindow::CreateControls( void )
 	if ( !action ) return AUI_ERRCODE_MEMALLOCFAILED;
 	m_controls[ CONTROL_DIRECTTEXTFIELD ]->SetAction( action );
 
+	action = new CopyButtonAction;
+	Assert( action != NULL );
+	if ( !action ) return AUI_ERRCODE_MEMALLOCFAILED;
+	m_controls[ CONTROL_COPYBUTTON ]->SetAction( action );
+
+	action = new Copy6ButtonAction;
+	Assert( action != NULL );
+	if ( !action ) return AUI_ERRCODE_MEMALLOCFAILED;
+	m_controls[ CONTROL_COPY6BUTTON ]->SetAction( action );
+
 
 
 
@@ -228,6 +262,8 @@ AUI_ERRCODE ServerSelectWindow::CreateControls( void )
 	// connection is offered
 	m_controls[ CONTROL_SELECTSERVERLISTBOX ]->Hide();
 	m_controls[ CONTROL_OKBUTTON ]->Hide();
+	m_controls[ CONTROL_COPYBUTTON ]->Hide();     // until the address is known
+	m_controls[ CONTROL_COPY6BUTTON ]->Hide();
 
 	Update();
 
@@ -364,10 +400,12 @@ void ServerSelectWindow::UpdateMyAddress( void )
 		MBCHAR label[256];
 		sprintf( label, "%s %s", g_theStringDB->GetNameStr("str_ldl_DIRECT_YOUR_ADDRESS"), address );
 		text->SetText( label );
+		snprintf( m_copyText[ 0 ], sizeof(m_copyText[ 0 ]), "%s", address );
 	}
 	else
 	{
 		text->SetText( "" );
+		m_copyText[ 0 ][ 0 ] = 0;
 	}
 
 	// second line: the IPv6 address with the same port
@@ -382,17 +420,65 @@ void ServerSelectWindow::UpdateMyAddress( void )
 			MBCHAR label[256];
 			sprintf( label, "IPv6: [%s]%s", v6, port );
 			text6->SetText( label );
+			snprintf( m_copyText[ 1 ], sizeof(m_copyText[ 1 ]), "[%s]%s", v6, port );
 		}
 		else
 #endif
 		{
 			text6->SetText( "" );
+			m_copyText[ 1 ][ 0 ] = 0;
 		}
 	}
+
+	for ( int i = 0; i < 2; i++ )
+	{
+		aui_Control *b = m_controls[ i == 0 ? CONTROL_COPYBUTTON : CONTROL_COPY6BUTTON ];
+		if ( !b ) continue;
+		if ( m_copyText[ i ][ 0 ] ) b->Show(); else b->Hide();
+	}
+}
+
+// Puts the own address into the clipboard; the button says "copied" for a
+// moment (reset in Idle).
+void ServerSelectWindow::CopyAddress( int which )
+{
+	if ( which < 0 || which > 1 || !m_copyText[ which ][ 0 ] ) return;
+
+#ifdef __AUI_USE_SDL__
+	SDL_SetClipboardText( m_copyText[ which ] );
+#elif defined(WIN32)
+	if ( OpenClipboard( NULL ) )
+	{
+		EmptyClipboard();
+		size_t len = strlen( m_copyText[ which ] ) + 1;
+		HGLOBAL mem = GlobalAlloc( GMEM_MOVEABLE, len );
+		if ( mem )
+		{
+			memcpy( GlobalLock( mem ), m_copyText[ which ], len );
+			GlobalUnlock( mem );
+			SetClipboardData( CF_TEXT, mem );
+		}
+		CloseClipboard();
+	}
+#endif
+
+	ctp2_Button *b = (ctp2_Button *)m_controls[ which == 0 ? CONTROL_COPYBUTTON : CONTROL_COPY6BUTTON ];
+	if ( b ) b->SetText( g_theStringDB->GetNameStr("str_ldl_DIRECT_COPIED") );
+	m_copiedAt[ which ] = time( NULL );
 }
 
 AUI_ERRCODE ServerSelectWindow::Idle( void )
 {
+	for ( int i = 0; i < 2; i++ )
+	{
+		if ( m_copiedAt[ i ] && time( NULL ) - m_copiedAt[ i ] >= 2 )
+		{
+			m_copiedAt[ i ] = 0;
+			ctp2_Button *b = (ctp2_Button *)m_controls[ i == 0 ? CONTROL_COPYBUTTON : CONTROL_COPY6BUTTON ];
+			if ( b ) b->SetText( g_theStringDB->GetNameStr("str_ldl_DIRECT_COPY") );
+		}
+	}
+
 	if (g_netfunc)
 	{
 		if ( s_dbw && (g_netfunc->GetStatus() == NETFunc::PRECONNECT ||
@@ -613,6 +699,24 @@ void ServerSelectWindow::DirectHostButtonAction::Execute(
 		strncpy( g_serverName, "", 100 );
 		g_netshell->GotoScreen( NetShell::SCREEN_PLAYERSELECT );
 	}
+}
+
+void ServerSelectWindow::CopyButtonAction::Execute(
+	aui_Control *control,
+	uint32 action,
+	uint32 data )
+{
+	if ( action != (uint32)AUI_BUTTON_ACTION_EXECUTE ) return;
+	((ServerSelectWindow *)control->GetParentWindow())->CopyAddress( 0 );
+}
+
+void ServerSelectWindow::Copy6ButtonAction::Execute(
+	aui_Control *control,
+	uint32 action,
+	uint32 data )
+{
+	if ( action != (uint32)AUI_BUTTON_ACTION_EXECUTE ) return;
+	((ServerSelectWindow *)control->GetParentWindow())->CopyAddress( 1 );
 }
 
 // Enter in the address field joins.
