@@ -176,8 +176,13 @@ public:
 	virtual void	AllocateFrameArrays(size_t count);
 
 	// ctp2-redux: enlarges the loaded frames, size and points scale times,
-	// for the map in the pixels of the frame (g_tileScale)
-	virtual void	ScaleUp(sint32 scale);
+	// for the map in the pixels of the frame (g_tileScale); the frames come
+	// from the HD sprites of the upscaling script where there are some
+	void			ScaleUp(sint32 scale);
+	// all loaded frames (also mini and shadow frames)
+	typedef void	(*FrameFunction)(Pixel16 *& frame, size_t & size, void * context);
+	virtual void	ForEachFrame(FrameFunction function, void * context);
+	virtual void	ScalePoints(sint32 scale);
 
 	void			InitializeDrawLow();
 
@@ -335,7 +340,7 @@ protected:
 							 uint16 transparency, Pixel16 outlineColor, uint16 flags, BOOL reverse);
 
 protected:
-	static void		ScaleFrame(Pixel16 *& frame, size_t & size, sint32 scale);
+	static void		ScaleFrame(Pixel16 *& frame, size_t & size, void * scale);
 
 	SPRITETYPE		m_type;
 

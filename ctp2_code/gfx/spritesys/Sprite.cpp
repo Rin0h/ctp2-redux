@@ -36,6 +36,7 @@
 #include "tiffutils.h"
 #include "targautils.h"
 #include "spriteutils.h"
+#include "autotest.h"
 #include "primitives.h"
 
 #include "aui.h"
@@ -943,22 +944,43 @@ inline Pixel16 Sprite::average(Pixel16 pixel1, Pixel16 pixel2)
 	}
 }
 
-void Sprite::ScaleFrame(Pixel16 *& frame, size_t & size, sint32 scale)
+void Sprite::ScaleFrame(Pixel16 *& frame, size_t & size, void * context)
 {
-	if (Pixel16 * scaled = spriteutils_ScaleFrame(frame, scale, &size))
+	if (!frame) return;
+	sint32 const scale  = *static_cast<sint32 *>(context);
+	size_t       hdSize = 0;
+	Pixel16 *    scaled = spriteutils_HDFrame(frame, size, scale, &hdSize);
+	if (scaled && autotest_Active())
+		autotest_Log("sprite HD %016llx: %u rows, %u bytes -> %u rows, %u bytes",
+		             (unsigned long long) spriteutils_FrameHash(frame, size), (unsigned) frame[0], (unsigned) size,
+		             (unsigned) scaled[0], (unsigned) hdSize);
+	if (!scaled)
+		scaled = spriteutils_ScaleFrame(frame, scale, &hdSize);
+	if (scaled)
 	{
 		delete [] frame;
 		frame = scaled;
+		size  = hdSize;
 	}
 }
 
 void Sprite::ScaleUp(sint32 scale)
 {
+	ForEachFrame(ScaleFrame, &scale);
+	ScalePoints(scale);
+}
+
+void Sprite::ForEachFrame(FrameFunction function, void * context)
+{
 	for (size_t i = 0; i < m_numFrames; ++i)
 	{
-		ScaleFrame(m_frames[i], m_framesSizes[i], scale);
-		ScaleFrame(m_miniframes[i], m_miniframesSizes[i], scale);
+		function(m_frames[i], m_framesSizes[i], context);
+		function(m_miniframes[i], m_miniframesSizes[i], context);
 	}
+}
+
+void Sprite::ScalePoints(sint32 scale)
+{
 	m_width  = static_cast<uint16>(m_width * scale);
 	m_height = static_cast<uint16>(m_height * scale);
 	m_hotPoint.x *= scale;

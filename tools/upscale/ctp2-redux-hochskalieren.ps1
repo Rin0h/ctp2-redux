@@ -4,7 +4,7 @@
 #   ctp2-redux-hochskalieren.bat               (double-click: setup window,
 #                                               ctp2-redux-hd-setup.ps1)
 #   powershell -File ctp2-redux-hochskalieren.ps1 [-Install <folder>] [-Scale 3] [-Force]
-#                                               [-NoImages] [-NoVideos] [-NoTerrain] [-Status]
+#                                               [-NoImages] [-NoVideos] [-NoTerrain] [-NoSprites] [-Status]
 #                                               [-Language de|en]
 #
 # -Status only counts what is done (lines "##STATUS bilder|videos <done> <total>")
@@ -33,6 +33,8 @@ param(
     [switch]$NoImages,
     [switch]$NoVideos,
     [switch]$NoTerrain,
+    [switch]$NoSprites,
+    [string]$SpriteModel = 'realesrgan-x4plus',
     [string]$TerrainModel = 'realesrgan-x4plus',   # terrain: photo model (2026-10-28 comparison)
     [switch]$Status,
     [string]$Language = ''
@@ -834,26 +836,248 @@ public static class Ctp2Tiles
         return records.Count;
     }
 }
+
+// The sprites of the map (units, cities, goods, effects): the game exports
+// every frame as a 32 bit Targa named after the hash of its data (ctp2
+// spriteexport:<folder>, alpha 255 copy, 1-254 feathered, 0 transparent,
+// shadow alpha 0 with magenta); they come back in the sprite RLE of the game
+// in one file with an index (see spriteutils_HDFrame).
+public static class Ctp2Sprites
+{
+    class Frame { public int W, H; public byte[] Bgra; }
+
+    static Frame ReadTga(string path)
+    {
+        byte[] t = File.ReadAllBytes(path);
+        Frame f = new Frame();
+        f.W = BitConverter.ToUInt16(t, 12); f.H = BitConverter.ToUInt16(t, 14);
+        bool topDown = (t[17] & 0x20) != 0;
+        f.Bgra = new byte[f.W * f.H * 4];
+        for (int row = 0; row < f.H; row++)
+        {
+            int y = topDown ? row : f.H - 1 - row;
+            Buffer.BlockCopy(t, 18 + row * f.W * 4, f.Bgra, y * f.W * 4, f.W * 4);
+        }
+        return f;
+    }
+
+    static bool IsShadow(Frame f, int i) { return f.Bgra[i * 4 + 3] == 0 && f.Bgra[i * 4] == 255 && f.Bgra[i * 4 + 1] == 0 && f.Bgra[i * 4 + 2] == 255; }
+
+    // the color image (transparent and shadow filled from the neighbours) and
+    // the coverage mask for the upscaler; returns the number of frames
+    public static int Export(string tgaDir, string pngDir)
+    {
+        int n = 0;
+        foreach (string path in Directory.GetFiles(tgaDir, "*.tga"))
+        {
+            Frame f = ReadTga(path);
+            byte[] rgb = new byte[f.W * f.H * 3];
+            byte[] mask = new byte[f.W * f.H * 3];
+            for (int i = 0; i < f.W * f.H; i++)
+            {
+                byte a = f.Bgra[i * 4 + 3];
+                if (a == 0) { rgb[i * 3] = 255; rgb[i * 3 + 1] = 0; rgb[i * 3 + 2] = 255; }
+                else { rgb[i * 3] = f.Bgra[i * 4 + 2]; rgb[i * 3 + 1] = f.Bgra[i * 4 + 1]; rgb[i * 3 + 2] = f.Bgra[i * 4]; }
+                mask[i * 3] = mask[i * 3 + 1] = mask[i * 3 + 2] = a;
+            }
+            string name = Path.GetFileNameWithoutExtension(path);
+            Ctp2Assets.BlackKey = false;
+            Ctp2Assets.SavePng(Ctp2Assets.FillTransparent(rgb, f.W, f.H), f.W, f.H, Path.Combine(pngDir, name + ".png"));
+            Ctp2Assets.SavePng(mask, f.W, f.H, Path.Combine(pngDir, name + Ctp2Assets.MaskSuffix + ".png"));
+            n++;
+        }
+        return n;
+    }
+
+    static ushort To565(byte[] rgb, int i)
+    {
+        int r = rgb[i * 3] >> 3, g = rgb[i * 3 + 1] >> 2, b = rgb[i * 3 + 2] >> 3;
+        ushort p = (ushort)((r << 11) | (g << 5) | b);
+        return p == 0 ? (ushort)1 : p;   // 0 is the chroma key of the game
+    }
+
+    // a frame in the sprite RLE: rows once each, runs of at most 255, a
+    // marked empty run at the end of every row (the draw functions stop
+    // there); NULL when it is too large for the 16 bit offsets
+    static List<ushort> Encode(byte[] kind, byte[] alpha, ushort[] color, int w, int h)
+    {
+        const byte Clear = 0, Copy = 1, Feather = 2, Shadow = 3;
+        List<ushort> table = new List<ushort>(), runs = new List<ushort>();
+        for (int y = 0; y < h; y++)
+        {
+            bool empty = true;
+            for (int x = 0; x < w; x++) if (kind[y * w + x] != Clear) { empty = false; break; }
+            if (empty) { table.Add(0xFFFF); continue; }
+            if (runs.Count >= 0xFFFF) return null;
+            table.Add((ushort)runs.Count);
+            int xx = 0;
+            while (xx < w)
+            {
+                byte k = kind[y * w + xx];
+                if (k == Feather)
+                {
+                    runs.Add((ushort)((0xF << 8) | alpha[y * w + xx]));
+                    runs.Add(color[y * w + xx]);
+                    xx++;
+                    continue;
+                }
+                int len = 1;
+                while (xx + len < w && kind[y * w + xx + len] == k && len < 255) len++;
+                int id = k == Copy ? 0xC : k == Shadow ? 0xE : 0xA;
+                runs.Add((ushort)((id << 8) | len));
+                if (k == Copy) for (int i = 0; i < len; i++) runs.Add(color[y * w + xx + i]);
+                xx += len;
+            }
+            runs.Add((ushort)((0xF0 | 0xA) << 8));
+        }
+        if (runs.Count > 0xFFFF) return null;
+        List<ushort> words = new List<ushort>();
+        words.Add((ushort)h);
+        words.AddRange(table);
+        words.AddRange(runs);
+        return words;
+    }
+
+    static List<ulong> hashes = new List<ulong>();
+    static List<List<ushort>> frames = new List<List<ushort>>();
+    static HashSet<string> collected = new HashSet<string>();
+    // the frames whose upscaled picture does not match the original (noise)
+    public static List<string> Failed = new List<string>();
+
+    // the mean difference of the upscaled picture, made small again, to the
+    // visible pixels of the original
+    static double Difference(Frame f, byte[] up, int s)
+    {
+        double sum = 0; int n = 0;
+        int w = f.W * s;
+        for (int y = 0; y < f.H; y++)
+            for (int x = 0; x < f.W; x++)
+            {
+                int i = y * f.W + x;
+                if (f.Bgra[i * 4 + 3] == 0) continue;
+                for (int c = 0; c < 3; c++)
+                {
+                    int v = 0;
+                    for (int dy = 0; dy < s; dy++)
+                        for (int dx = 0; dx < s; dx++)
+                            v += up[((y * s + dy) * w + x * s + dx) * 3 + c];
+                    sum += Math.Abs(v / (s * s) - f.Bgra[i * 4 + 2 - c]);
+                }
+                n += 3;
+            }
+        return n > 0 ? sum / n : 0;
+    }
+
+    // takes the upscaled frames of upDir; returns how many came in
+    public static int Collect(string tgaDir, string upDir, int s)
+    {
+        int added = 0;
+        Failed.Clear();
+        foreach (string path in Directory.GetFiles(tgaDir, "*.tga"))
+        {
+            string name = Path.GetFileNameWithoutExtension(path);
+            if (collected.Contains(name)) continue;
+            string upPath = Path.Combine(upDir, name + ".png"), maskPath = Path.Combine(upDir, name + Ctp2Assets.MaskSuffix + ".png");
+            if (!File.Exists(upPath) || !File.Exists(maskPath)) continue;
+            Frame f = ReadTga(path);
+            int w = f.W * s, h = f.H * s, uw, uh, mw, mh;
+            byte[] up = Ctp2Assets.LoadPng(upPath, out uw, out uh);
+            byte[] mask = Ctp2Assets.LoadPng(maskPath, out mw, out mh);
+            if (uw != w || uh != h || mw != w || mh != h) continue;
+            if (Difference(f, up, s) > 20) { Failed.Add(name); continue; }
+
+            byte[] kind = new byte[w * h], alpha = new byte[w * h];
+            ushort[] color = new ushort[w * h];
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    int i = y * w + x, src = (y / s) * f.W + x / s;
+                    int m = mask[i * 3 + 1];
+                    if (m >= 240) { kind[i] = 1; color[i] = To565(up, i); }
+                    else if (m >= 16) { kind[i] = 2; alpha[i] = (byte)m; color[i] = To565(up, i); }
+                    else if (IsShadow(f, src)) kind[i] = 3;
+                }
+            List<ushort> words = Encode(kind, alpha, color, w, h);
+            if (words == null) continue;
+            hashes.Add(Convert.ToUInt64(name, 16));
+            frames.Add(words);
+            collected.Add(name);
+            added++;
+        }
+        return added;
+    }
+
+    // the collected frames into one file: header, index (hash, offset,
+    // words), data; returns the number of frames
+    public static int Write(int s, string target)
+    {
+        using (FileStream file = File.Create(target))
+        {
+            byte[] head = new byte[16];
+            System.Text.Encoding.ASCII.GetBytes("CTPHDS1").CopyTo(head, 0);
+            BitConverter.GetBytes(s).CopyTo(head, 8);
+            BitConverter.GetBytes(frames.Count).CopyTo(head, 12);
+            file.Write(head, 0, 16);
+            long offset = 16 + 16L * frames.Count;
+            for (int i = 0; i < frames.Count; i++)
+            {
+                byte[] entry = new byte[16];
+                BitConverter.GetBytes(hashes[i]).CopyTo(entry, 0);
+                BitConverter.GetBytes((uint)offset).CopyTo(entry, 8);
+                BitConverter.GetBytes((uint)frames[i].Count).CopyTo(entry, 12);
+                file.Write(entry, 0, 16);
+                offset += frames[i].Count * 2;
+            }
+            foreach (List<ushort> words in frames)
+            {
+                byte[] data = new byte[words.Count * 2];
+                for (int i = 0; i < words.Count; i++) BitConverter.GetBytes(words[i]).CopyTo(data, 2 * i);
+                file.Write(data, 0, data.Length);
+            }
+        }
+        return frames.Count;
+    }
+}
 '@
 
 Say (L "Spielordner: $Install" "Game folder: $Install")
 Say (L "Sprache: $gameLanguage, Ziel: $target" "Language: $gameLanguage, target: $target")
 
 # --- upscale (the work folder must hold only the pictures of this step) -------
+# Real-ESRGAN over a folder, in batches of at most 2000 pictures, each in a
+# process of its own: one process over many thousand pictures starts to give
+# noise after a while (seen with 60000 sprite pictures on an RTX 5090)
+$EsrganBatch = 2000
 function Invoke-Esrgan([string]$from, [string]$to, [string]$format, [string]$part, [string]$model = $Model, [int]$factor = $Scale) {
-    # its progress goes to stderr; a log keeps PowerShell from taking it as an error
-    $quoted = @('-i', "`"$from`"", '-o', "`"$to`"", '-n', $model, '-s', "$factor", '-f', $format)
-    $count = @(Get-ChildItem -Path $from -File).Count
-    foreach ($extra in @(@(), @('-g', '-1'))) {
-        if ($extra.Count) { Say (L 'Mit der Grafikkarte ging es nicht, versuche es mit dem Prozessor (langsam) ...' "The graphics card did not work, trying the processor (slow) ...") }
-        $process = Start-Process -FilePath $esrgan.FullName -ArgumentList ($quoted + $extra) -NoNewWindow -PassThru `
-            -RedirectStandardError (Join-Path $work 'esrgan.log') -RedirectStandardOutput (Join-Path $work 'esrgan-out.log')
-        while (-not $process.WaitForExit(1000)) { Progress $part (@(Get-ChildItem -Path $to -File).Count) $count }
-        $done = @(Get-ChildItem -Path $to -File).Count
-        Progress $part $done $count
-        if ($done -ge $count) { return $true }
+    $files = @(Get-ChildItem -Path $from -File)
+    $count = $files.Count
+    $batches = @($from)
+    if ($count -gt $EsrganBatch) {
+        $batches = @()
+        for ($i = 0; $i -lt $count; $i += $EsrganBatch) {
+            $dir = Join-Path $from ('_teil' + ($i / $EsrganBatch))
+            New-Item -ItemType Directory -Force $dir | Out-Null
+            $files[$i..([math]::Min($i + $EsrganBatch, $count) - 1)] | Move-Item -Destination $dir
+            $batches += $dir
+        }
     }
-    return $false
+    foreach ($batch in $batches) {
+        $expected = @(Get-ChildItem -Path $batch -File).Count + @(Get-ChildItem -Path $to -File).Count
+        # its progress goes to stderr; a log keeps PowerShell from taking it as an error
+        $quoted = @('-i', "`"$batch`"", '-o', "`"$to`"", '-n', $model, '-s', "$factor", '-f', $format)
+        $ok = $false
+        foreach ($extra in @(@(), @('-g', '-1'))) {
+            if ($extra.Count) { Say (L 'Mit der Grafikkarte ging es nicht, versuche es mit dem Prozessor (langsam) ...' "The graphics card did not work, trying the processor (slow) ...") }
+            $process = Start-Process -FilePath $esrgan.FullName -ArgumentList ($quoted + $extra) -NoNewWindow -PassThru `
+                -RedirectStandardError (Join-Path $work 'esrgan.log') -RedirectStandardOutput (Join-Path $work 'esrgan-out.log')
+            while (-not $process.WaitForExit(1000)) { Progress $part (@(Get-ChildItem -Path $to -File).Count) $count }
+            $done = @(Get-ChildItem -Path $to -File).Count
+            Progress $part $done $count
+            if ($done -ge $expected) { $ok = $true; break }
+        }
+        if (-not $ok) { return $false }
+    }
+    return $true
 }
 
 # --- collect the images (later sources override earlier ones, like the game) --
@@ -977,6 +1201,62 @@ if ($Status) {
             Say (L "Gelaende: $made Teile fertig." "Terrain: $made parts done.")
         } else {
             Say (L 'Gelaende: Hochskalieren fehlgeschlagen.' 'Terrain: upscaling failed.')
+        }
+    }
+}
+
+# --- the sprites of the map (units, cities, goods, effects) ---------------------
+# the game exports every frame (ctp2 spriteexport:<folder>, no window); they
+# go to one file with an index by the hash of each frame (spriteutils_HDFrame)
+$spriteFile = Join-Path $target 'sprites\sprites.hd'
+$gameExe = $null
+foreach ($sub in @('x64\', '')) {
+    if ($program -and (Test-Path (Join-Path $program ($sub + 'ctp2.exe')))) { $gameExe = Join-Path $program ($sub + 'ctp2.exe'); break }
+}
+if ($Status) {
+    $done = if ((Test-Path $spriteFile) -and -not $Force) { 1 } else { 0 }
+    Write-Host "##STATUS sprites $done 1"
+} elseif (-not $NoSprites) {
+    if ((Test-Path $spriteFile) -and -not $Force) {
+        Say (L 'Einheiten und Staedte: schon hochskaliert.' 'Units and cities: upscaled already.')
+    } elseif (-not $gameExe) {
+        Say (L 'Einheiten und Staedte: ctp2.exe nicht gefunden.' 'Units and cities: ctp2.exe not found.')
+    } else {
+        $spriteTga = Join-Path $work 'sprites_tga'
+        $spriteIn  = Join-Path $work 'sprites_ein'
+        $spriteOut = Join-Path $work 'sprites_aus'
+        foreach ($d in @($spriteTga, $spriteIn, $spriteOut, (Split-Path $spriteFile))) { New-Item -ItemType Directory -Force $d | Out-Null }
+        Say (L 'Einheiten und Staedte: das Spiel gibt die Bilder aus ...' 'Units and cities: the game writes out the frames ...')
+        $process = Start-Process -FilePath $gameExe -ArgumentList "spriteexport:$spriteTga" -WorkingDirectory (Split-Path $gameExe) -Wait -PassThru
+        if (-not (Test-Path (Join-Path $spriteTga '_export.txt'))) {
+            Say (L 'Einheiten und Staedte: die Ausgabe des Spiels ist fehlgeschlagen.' 'Units and cities: the export of the game failed.')
+        } else {
+            $count = [Ctp2Sprites]::Export($spriteTga, $spriteIn)
+            Say (L "Einheiten und Staedte: $count Einzelbilder" "Units and cities: $count frames")
+            $spriteFactor = if ($SpriteModel -like 'realesrgan-x4*') { 4 } else { $Scale }
+            if (Invoke-Esrgan $spriteIn $spriteOut 'png' 'sprites' $SpriteModel $spriteFactor) {
+                if ($spriteFactor -ne $Scale) { [Ctp2Tiles]::Resize($spriteOut, $Scale, $spriteFactor) }
+                [Ctp2Sprites]::Collect($spriteTga, $spriteOut, $Scale) | Out-Null
+                # pictures with noise once more on their own (else they stay enlarged)
+                $failed = @([Ctp2Sprites]::Failed)
+                if ($failed.Count -gt 0) {
+                    Say (L "Einheiten und Staedte: $($failed.Count) Bilder fehlerhaft, rechne sie neu ..." "Units and cities: $($failed.Count) pictures faulty, upscaling them again ...")
+                    $retryIn  = Join-Path $work 'sprites_nochmal_ein'
+                    $retryOut = Join-Path $work 'sprites_nochmal_aus'
+                    foreach ($d in @($retryIn, $retryOut)) { New-Item -ItemType Directory -Force $d | Out-Null }
+                    foreach ($name in $failed) {
+                        Get-ChildItem -Path $spriteIn -Recurse -File -Filter "$name*.png" | Copy-Item -Destination $retryIn
+                    }
+                    if (Invoke-Esrgan $retryIn $retryOut 'png' 'sprites' $SpriteModel $spriteFactor) {
+                        if ($spriteFactor -ne $Scale) { [Ctp2Tiles]::Resize($retryOut, $Scale, $spriteFactor) }
+                        [Ctp2Sprites]::Collect($spriteTga, $retryOut, $Scale) | Out-Null
+                    }
+                }
+                $made = [Ctp2Sprites]::Write($Scale, $spriteFile)
+                Say (L "Einheiten und Staedte: $made von $count Einzelbildern fertig (zu grosse bleiben vergroessert)." "Units and cities: $made of $count frames done (too large ones stay enlarged).")
+            } else {
+                Say (L 'Einheiten und Staedte: Hochskalieren fehlgeschlagen.' 'Units and cities: upscaling failed.')
+            }
         }
     }
 }

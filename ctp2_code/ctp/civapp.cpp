@@ -111,6 +111,7 @@
 #include "armymanagerwindow.h"
 #include "AttractWindow.h"
 #include "aui_blitter.h"
+#include "SpriteGroupList.h"         // spriteexport_Run
 #include "background.h"
 #include "backgroundwin.h"
 #include "battleview.h"
@@ -307,6 +308,7 @@ extern BOOL                 g_no_exit_action;
 extern BOOL                 g_no_shell;
 extern BOOL                 g_no_timeslice;
 extern BOOL                 g_runInBackground;
+extern MBCHAR               g_spriteExportArg[];
 extern sint32               g_scenarioUsePlayerNumber;
 extern BOOL                 g_use_profile_process;
 extern BOOL                 g_useIntroMovie;
@@ -1290,6 +1292,20 @@ sint32 CivApp::InitializeApp(HINSTANCE hInstance, int iCmdShow)
 	// These must be initialzed in this order not to break anything
 	// If you need this initilized earlier, just call this earlier
 	CivPaths_InitCivPaths();
+
+	// ctp2-redux: only the sprite export, before any window opens
+	if (g_spriteExportArg[0])
+	{
+		sint32 const files = spriteexport_Run(g_spriteExportArg);
+		MBCHAR done[_MAX_PATH];
+		snprintf(done, sizeof(done), "%s%s_export.txt", g_spriteExportArg, FILE_SEP);
+		if (FILE * file = fopen(done, "w"))
+		{
+			fprintf(file, "%d\n", (int) files);
+			fclose(file);
+		}
+		exit(0);
+	}
 
 	g_logCrashes = g_theProfileDB->GetEnableLogs();
 

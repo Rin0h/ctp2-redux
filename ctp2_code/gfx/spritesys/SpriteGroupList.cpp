@@ -41,6 +41,14 @@
 #include "Sprite.h"
 #include "StrDB.h"                  // g_theStringDB
 #include "UnitSpriteGroup.h"
+#include "spriteutils.h"            // g_spriteExportDir
+#ifdef WIN32
+#include <io.h>
+#else
+#include <dirent.h>
+#endif
+#include <set>
+#include <string>
 
 extern ProgressWindow * g_theProgressWindow;
 
@@ -301,4 +309,63 @@ void SpriteGroupList::RefreshBasicLoads(GROUPTYPE groupType)
 	}
 
 	ProgressWindow::EndProgress( g_theProgressWindow );
+}
+
+//----------------------------------------------------------------------------
+//
+// Name       : spriteexport_Run
+//
+// Description: ctp2-redux: loads every sprite file (units GU, cities GC,
+//              goods GG, effects GX) fully, which exports each frame to dir
+//              (see g_spriteExportDir and spriteutils_ExportFrame).
+//
+// Returns    : the number of sprite files
+//
+//----------------------------------------------------------------------------
+sint32 spriteexport_Run(MBCHAR const * dir)
+{
+	g_spriteExportDir = dir;
+
+	std::set<std::string> names;
+	MBCHAR path[_MAX_PATH];
+	for (int i = 0; g_civPaths->FindPath(C3DIR_SPRITES, i, path); ++i)
+	{
+		if (!path[0]) continue;
+#ifdef WIN32
+		MBCHAR pattern[_MAX_PATH];
+		snprintf(pattern, sizeof(pattern), "%s%s*.spr", path, FILE_SEP);
+		struct _finddata_t found;
+		intptr_t handle = _findfirst(pattern, &found);
+		if (handle == -1) continue;
+		do { names.insert(found.name); } while (_findnext(handle, &found) == 0);
+		_findclose(handle);
+#else
+		DIR * d = opendir(path);
+		if (!d) continue;
+		while (struct dirent * e = readdir(d))
+		{
+			size_t const n = strlen(e->d_name);
+			if (n > 4 && strcasecmp(e->d_name + n - 4, ".spr") == 0) names.insert(e->d_name);
+		}
+		closedir(d);
+#endif
+	}
+
+	sint32 count = 0;
+	for (std::set<std::string>::const_iterator i = names.begin(); i != names.end(); ++i)
+	{
+		char const * name = i->c_str();
+		SpriteGroup * group = NULL;
+		if      (strnicmp(name, "GU", 2) == 0) group = new UnitSpriteGroup(GROUPTYPE_UNIT);
+		else if (strnicmp(name, "GC", 2) == 0) group = new UnitSpriteGroup(GROUPTYPE_CITY);
+		else if (strnicmp(name, "GG", 2) == 0) group = new GoodSpriteGroup(GROUPTYPE_GOOD);
+		else if (strnicmp(name, "GX", 2) == 0) group = new EffectSpriteGroup(GROUPTYPE_EFFECT);
+		if (!group) continue;
+		group->LoadFull(name);
+		delete group;
+		++count;
+	}
+
+	g_spriteExportDir = NULL;
+	return count;
 }

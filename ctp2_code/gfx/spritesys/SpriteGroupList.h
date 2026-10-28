@@ -99,4 +99,8 @@ private:
 void spritegrouplist_Initialize(void);
 void spritegrouplist_Cleanup(void);
 
+// ctp2-redux: exports every frame of all sprite files to dir (for the
+// upscaling script, ctp2 -spriteexport <dir>); returns the number of files
+sint32 spriteexport_Run(MBCHAR const * dir);
+
 #endif	// Multiple include guard

@@ -283,6 +283,9 @@ static int ctp2redux_CrtReportHookW(int reportType, wchar_t *message, int *retur
 #endif
 BOOL g_noAssertDialogs = FALSE;
 BOOL g_runInBackground = FALSE;
+// ctp2-redux: ctp2 spriteexport:<folder> exports the sprite frames and quits
+// (for the upscaling script; no "-", that would read as a scenario)
+MBCHAR g_spriteExportArg[_MAX_PATH] = { 0 };
 BOOL g_runSpriteEditor = FALSE;
 BOOL g_eventLog = FALSE;
 
@@ -1121,6 +1124,17 @@ void ParseCommandLine(PSTR szCmdLine)
 		g_useIntroMovie = !(NULL != strstr(szCmdLine, "nointromovie"));
 	g_noAssertDialogs = (NULL != strstr(szCmdLine, "noassertdialogs"));
 	g_runInBackground = (NULL != strstr(szCmdLine, "runinbackground"));
+	if (char const * exportArg = strstr(szCmdLine, "spriteexport:"))
+	{
+		// the folder is the rest of the line (it may contain blanks)
+		strncpy(g_spriteExportArg, exportArg + strlen("spriteexport:"), _MAX_PATH - 1);
+		g_spriteExportArg[_MAX_PATH - 1] = '\0';
+		size_t length = strlen(g_spriteExportArg);
+		while (length > 0 && (g_spriteExportArg[length - 1] == ' ' || g_spriteExportArg[length - 1] == '"'))
+			g_spriteExportArg[--length] = '\0';
+		if (g_spriteExportArg[0] == '"')
+			memmove(g_spriteExportArg, g_spriteExportArg + 1, length);
+	}
 	autotest_ParseCommandLine(szCmdLine);
 	if (autotest_Active())
 	{

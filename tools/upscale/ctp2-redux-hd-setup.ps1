@@ -48,7 +48,7 @@ $texts = @{
         Create         = 'Erzeugen'
         Finish         = 'Fertigstellen'
         Welcome1       = ('Dieser Assistent erzeugt aus deiner eigenen Call-to-Power-II-Installation HD-Fassungen ' +
-                          'der Spielgrafik: Oberflächenbilder, Mauszeiger, Videos und das Gelände der Karte werden mit künstlicher ' +
+                          'der Spielgrafik: Oberflächenbilder, Mauszeiger, Videos, das Gelände und die Einheiten und Städte der Karte werden mit künstlicher ' +
                           'Intelligenz (Real-ESRGAN) auf deinem Rechner hochgerechnet.')
         Welcome2       = ('Deine Originaldateien bleiben unverändert. Die HD-Dateien landen im Ordner ' +
                           'ctp2_data\redux_hires; das Spiel nimmt sie automatisch, wenn die Skalierung passt.')
@@ -79,9 +79,10 @@ $texts = @{
         Step3          = 'Schritt 3 – Gelände: Kacheln, Küsten, Flüsse, Berge, Wälder, Straßen'
         Step3Note      = '{0} · ca. {1} MB · etwa eine Minute'
         Step4          = 'Schritt 4 – Einheiten, Städte und Güter auf der Karte'
-        Step4Later     = 'folgt in einer späteren Version'
+        Step4Note      = "{0} · etwa 1 GB`nlang: etwa 20 Minuten mit schneller Grafikkarte, sonst deutlich länger"
         Terrain        = 'Teil'
         RunTerrain     = 'Gelände wird hochgerechnet: {0} %'
+        RunSprites     = 'Einheiten und Städte werden hochgerechnet: {0} %'
         Step1Note      = '{0} · ca. {1} MB · wenige Minuten'
         Step2Note      = "{0} · ca. {1} MB`ndauert lange: je Video ca. eine halbe Minute mit schneller Grafikkarte, mit schwächerer mehrere Minuten"
         NoFfmpeg       = 'ffmpeg.exe fehlt neben dem Spiel oder diesem Assistenten – Videos bleiben im Original.'
@@ -136,7 +137,7 @@ $texts = @{
         Create         = 'Create'
         Finish         = 'Finish'
         Welcome1       = ('This assistant makes HD versions of the game graphics from your own Call to Power II ' +
-                          'installation: interface images, mouse cursors, videos and the terrain of the map are upscaled on your computer ' +
+                          'installation: interface images, mouse cursors, videos, and the terrain, units and cities of the map are upscaled on your computer ' +
                           'with artificial intelligence (Real-ESRGAN).')
         Welcome2       = ('Your original files stay untouched. The HD files go to the folder ctp2_data\redux_hires; ' +
                           'the game takes them automatically when the scaling matches.')
@@ -167,9 +168,10 @@ $texts = @{
         Step3          = 'Step 3 – Terrain: tiles, coasts, rivers, hills, forests, roads'
         Step3Note      = '{0} · about {1} MB · about a minute'
         Step4          = 'Step 4 – Units, cities and goods on the map'
-        Step4Later     = 'comes with a later version'
+        Step4Note      = "{0} · about 1 GB`nlong: about 20 minutes with a fast graphics card, much longer otherwise"
         Terrain        = 'part'
         RunTerrain     = 'Upscaling the terrain: {0} %'
+        RunSprites     = 'Upscaling units and cities: {0} %'
         Step1Note      = '{0} · about {1} MB · a few minutes'
         Step2Note      = "{0} · about {1} MB`ntakes long: about half a minute per video with a fast graphics card, several minutes with a slower one"
         NoFfmpeg       = 'ffmpeg.exe is missing next to the game or this assistant – the videos stay original.'
@@ -445,10 +447,9 @@ $videosNote = Add-Label $pageParts '' 124 40 20
 $terrainBox  = Add-Check $pageParts $T.Step3 170 $true
 $terrainNote = Add-Label $pageParts '' 194 22 20
 $spritesBox  = Add-Check $pageParts $T.Step4 224 $true
-$spritesBox.Enabled = $false
-Add-Label $pageParts $T.Step4Later 248 22 20 | Out-Null
-$forceBox  = Add-Check $pageParts $T.Force 276
-$partsNote = Add-Label $pageParts '' 304 66
+$spritesNote = Add-Label $pageParts '' 248 32 20
+$forceBox  = Add-Check $pageParts $T.Force 282
+$partsNote = Add-Label $pageParts '' 308 62
 
 # page 4: progress
 $pageRun = New-Page
@@ -514,7 +515,7 @@ function Get-StepStatus([int]$s) {
     $p = [Diagnostics.Process]::Start($psi)
     $out = $p.StandardOutput.ReadToEnd()
     $p.WaitForExit()
-    $result = @{ bilder = @(0, 0); videos = @(0, 0); gelaende = @(0, 0) }
+    $result = @{ bilder = @(0, 0); videos = @(0, 0); gelaende = @(0, 0); sprites = @(0, 0) }
     foreach ($m in [regex]::Matches($out, '##STATUS (\w+) (\d+) (\d+)')) {
         $result[$m.Groups[1].Value] = @([int]$m.Groups[2].Value, [int]$m.Groups[3].Value)
     }
@@ -539,6 +540,7 @@ function Get-OpenSteps([int]$s) {
     if (-not (Test-StepDone $st.bilder)) { $open += $T.Step1 }
     if ((Find-Ffmpeg $script:info) -and -not (Test-StepDone $st.videos)) { $open += $T.Step2 }
     if (-not (Test-StepDone $st.gelaende)) { $open += $T.Step3 }
+    if ($script:info.Exe -and -not (Test-StepDone $st.sprites)) { $open += $T.Step4 }
     return $open
 }
 
@@ -549,20 +551,25 @@ function Update-Parts {
     $imagesDone = Test-StepDone $st.bilder
     $videosDone = Test-StepDone $st.videos
     $terrainDone = Test-StepDone $st.gelaende
+    $spritesDone = Test-StepDone $st.sprites
+    $hasExe      = [bool]$script:info.Exe
     $hasFfmpeg  = Find-Ffmpeg $script:info
 
     $imagesNote.Text = $T.Step1Note -f (Get-StepText $st.bilder $T.Images), [int](660 * $f)
     $videosBox.Enabled = $hasFfmpeg
     $videosNote.Text = if ($hasFfmpeg) { $T.Step2Note -f (Get-StepText $st.videos $T.Videos), [int](390 * $f) } else { $T.NoFfmpeg }
     $terrainNote.Text = $T.Step3Note -f (Get-StepText $st.gelaende $T.Terrain), [int](25 * $f)
+    $spritesBox.Enabled = $hasExe
+    $spritesNote.Text = $T.Step4Note -f (Get-StepText $st.sprites $T.Terrain)
 
     # only the next open step is ticked, so a slow computer does one at a time
     $imagesBox.Checked  = -not $imagesDone
     $videosBox.Checked  = $hasFfmpeg -and $imagesDone -and -not $videosDone
     $terrainBox.Checked = $imagesDone -and ($videosDone -or -not $hasFfmpeg) -and -not $terrainDone
+    $spritesBox.Checked = $hasExe -and $imagesDone -and ($videosDone -or -not $hasFfmpeg) -and $terrainDone -and -not $spritesDone
 
     $notes = @()
-    if ($imagesDone -and ($videosDone -or -not $hasFfmpeg) -and $terrainDone) { $notes += $T.AllDone }
+    if ($imagesDone -and ($videosDone -or -not $hasFfmpeg) -and $terrainDone -and ($spritesDone -or -not $hasExe)) { $notes += $T.AllDone }
     $tool = Get-ChildItem -Path (Join-Path $script:info.Data 'redux_hires\_werkzeug') -Recurse -Filter 'realesrgan-ncnn-vulkan.exe' -ErrorAction SilentlyContinue
     if (-not $tool) { $notes += $T.EsrganDownload }
     try {
@@ -575,7 +582,7 @@ function Update-Parts {
 }
 
 function Update-CreateButton {
-    if ($script:page -eq 3) { $nextButton.Enabled = $imagesBox.Checked -or $videosBox.Checked -or $terrainBox.Checked }
+    if ($script:page -eq 3) { $nextButton.Enabled = $imagesBox.Checked -or $videosBox.Checked -or $terrainBox.Checked -or $spritesBox.Checked }
 }
 
 function Show-Page([int]$n) {
@@ -637,7 +644,7 @@ function Read-Log {
 
     # the share of each chosen step: images a few minutes, terrain about one,
     # videos most of the time
-    $weights = @(@($imagesBox.Checked, 1.0), @($terrainBox.Checked, 0.5), @($videosBox.Checked, 4.0))
+    $weights = @(@($imagesBox.Checked, 1.0), @($terrainBox.Checked, 0.5), @($spritesBox.Checked, 4.0), @($videosBox.Checked, 4.0))
     $sum = 0.0; foreach ($w in $weights) { if ($w[0]) { $sum += $w[1] } }
     $segments = @(); $at = 0.0
     foreach ($w in $weights) {
@@ -653,12 +660,13 @@ function Read-Log {
                 'bilder'      { $runStatus.Text = $T.RunImages -f [int](100 * $f);  Set-Progress ($segments[0][0] + (0.1 + 0.8 * $f) * $segments[0][1]) }
                 'einlesen'    { $runStatus.Text = $T.RunImport -f $done, $total;  Set-Progress ($segments[0][0] + (0.9 + 0.1 * $f) * $segments[0][1]) }
                 'gelaende'    { $runStatus.Text = $T.RunTerrain -f [int](100 * $f); Set-Progress ($segments[1][0] + $f * $segments[1][1]) }
+                'sprites'     { $runStatus.Text = $T.RunSprites -f [int](100 * $f); Set-Progress ($segments[2][0] + $f * $segments[2][1]) }
                 'videos'      { $script:videoIndex = $done; $script:videoTotal = $total }
                 'videobilder' { $runStatus.Text = $T.RunVideo -f ($script:videoIndex + 1), $script:videoTotal, $done, $total }
             }
             if ($part -eq 'videos' -or $part -eq 'videobilder') {
                 $inner = if ($part -eq 'videobilder') { $f } else { 0 }
-                Set-Progress ($segments[2][0] + $segments[2][1] * ($script:videoIndex + $inner) / [math]::Max(1, $script:videoTotal))
+                Set-Progress ($segments[3][0] + $segments[3][1] * ($script:videoIndex + $inner) / [math]::Max(1, $script:videoTotal))
             }
         } elseif ($l.Trim()) {
             $logBox.AppendText($l.TrimEnd() + "`r`n")
@@ -706,6 +714,7 @@ function Start-Run {
     if (-not $imagesBox.Checked) { $flags += ' -NoImages' }
     if (-not $videosBox.Checked) { $flags += ' -NoVideos' }
     if (-not $terrainBox.Checked) { $flags += ' -NoTerrain' }
+    if (-not $spritesBox.Checked) { $flags += ' -NoSprites' }
     if ($forceBox.Checked)       { $flags += ' -Force' }
     $command = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$engine`" -Install `"$($script:info.Folder)`" $flags > `"$($script:logFile)`" 2>&1"
     $psi = New-Object Diagnostics.ProcessStartInfo 'cmd.exe', "/c `"$command`""
@@ -777,6 +786,7 @@ foreach ($r in $scaleRadios.Values) { $r.add_CheckedChanged({ if ($script:page -
 $imagesBox.add_CheckedChanged({ Update-CreateButton })
 $videosBox.add_CheckedChanged({ Update-CreateButton })
 $terrainBox.add_CheckedChanged({ Update-CreateButton })
+$spritesBox.add_CheckedChanged({ Update-CreateButton })
 
 $backButton.add_Click({ if ($script:page -gt 0) { Show-Page ($script:page - 1) } })
 
@@ -851,6 +861,7 @@ if ($Screenshots) {
         $imagesBox.Checked = $true
         $videosBox.Checked = $false
         $terrainBox.Checked = $false
+        $spritesBox.Checked = $false
         $setProfileBox.Checked = $false
         Show-Page 4
         Start-Run

@@ -60,6 +60,18 @@ void spriteutils_ConvertPixelFormat(Pixel16 *frame, sint32 width, sint32 height,
 // (new[]); NULL when it does not fit the format
 Pixel16 * spriteutils_ScaleFrame(Pixel16 const *frame, sint32 scale, size_t *size);
 
+// ctp2-redux: HD sprite frames made by the upscaling script. A frame is
+// known by a hash of its data (as loaded, 565). spriteutils_ExportFrame
+// writes it as a 32 bit Targa named after the hash (alpha: 255 copy, 1-254
+// feathered, 0 transparent; shadow: alpha 0 with magenta) for the script;
+// spriteutils_HDFrame gives its HD version from
+// redux_hires/<scale>x/sprites/sprites.hd (new[]), NULL when there is none.
+uint64    spriteutils_FrameHash(Pixel16 const *frame, size_t size);
+// while set, every loaded sprite frame is exported there (ctp2 -spriteexport)
+extern MBCHAR const * g_spriteExportDir;
+bool      spriteutils_ExportFrame(Pixel16 const *frame, size_t size, const MBCHAR *dir);
+Pixel16 * spriteutils_HDFrame(Pixel16 const *frame, size_t size, sint32 scale, size_t *hdSize);
+
 
 
 

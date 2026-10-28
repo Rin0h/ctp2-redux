@@ -32,10 +32,12 @@
 #include "c3.h"
 
 #include <algorithm>
+#include <map>
 #include <vector>
 
 #include "pixelutils.h"
 #include "spriteutils.h"
+#include "CivPaths.h"                  // g_civPaths
 
 extern sint32 g_is565Format;
 
@@ -749,6 +751,159 @@ Pixel16 * spriteutils_ScaleFrame(Pixel16 const *frame, sint32 scale, size_t *siz
 	std::copy(runs.begin(), runs.end(), scaled + 1 + offsets.size());
 	if (size) *size = count * sizeof(Pixel16);
 	return scaled;
+}
+
+MBCHAR const * g_spriteExportDir = NULL;
+
+uint64 spriteutils_FrameHash(Pixel16 const *frame, size_t size)
+{
+	// FNV-1a, 64 bit
+	uint8 const * bytes = reinterpret_cast<uint8 const *>(frame);
+	uint64        hash  = 14695981039346656037ULL;
+	for (size_t i = 0; i < size; ++i)
+	{
+		hash ^= bytes[i];
+		hash *= 1099511628211ULL;
+	}
+	return hash;
+}
+
+bool spriteutils_ExportFrame(Pixel16 const *frame, size_t size, const MBCHAR *dir)
+{
+	if (!frame || size < 2) return false;
+
+	sint32 const    height    = frame[0];
+	Pixel16 const * table     = frame + 1;
+	Pixel16 const * dataStart = table + height;
+	if (height <= 0 || size < (size_t)(1 + height) * 2) return false;
+
+	// the width: the longest row
+	sint32 width = 0;
+	for (sint32 pass = 0; pass < 2; ++pass)
+	{
+		std::vector<uint8> image(pass ? width * height * 4 : 0, 0);
+		bool               visible = false;
+		for (sint32 j = 0; j < height; ++j)
+		{
+			if (table[j] == k_EMPTY_TABLE_ENTRY) continue;
+			Pixel16 const * p   = dataStart + table[j];
+			Pixel16         tag = *p++ & 0x0FFF;
+			sint32          x   = 0;
+			while ((tag & 0xF000) == 0)
+			{
+				sint32 const kind = (tag & 0x0F00) >> 8;
+				sint32 const len  = (kind == k_FEATHERED_RUN_ID) ? 1 : (tag & 0x00FF);
+				for (sint32 i = 0; i < len; ++i, ++x)
+				{
+					Pixel16 pixel = 0;
+					uint8   alpha = 0;
+					bool    shadow = false;
+					if (kind == k_COPY_RUN_ID)           { pixel = *p++; alpha = 255; }
+					else if (kind == k_FEATHERED_RUN_ID) { pixel = *p++; alpha = (uint8)(tag & 0xFF); if (!alpha) alpha = 1; if (alpha == 255) alpha = 254; }
+					else if (kind == k_SHADOW_RUN_ID)    { shadow = true; }
+					if (!pass || x >= width) continue;
+					uint8 * out = &image[((height - 1 - j) * width + x) * 4];
+					if (shadow) { out[0] = 255; out[1] = 0; out[2] = 255; out[3] = 0; continue; }
+					if (!alpha) continue;
+					visible = true;
+					sint32 const r = (pixel >> 11) & 0x1F, g = (pixel >> 5) & 0x3F, b = pixel & 0x1F;
+					out[0] = (uint8)((b << 3) | (b >> 2));
+					out[1] = (uint8)((g << 2) | (g >> 4));
+					out[2] = (uint8)((r << 3) | (r >> 2));
+					out[3] = alpha;
+				}
+				tag = *p++;
+			}
+			if (!pass && x > width) width = x;
+		}
+		if (!pass)
+		{
+			if (width <= 0 || width > 0x7FFF) return false;
+			continue;
+		}
+		if (!visible) return false;   // nothing to upscale (shadow frames)
+
+		MBCHAR path[_MAX_PATH];
+		snprintf(path, sizeof(path), "%s%s%016llx.tga", dir, FILE_SEP,
+		         (unsigned long long) spriteutils_FrameHash(frame, size));
+		FILE * file = fopen(path, "wb");
+		if (!file) return false;
+		uint8 header[18] = { 0 };
+		header[2]  = 2;
+		header[12] = (uint8)(width & 0xFF);  header[13] = (uint8)(width >> 8);
+		header[14] = (uint8)(height & 0xFF); header[15] = (uint8)(height >> 8);
+		header[16] = 32;
+		header[17] = 8;   // 8 alpha bits, bottom-up
+		fwrite(header, 1, sizeof(header), file);
+		fwrite(&image[0], 1, image.size(), file);
+		fclose(file);
+	}
+	return true;
+}
+
+namespace
+{
+	// the index of sprites.hd: hash -> place of the HD frame in the file
+	struct HDSprites
+	{
+		sint32                                           scale;
+		FILE *                                           file;
+		std::map<uint64, std::pair<uint32, uint32> >     index;   // offset, words
+
+		HDSprites() : scale(0), file(NULL) {}
+		~HDSprites() { if (file) fclose(file); }
+
+		void Open(sint32 a_Scale)
+		{
+			scale = a_Scale;
+			MBCHAR path[_MAX_PATH];
+			snprintf(path, sizeof(path), "%s%sredux_hires%s%dx%ssprites%ssprites.hd",
+			         g_civPaths->GetDataPath(), FILE_SEP, FILE_SEP, a_Scale, FILE_SEP, FILE_SEP);
+			file = fopen(path, "rb");
+			if (!file) return;
+			uint8  head[16];
+			sint32 fileScale = 0;
+			uint32 count     = 0;
+			if (fread(head, 1, 16, file) != 16 || memcmp(head, "CTPHDS1", 7) != 0) { fclose(file); file = NULL; return; }
+			memcpy(&fileScale, head + 8, 4);
+			memcpy(&count, head + 12, 4);
+			if (fileScale != a_Scale) { fclose(file); file = NULL; return; }
+			for (uint32 i = 0; i < count; ++i)
+			{
+				uint8 entry[16];
+				if (fread(entry, 1, 16, file) != 16) break;
+				uint64 hash   = 0;
+				uint32 offset = 0, words = 0;
+				memcpy(&hash, entry, 8);
+				memcpy(&offset, entry + 8, 4);
+				memcpy(&words, entry + 12, 4);
+				index[hash] = std::make_pair(offset, words);
+			}
+		}
+	};
+
+	HDSprites s_hdSprites;
+}
+
+Pixel16 * spriteutils_HDFrame(Pixel16 const *frame, size_t size, sint32 scale, size_t *hdSize)
+{
+	if (!frame || !g_civPaths) return NULL;
+	if (s_hdSprites.scale != scale) s_hdSprites.Open(scale);
+	if (!s_hdSprites.file) return NULL;
+
+	std::map<uint64, std::pair<uint32, uint32> >::const_iterator i =
+		s_hdSprites.index.find(spriteutils_FrameHash(frame, size));
+	if (i == s_hdSprites.index.end()) return NULL;
+
+	Pixel16 * hd = new Pixel16[i->second.second];
+	if (fseek(s_hdSprites.file, (long) i->second.first, SEEK_SET) != 0 ||
+	    fread(hd, 2, i->second.second, s_hdSprites.file) != i->second.second)
+	{
+		delete [] hd;
+		return NULL;
+	}
+	if (hdSize) *hdSize = i->second.second * 2;
+	return hd;
 }
 
 void spriteutils_ConvertPixelFormatForFile(Pixel16 *frame, sint32 width, sint32 height)

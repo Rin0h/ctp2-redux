@@ -115,7 +115,8 @@ public:
 
 	virtual sint32	ParseFromTokens(Token *theToken);
 	virtual void	AllocateFrameArrays(size_t count);
-	virtual void	ScaleUp(sint32 scale);
+	virtual void	ForEachFrame(FrameFunction function, void * context);
+	virtual void	ScalePoints(sint32 scale);
 
 	void			SetHasShadow(BOOL val) { m_hasShadow = static_cast<uint16>(val); }
 	BOOL			GetHasShadow() { return m_hasShadow; }

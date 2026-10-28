@@ -872,22 +872,26 @@ void FacedSpriteWshadow::AllocateFrameArrays(size_t count)
 	m_shadowFrameCount  = count;
 }
 
-void FacedSpriteWshadow::ScaleUp(sint32 scale)
+void FacedSpriteWshadow::ForEachFrame(FrameFunction function, void * context)
 {
 	for (size_t facing = 0; facing < k_NUM_FACINGS; ++facing)
 	{
 		for (size_t i = 0; i < m_shadowFrameCount; ++i)
 		{
-			ScaleFrame(m_frames[facing][i], m_framesSizes[facing][i], scale);
-			ScaleFrame(m_miniframes[facing][i], m_miniframesSizes[facing][i], scale);
-			ScaleFrame(m_shadowFrames[facing][i], m_shadowFramesSizes[facing][i], scale);
-			ScaleFrame(m_miniShadowFrames[facing][i], m_miniShadowFramesSizes[facing][i], scale);
+			function(m_frames[facing][i], m_framesSizes[facing][i], context);
+			function(m_miniframes[facing][i], m_miniframesSizes[facing][i], context);
+			function(m_shadowFrames[facing][i], m_shadowFramesSizes[facing][i], context);
+			function(m_miniShadowFrames[facing][i], m_miniShadowFramesSizes[facing][i], context);
 		}
+	}
+}
+
+void FacedSpriteWshadow::ScalePoints(sint32 scale)
+{
+	for (size_t facing = 0; facing < k_NUM_FACINGS; ++facing)
+	{
 		m_hotPoints[facing].x *= scale;
 		m_hotPoints[facing].y *= scale;
 	}
-	m_width  = static_cast<uint16>(m_width * scale);
-	m_height = static_cast<uint16>(m_height * scale);
-	m_hotPoint.x *= scale;
-	m_hotPoint.y *= scale;
+	Sprite::ScalePoints(scale);
 }

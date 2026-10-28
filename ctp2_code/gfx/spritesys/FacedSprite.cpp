@@ -600,20 +600,24 @@ void FacedSprite::Export(FILE *file)
 	return;
 }
 
-void FacedSprite::ScaleUp(sint32 scale)
+void FacedSprite::ForEachFrame(FrameFunction function, void * context)
 {
 	for (size_t facing = 0; facing < k_NUM_FACINGS; ++facing)
 	{
 		for (size_t i = 0; i < m_facedFrameCount; ++i)
 		{
-			ScaleFrame(m_frames[facing][i], m_framesSizes[facing][i], scale);
-			ScaleFrame(m_miniframes[facing][i], m_miniframesSizes[facing][i], scale);
+			function(m_frames[facing][i], m_framesSizes[facing][i], context);
+			function(m_miniframes[facing][i], m_miniframesSizes[facing][i], context);
 		}
+	}
+}
+
+void FacedSprite::ScalePoints(sint32 scale)
+{
+	for (size_t facing = 0; facing < k_NUM_FACINGS; ++facing)
+	{
 		m_hotPoints[facing].x *= scale;
 		m_hotPoints[facing].y *= scale;
 	}
-	m_width  = static_cast<uint16>(m_width * scale);
-	m_height = static_cast<uint16>(m_height * scale);
-	m_hotPoint.x *= scale;
-	m_hotPoint.y *= scale;
+	Sprite::ScalePoints(scale);
 }

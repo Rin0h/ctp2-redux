@@ -351,8 +351,15 @@ namespace
 {
 	// ctp2-redux: sprites are loaded g_tileScale times as large, for the map
 	// in the pixels of the frame
+	void ExportFrame(Pixel16 *& frame, size_t & size, void * dir)
+	{
+		spriteutils_ExportFrame(frame, size, static_cast<MBCHAR const *>(dir));
+	}
+
 	void ScaleLoaded(Sprite * s)
 	{
+		if (g_spriteExportDir)
+			s->ForEachFrame(ExportFrame, const_cast<MBCHAR *>(g_spriteExportDir));
 		if (g_tileScale > 1)
 			s->ScaleUp(g_tileScale);
 	}
