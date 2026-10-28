@@ -211,7 +211,9 @@ AUI_ERRCODE graphicsresscreen_Cleanup()
 void graphicsresscreen_acceptPress(aui_Control *control, uint32 action, uint32 data, Cookie cookie )
 {
 	if ( graphicsresscreen_removeMyWindow(action) ) {
-		if (s_selectedDisplayMode) {
+		// ctp2-redux: only a resolution the player picked counts (with the
+		// scaling the game may run at a size the list does not have)
+		if (s_selectedDisplayMode && s_resList->GetSelectedItemIndex() != s_currentResIndex) {
 			if (s_selectedDisplayMode->width != g_ScreenWidth ||
 				s_selectedDisplayMode->height != g_ScreenHeight) {
 				g_theProfileDB->SetScreenResWidth(s_selectedDisplayMode->width);
