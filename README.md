@@ -26,6 +26,10 @@ upstream.
   their profile to the game setup (nation, rules), no chat lobby. The
   network menu only offers what still works: direct connection, TCP/IP LAN,
   hotseat and e-mail (no IPX, no list of the long-gone Activision servers).
+- **E-mail games**: after a turn the game offers to send the save game with
+  the default mail program (Simple MAPI, e.g. Thunderbird or classic Outlook:
+  a new mail with recipient, subject and the save game attached opens) or to
+  show the file for sending it by hand.
 - **Automated multiplayer test**: two instances play a game against each
   other in the background, see [below](#automated-multiplayer-test).
 - Upscaling: analysis done, implementation not started.
@@ -347,6 +351,10 @@ spiegelt das Upstream-Projekt.
   ohne Chat-Lobby. Das Netzwerkmenü bietet nur noch an, was funktioniert:
   Direktverbindung, TCP/IP-LAN, Hotseat und E-Mail (kein IPX, keine Liste der
   abgeschalteten Activision-Server).
+- **E-Mail-Spiele**: Nach dem Zug bietet das Spiel an, den Spielstand mit dem
+  Standard-Mailprogramm zu verschicken (Simple MAPI, z.B. Thunderbird oder
+  klassisches Outlook: eine neue Mail mit Empfänger, Betreff und Spielstand
+  als Anhang öffnet sich) oder die Datei zum selbst Verschicken zu zeigen.
 - **Automatischer Multiplayer-Test**: Zwei Instanzen spielen im Hintergrund
   gegeneinander, siehe unten.
 - Hochskalierung: Analyse abgeschlossen, Umsetzung steht aus.

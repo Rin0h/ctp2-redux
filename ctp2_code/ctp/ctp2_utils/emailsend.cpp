@@ -46,7 +46,8 @@ namespace
 	std::string Subject()
 	{
 		char buf[256];
-		snprintf(buf, sizeof(buf), Text("EMAIL_TURN_SUBJECT", "Call to Power II: your turn (round %d)").c_str(), s_round);
+		// the game counts rounds from 0, players from 1
+		snprintf(buf, sizeof(buf), Text("EMAIL_TURN_SUBJECT", "Call to Power II: your turn (round %d)").c_str(), s_round + 1);
 		return buf;
 	}
 

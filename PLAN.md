@@ -191,6 +191,17 @@ Plan:
 6. **Desync-Test:** gleiche Partie über viele Runden, `net_crc`-Prüfungen
    beobachten, SLIC-Stände von Host und Client gleich halten.
 
+### E-Mail-Spiele (2026-10-28)
+
+Original: nach dem Zug speichert das Spiel „CTP2 Email To <adresse> (Turn N).c2g“
+auf den Desktop, verschickt wird von Hand. Jetzt hat die Meldung „nächster
+Spieler“ zusätzlich „Per E-Mail senden“ (Simple MAPI `MAPISendMail` im
+eigenen Thread; ohne MAPI-Mailprogramm Rückfall auf Explorer + `mailto:`)
+und „Datei zeigen“ (`ctp/ctp2_utils/emailsend.cpp`, Skriptfunktionen
+`SendEmailTurn()`/`ShowEmailTurnFile()`). Mit Thunderbird vom Besitzer
+getestet. Offen/Idee: Empfangsseite erleichtern (z.B. „Spiel laden“ schlägt
+neue Züge aus dem Downloads-Ordner vor).
+
 ## Phase 2b – Gleichzeitige Züge (nach Phase 2, Wunsch des Besitzers)
 
 Heute laufen Netzwerkspiele nacheinander (Spielart „Normal“, „Zeitrunden“,
