@@ -257,20 +257,28 @@ function Get-GameInfo([string]$folder) {
     foreach ($p in @('ctp2_program\ctp', 'ctp2_code\ctp')) {
         if (Test-Path (Join-Path $folder $p)) { $info.Program = Join-Path $folder $p; break }
     }
+    $civpathsRead = $false
+    $profileLanguage = $null
     if ($info.Program) {
-        foreach ($sub in @('', 'x64')) {
+        # where the game runs first (x64 in a build)
+        $subs = if (Test-Path (Join-Path $info.Program 'x64\ctp2.exe')) { @('x64', '') } else { @('', 'x64') }
+        foreach ($sub in $subs) {
             $dir = if ($sub) { Join-Path $info.Program $sub } else { $info.Program }
             if (-not $info.Exe -and (Test-Path (Join-Path $dir 'ctp2.exe'))) { $info.Exe = Join-Path $dir 'ctp2.exe' }
             $paths = Join-Path $dir 'civpaths.txt'
-            if (Test-Path $paths) {
+            if (-not $civpathsRead -and (Test-Path $paths)) {
+                $civpathsRead = $true
                 $lines = @(Get-Content $paths | Where-Object { $_.Trim() })
-                if ($lines.Count -ge 4) { $info.Language = $lines[3].Trim() }
+                if ($lines.Count -ge 4 -and -not $profileLanguage) { $info.Language = $lines[3].Trim() }
             }
             $profileFile = Join-Path $dir 'userprofile.txt'
             if (-not $info.Profile -and (Test-Path $profileFile)) {
                 $info.Profile = $profileFile
                 $line = Select-String -Path $profileFile -Pattern '^DisplayScale=(-?\d+)' | Select-Object -First 1
                 if ($line) { $info.ProfileScale = [int]$line.Matches[0].Groups[1].Value }
+                # the game takes LanguageDirectory of the profile before civpaths
+                $line = Select-String -Path $profileFile -Pattern '^LanguageDirectory=(\S+)' | Select-Object -First 1
+                if ($line) { $profileLanguage = $line.Matches[0].Groups[1].Value; $info.Language = $profileLanguage }
             }
         }
     }

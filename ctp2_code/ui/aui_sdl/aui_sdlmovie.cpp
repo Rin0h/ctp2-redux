@@ -216,6 +216,10 @@ typedef struct VideoState {
 	struct SwsContext *img_convert_ctx;
 	struct SwsContext *sub_convert_ctx;
 	int eof;
+	// ctp2-redux: everything read is also shown and heard; eof alone
+	// came 1-2 seconds early (frames and sound still queued)
+	int played;
+	double eof_time;
 
 	char *filename;
 	int width, height, xleft, ytop;
@@ -1834,6 +1838,7 @@ static int read_thread(void *arg)
 		if (!is->paused &&
 			(!is->audio_st || (is->auddec.finished == is->audioq.serial && frame_queue_nb_remaining(&is->sampq) == 0)) &&
 			(!is->video_st || (is->viddec.finished == is->videoq.serial && frame_queue_nb_remaining(&is->pictq) == 0))) {
+			is->played = 1;
 			ret = AVERROR_EOF;
 			goto fail;
 		}
@@ -1927,6 +1932,23 @@ fail:
 	return NULL;
 }
 
+// ctp2-redux: the movie is over when all of it was shown and heard, or a
+// while after the end of the file (should a decoder never report its end)
+static bool movie_played(VideoState *is)
+{
+	if (is->played)
+		return true;
+	if (!is->eof)
+	{
+		is->eof_time = 0.0;
+		return false;
+	}
+	double const now = av_gettime_relative() / 1000000.0;
+	if (is->eof_time == 0.0)
+		is->eof_time = now;
+	return now - is->eof_time > 5.0;
+}
+
 static void refresh_loop_wait_event(VideoState *is, SDL_Event *event) {
 	double remaining_time = 0.0;
 	SDL_PumpEvents();
@@ -1945,7 +1967,7 @@ static void refresh_loop_wait_event(VideoState *is, SDL_Event *event) {
 		if (!is->paused || is->force_refresh)
 			video_refresh(is, &remaining_time);
 
-		if(is->eof == 1)
+		if (movie_played(is))
 			break;
 
 		SDL_PumpEvents();
@@ -2183,7 +2205,7 @@ AUI_ERRCODE aui_SDLMovie::Process()
 			refresh_loop_wait_event(m_videoState, &event);
 			movieFinished = HandleMovieEvent(event);
 
-			if(m_videoState->eof == 1)
+			if (movie_played(m_videoState))
 				break;
 		}
 		Close();

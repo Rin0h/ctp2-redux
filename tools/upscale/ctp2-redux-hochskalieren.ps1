@@ -64,16 +64,25 @@ $program = $null
 foreach ($p in @('ctp2_program\ctp', 'ctp2_code\ctp')) {
     if (Test-Path (Join-Path $Install $p)) { $program = Join-Path $Install $p; break }
 }
+# its files (profile, paths) count first where the game runs (x64 in a build)
+$programFirst = ''
+if ($program -and (Test-Path (Join-Path $program 'x64\ctp2.exe'))) { $programFirst = 'x64\' }
+function ProgramFile([string]$name) {
+    if (-not $program) { return $null }
+    foreach ($sub in @($programFirst, 'x64\', '')) {
+        $path = Join-Path $program ($sub + $name)
+        if (Test-Path $path) { return $path }
+    }
+    return $null
+}
 
 # --- the scaling --------------------------------------------------------------
 function Get-ProfileScale {
     if (-not $program) { return $null }
-    foreach ($f in @('userprofile.txt', 'x64\userprofile.txt')) {
-        $path = Join-Path $program $f
-        if (Test-Path $path) {
-            $line = Select-String -Path $path -Pattern '^DisplayScale=(-?\d+)' | Select-Object -First 1
-            if ($line) { return [int]$line.Matches[0].Groups[1].Value }
-        }
+    $path = ProgramFile 'userprofile.txt'
+    if ($path) {
+        $line = Select-String -Path $path -Pattern '^DisplayScale=(-?\d+)' | Select-Object -First 1
+        if ($line) { return [int]$line.Matches[0].Groups[1].Value }
     }
     return $null
 }
@@ -106,16 +115,17 @@ if ($Scale -lt 2 -or $Scale -gt 4) {
 }
 
 # --- the language folder (localized images override default ones) -----------
+# like the game: LanguageDirectory of the profile, else the 4th line of civpaths
 $gameLanguage = 'english'
-if ($program) {
-    foreach ($f in @('civpaths.txt', 'x64\civpaths.txt')) {
-        $path = Join-Path $program $f
-        if (Test-Path $path) {
-            $lines = @(Get-Content $path | Where-Object { $_.Trim() })
-            if ($lines.Count -ge 4) { $gameLanguage = $lines[3].Trim() }
-            break
-        }
-    }
+$path = ProgramFile 'civpaths.txt'
+if ($path) {
+    $lines = @(Get-Content $path | Where-Object { $_.Trim() })
+    if ($lines.Count -ge 4) { $gameLanguage = $lines[3].Trim() }
+}
+$path = ProgramFile 'userprofile.txt'
+if ($path) {
+    $line = Select-String -Path $path -Pattern '^LanguageDirectory=(\S+)' | Select-Object -First 1
+    if ($line) { $gameLanguage = $line.Matches[0].Groups[1].Value }
 }
 
 # --- folders --------------------------------------------------------------------
@@ -132,6 +142,18 @@ foreach ($d in @($target, $tools, $inDir, $outDir, $origDir)) {
 }
 # images the game has but that cannot be read count as done
 $skippedList = Join-Path $target '_uebersprungen.txt'
+# the language the images and videos were made for: localized ones differ,
+# so after a change of language a part counts as not done
+function MadeForOtherLanguage([string]$part) {
+    $file = Join-Path $target "_sprache_$part.txt"
+    if (-not (Test-Path $file)) { return $false }
+    return ((Get-Content $file -TotalCount 1).Trim() -ne $gameLanguage)
+}
+function MarkLanguage([string]$part) {
+    Set-Content -Path (Join-Path $target "_sprache_$part.txt") -Value $gameLanguage
+}
+$redoImages = $Force -or (MadeForOtherLanguage 'bilder')
+$redoVideos = $Force -or (MadeForOtherLanguage 'videos')
 $skipped = @{}
 if (Test-Path $skippedList) { foreach ($n in Get-Content $skippedList) { $skipped[$n] = $true } }
 
@@ -518,7 +540,7 @@ if (-not $NoImages) {
     }
     Say (L "Bilder gefunden: $($sources.Count)" "Images found: $($sources.Count)")
     if ($Status) {
-        $done = @($sources.Keys | Where-Object { $skipped[$_] -or (Test-Path (Join-Path $target "$_.tga")) }).Count
+        $done = @($sources.Keys | Where-Object { -not $redoImages -and ($skipped[$_] -or (Test-Path (Join-Path $target "$_.tga"))) }).Count
         Write-Host "##STATUS bilder $done $($sources.Count)"
         $sources = [ordered]@{}
     }
@@ -528,7 +550,7 @@ if (-not $NoImages) {
     $n = 0
     foreach ($name in $sources.Keys) {
         if (($n++ % 100) -eq 0) { Progress 'vorbereiten' $n $sources.Count }
-        if (-not $Force -and ($skipped[$name] -or (Test-Path (Join-Path $target "$name.tga")))) { continue }
+        if (-not $redoImages -and ($skipped[$name] -or (Test-Path (Join-Path $target "$name.tga")))) { continue }
         $src = $sources[$name]
         $w = 0; $h = 0
         try {
@@ -565,6 +587,7 @@ if (-not $NoImages) {
             }
         }
         Say (L "Bilder: $ok von $($todo.Count) fertig." "Images: $ok of $($todo.Count) done.")
+        if ($ok -eq $todo.Count) { MarkLanguage 'bilder' }
     }
 }
 
@@ -591,9 +614,9 @@ foreach ($dir in @('default', $gameLanguage)) {
     }
 }
 $videoDir = Join-Path $target 'videos'
-$videoTodo = @($videos.Keys | Where-Object { -not $NoVideos } | Where-Object { $Force -or -not (Test-Path (Join-Path $videoDir "$_.mkv")) })
+$videoTodo = @($videos.Keys | Where-Object { -not $NoVideos } | Where-Object { $redoVideos -or -not (Test-Path (Join-Path $videoDir "$_.mkv")) })
 if ($Status) {
-    $done = @($videos.Keys | Where-Object { Test-Path (Join-Path $videoDir "$_.mkv") }).Count
+    $done = @($videos.Keys | Where-Object { -not $redoVideos -and (Test-Path (Join-Path $videoDir "$_.mkv")) }).Count
     Write-Host "##STATUS videos $done $($videos.Count)"
     Remove-Item -Recurse -Force $work
     exit 0
@@ -642,6 +665,7 @@ if ($NoVideos) {
     }
     Progress 'videos' $videoTodo.Count $videoTodo.Count
     Say (L "Videos: $videoOk von $($videoTodo.Count) fertig." "Videos: $videoOk of $($videoTodo.Count) done.")
+    if ($videoOk -eq $videoTodo.Count) { MarkLanguage 'videos' }
 }
 Remove-Item -Recurse -Force $work
 
