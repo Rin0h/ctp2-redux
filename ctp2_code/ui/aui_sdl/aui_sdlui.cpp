@@ -46,6 +46,7 @@
 #include "civapp.h"
 #include "profileDB.h"                  // g_theProfileDB
 #include "autotest.h"                   // ctp2-redux test mode
+#include <SDL2/SDL_image.h>             // IMG_SavePNG
 
 extern BOOL                 g_exclusiveMode;
 extern CivApp*              g_civApp;
@@ -365,6 +366,15 @@ void aui_SDLUI::RequestScreenshot( const char *path )
 	s_screenshotRequested = true;
 }
 
+static void SDLSaveSurface( SDL_Surface *surface )
+{
+	size_t len = strlen( s_screenshotPath );
+	if ( len > 4 && SDL_strcasecmp( s_screenshotPath + len - 4, ".png" ) == 0 )
+		IMG_SavePNG( surface, s_screenshotPath );
+	else
+		SDL_SaveBMP( surface, s_screenshotPath );
+}
+
 static void SDLSaveScreenshot( SDL_Renderer *renderer )
 {
 	int w = 0, h = 0;
@@ -374,7 +384,7 @@ static void SDLSaveScreenshot( SDL_Renderer *renderer )
 	if ( !surface )
 		return;
 	if ( SDL_RenderReadPixels( renderer, NULL, SDL_PIXELFORMAT_ARGB8888, surface->pixels, surface->pitch ) == 0 )
-		SDL_SaveBMP( surface, s_screenshotPath );
+		SDLSaveSurface( surface );
 	SDL_FreeSurface( surface );
 }
 
@@ -384,7 +394,22 @@ AUI_ERRCODE aui_SDLUI::SDLDrawScreen( void )
 	Assert(m_SDLTexture);
 	Assert(m_SDLRenderer);
 	if (autotest_Active() && autotest_Hidden())
-		return AUI_ERRCODE_OK;   // nobody looks at it
+	{
+		// nobody looks at it; screenshots come straight from the frame buffer
+		if ( s_screenshotRequested )
+		{
+			s_screenshotRequested = false;
+			SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormatFrom(
+				m_primary->Buffer(), m_width, m_height, m_bpp, m_primary->Pitch(),
+				aui_SDLSurface::TransformSurfacePixelFormatToSDL(m_pixelFormat) );
+			if ( surface )
+			{
+				SDLSaveSurface( surface );
+				SDL_FreeSurface( surface );
+			}
+		}
+		return AUI_ERRCODE_OK;
+	}
 
 	int errcode;
 	errcode= SDL_UpdateTexture(m_SDLTexture, NULL, m_primary->Buffer(), m_primary->Pitch());

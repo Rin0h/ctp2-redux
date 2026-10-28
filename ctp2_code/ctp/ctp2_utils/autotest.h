@@ -14,12 +14,15 @@
 //   autohumans=<n>        host only: human players to wait for (default 2)
 //   autoname=<name>       player profile name
 //   autoshow              keep the window visible (hidden by default)
+//   autoshots=<n>         screenshot every n rounds (default 1, 0 = none)
 //
 // The game clicks through the netshell by itself, ends its own turns, and
 // writes autotest_result.txt next to the executable before it quits:
 //   result=ok|<reason>, rounds, resync_requests, resyncs_sent, crc_errors,
 //   seconds. A missing file means the instance crashed or hung.
-// Progress goes to autotest_log.txt.
+// Progress goes to autotest_log.txt, including a "stats" line per player
+// and round (cities, units, gold, advances). Screenshots are taken at the
+// start of the own turn: autotest_round_<nnn>.png.
 //
 //----------------------------------------------------------------------------
 

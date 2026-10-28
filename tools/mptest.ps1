@@ -6,6 +6,11 @@
 #   pwsh tools/mptest.ps1 -Turns 50 -AIPlayers 3
 #   pwsh tools/mptest.ps1 -Asan                # client with AddressSanitizer
 #   pwsh tools/mptest.ps1 -Show                # watch the two windows
+#   pwsh tools/mptest.ps1 -ShotEvery 5         # screenshot every 5th round (0 = none)
+#
+# Each instance logs a stats line per player and round (cities, units,
+# gold, advances) and saves a screenshot of its own turn start as
+# autotest_round_<nnn>.png in its folder, also while the window is hidden.
 #
 # Needs the game data in the working copy (ctp2_data, Scenarios) and a
 # Final-SDL x64 build (tools/win-build.ps1). Exit code 0 = passed.
@@ -20,6 +25,7 @@ param(
     [int]$TimeoutMinutes = 30,
     [switch]$Asan,
     [switch]$Show,
+    [int]$ShotEvery = 1,
     [string]$Port = '21157'
 )
 
@@ -38,7 +44,7 @@ function Prepare-Instance([string]$name) {
     Copy-Item (Join-Path $build 'dll') $dir -Recurse -Force
     # release network DLL (the logging variant only if the folder had one)
     Copy-Item (Join-Path $build 'anet2.dll') $dir -Force
-    Remove-Item (Join-Path $dir 'dp.ini'), (Join-Path $dir 'autotest_*.txt') -ErrorAction SilentlyContinue
+    Remove-Item (Join-Path $dir 'dp.ini'), (Join-Path $dir 'autotest_*.txt'), (Join-Path $dir 'autotest_round_*.png') -ErrorAction SilentlyContinue
     Set-Content -Path (Join-Path $dir 'userprofile.txt') -Encoding ascii -Value @(
         'WindowedMode=Yes', 'ScreenResWidth=800', 'ScreenResHeight=600', 'TryWindowsResolution=No',
         'FullScreenMovies=No', 'SfxVolume=0', 'VoiceVolume=0', 'MusicVolume=0')
@@ -61,7 +67,7 @@ if ($Asan) {
 }
 
 $showArg = if ($Show) { ' autoshow' } else { '' }
-$common = "nointromovie autoturns=$Turns$showArg"
+$common = "nointromovie autoturns=$Turns autoshots=$ShotEvery$showArg"
 
 Write-Host "Host:   $hostDir"
 Write-Host "Client: $clientDir  ($clientExe)"
@@ -116,6 +122,22 @@ function Read-Result([string]$dir, [string]$who) {
 $results = @( (Read-Result $hostDir 'host'), (Read-Result $clientDir 'client') )
 Write-Host ''
 foreach ($r in $results) { Write-Host ("{0,-7} {1}  {2}" -f $r.who, ($(if ($r.ok) { 'OK  ' } else { 'FAIL' })), $r.text) }
+
+# --- how the game went: last stats of the host, screenshots of both
+$stats = Get-Content (Join-Path $hostDir 'autotest_log.txt') -ErrorAction SilentlyContinue | Select-String ' stats round '
+if ($stats) {
+    # the last round both played (afterwards the AI takes over the client's civ)
+    $lastRoundStats = ($stats[-1].Line -split ' stats round ')[1].Split(' ')[0]
+    if ([int]$lastRoundStats -gt $Turns) { $lastRoundStats = $Turns }
+    Write-Host ''
+    Write-Host "Game state in round $lastRoundStats (host view):"
+    $stats | Where-Object { $_.Line -like "* stats round $lastRoundStats *" } |
+        ForEach-Object { Write-Host ('  ' + ($_.Line -split ' player ')[1]) }
+}
+foreach ($d in $hostDir, $clientDir) {
+    $shots = @(Get-ChildItem $d -Filter 'autotest_round_*.png' -ErrorAction SilentlyContinue)
+    if ($shots.Count) { Write-Host "Screenshots: $($shots.Count) in $d (autotest_round_<nnn>.png)" }
+}
 
 if ($Asan) {
     $asanOut = Join-Path $clientDir 'asan_output.txt'

@@ -39,6 +39,12 @@
 #include "SelItem.h"            // g_selected_item
 #include "GameEventManager.h"   // g_gevManager
 #include "sci_advancescreen.h"
+#include "Gold.h"
+#include "Advances.h"
+#include "UnitDynArr.h"
+#ifdef __AUI_USE_SDL__
+#include "aui_sdlui.h"          // aui_SDLUI::RequestScreenshot
+#endif
 
 namespace
 {
@@ -51,6 +57,8 @@ namespace
 	int         s_aiPlayers     = 2;
 	int         s_humanPlayers  = 2;
 	bool        s_hidden        = true;
+	int         s_shotEvery     = 1;
+	int         s_lastShotRound = -1;
 
 	std::set<std::string> s_stepsDone;
 	double      s_lastStep      = 0.0;
@@ -63,6 +71,7 @@ namespace
 	int         s_lastRound      = -1;
 	double      s_myTurnSince    = -1.0;
 	double      s_lastEndTurn    = 0.0;
+	double      s_quitAt         = -1.0;
 
 	std::chrono::steady_clock::time_point s_start = std::chrono::steady_clock::now();
 
@@ -81,6 +90,24 @@ namespace
 		while (*e && *e != ' ' && *e != '\t' && *e != '"') e++;
 		value.assign(p, e - p);
 		return true;
+	}
+
+	void LogStats(int round)
+	{
+		for (int i = 0; i < k_MAX_PLAYERS; i++)
+		{
+			Player *p = g_player[i];
+			if (!p || p->IsDead()) continue;
+			int known = 0;
+			for (sint32 a = 0; p->m_advances && a < p->m_advances->GetNum(); a++)
+				if (p->m_advances->HasAdvance(a)) known++;
+			autotest_Log("stats round %d player %d %s: cities %d units %d gold %d advances %d",
+			             round, i, p->IsRobot() ? "ai" : "human",
+			             p->GetAllCitiesList() ? (int)p->GetAllCitiesList()->Num() : -1,
+			             p->GetAllUnitList()   ? (int)p->GetAllUnitList()->Num()   : -1,
+			             p->m_gold             ? (int)p->m_gold->GetLevel()        : -1,
+			             known);
+		}
 	}
 }
 
@@ -104,6 +131,7 @@ void autotest_ParseCommandLine(const char *cmdLine)
 	if (ReadValue(cmdLine, "autoai=", v))     s_aiPlayers    = atoi(v.c_str());
 	if (ReadValue(cmdLine, "autohumans=", v)) s_humanPlayers = atoi(v.c_str());
 	if (ReadValue(cmdLine, "autoname=", v))   s_name         = v;
+	if (ReadValue(cmdLine, "autoshots=", v))  s_shotEvery    = atoi(v.c_str());
 	if (strstr(cmdLine, "autoshow"))          s_hidden       = false;
 	if (s_turns < 1) s_turns = 1;
 	if (s_name.empty()) s_name = (s_role == ROLE_HOST) ? "AutoHost" : "AutoClient";
@@ -226,12 +254,14 @@ void autotest_Process(bool gameLoaded)
 	{
 		s_lastRound = round;
 		autotest_Log("round %d", round);
+		LogStats(round);
 	}
 
-	// The client quits first; the host plays one more round so it does not
-	// leave while the client still waits for its turn.
-	const int lastRound = s_turns + (autotest_IsHost() ? 1 : 0);
-	if (round >= lastRound)
+	// The client ends its turn of the last round and quits a moment later;
+	// the host's round with the same number starts right after that turn
+	// (the client's counter runs one turn ahead), so the host quits then.
+	// Like that nobody waits for a player that has already left.
+	if (autotest_IsHost() ? round >= s_turns : (s_quitAt > 0.0 && Now() >= s_quitAt))
 	{
 		autotest_Finish("ok");
 		return;
@@ -246,9 +276,14 @@ void autotest_Process(bool gameLoaded)
 	if (Now() - s_lastDiag > 10.0)
 	{
 		s_lastDiag = Now();
-		autotest_Log("state: me %d cur %d visible %d myTurn %d ready %d round %d",
+		std::string rounds;
+		for (int i = 0; i < k_MAX_PLAYERS; i++)
+			if (g_player[i])
+				rounds += " " + std::to_string(i) + ":" + std::to_string(g_player[i]->GetCurRound())
+				        + (g_player[i]->IsRobot() ? "a" : g_player[i]->IsNetwork() ? "n" : "h");
+		autotest_Log("state: me %d cur %d visible %d myTurn %d ready %d round %d, rounds%s",
 		             me, (int)g_selected_item->GetCurPlayer(), (int)g_selected_item->GetVisiblePlayer(),
-		             (int)g_network.IsMyTurn(), (int)g_network.ReadyToStart(), round);
+		             (int)g_network.IsMyTurn(), (int)g_network.ReadyToStart(), round, rounds.c_str());
 	}
 
 	if (!myTurn)
@@ -260,6 +295,19 @@ void autotest_Process(bool gameLoaded)
 	if (s_myTurnSince < 0.0)
 		s_myTurnSince = Now();
 
+	// Screenshot of the turn start, half a second before the turn ends.
+	if (s_shotEvery > 0 && round % s_shotEvery == 0 && round != s_lastShotRound &&
+	    Now() - s_myTurnSince > 1.0)
+	{
+		s_lastShotRound = round;
+#ifdef __AUI_USE_SDL__
+		char path[64];
+		snprintf(path, sizeof(path), "autotest_round_%03d.png", round);
+		aui_SDLUI::RequestScreenshot(path);
+		autotest_Log("screenshot %s", path);
+#endif
+	}
+
 	// Give the turn start a moment (city updates, messages), then end it;
 	// retry every few seconds in case a request was swallowed.
 	if (Now() - s_myTurnSince > 1.5 && Now() - s_lastEndTurn > 4.0)
@@ -270,5 +318,8 @@ void autotest_Process(bool gameLoaded)
 		s_lastEndTurn = Now();
 		autotest_Log("end turn (round %d)", round);
 		g_gevManager->EndTurnRequest();
+
+		if (!autotest_IsHost() && round >= s_turns && s_quitAt < 0.0)
+			s_quitAt = Now() + 3.0;   // let the end of turn reach the host
 	}
 }

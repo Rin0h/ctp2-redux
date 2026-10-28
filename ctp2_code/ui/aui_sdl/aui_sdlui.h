@@ -74,8 +74,8 @@ public:
 
 	virtual AUI_ERRCODE SDLDrawScreen( void );
 
-	// ctp2-redux: save the next presented frame as BMP (Print Screen key,
-	// also used by the automated multiplayer tests).
+	// ctp2-redux: save the next presented frame (Print Screen key, also used
+	// by the automated multiplayer tests); PNG for a ".png" path, else BMP.
 	static void RequestScreenshot( const char *path );
 
 protected:

@@ -20,7 +20,71 @@ upstream.
 - Builds with Visual Studio 2022 Build Tools (MSVC 14.44) without admin
   rights: `pwsh tools/win-build.ps1` → `ctp2_code/ctp/x64/ctp2.exe`.
 - Starts and plays the intro video through FFmpeg.
-- Multiplayer, upscaling: analysis done, implementation not started.
+- Multiplayer over a **direct connection** (host / join by IP address, no
+  lobby server): 50+ rounds without a crash in manual tests. Network crashes
+  found with AddressSanitizer are fixed.
+- **Automated multiplayer test**: two instances play a game against each
+  other in the background, see [below](#automated-multiplayer-test).
+- Upscaling: analysis done, implementation not started.
+
+### Automated multiplayer test
+
+`tools/mptest.ps1` starts a host and a client of your build on the same PC.
+They click through the network screens by themselves, play a
+direct-connection game against each other and end their turns. No window
+opens and the game is silent. Nobody needs to click anything.
+
+```
+pwsh tools/mptest.ps1                    # 20 rounds, 2 AI civilisations
+pwsh tools/mptest.ps1 -Turns 50 -AIPlayers 3
+pwsh tools/mptest.ps1 -Show              # watch both game windows
+pwsh tools/mptest.ps1 -ShotEvery 5       # screenshot every 5th round (0 = none)
+pwsh tools/mptest.ps1 -Asan              # client built with AddressSanitizer
+```
+
+It needs a Final-SDL x64 build (`tools/win-build.ps1`) and the game data in
+the working copy. The exit code is 0 if the test passed. A test passes when:
+
+- both instances reach the requested round, without a crash or a hang;
+- there are no database checksum (CRC) errors;
+- the client never asked the host for a resync. A resync request means the
+  client's game state drifted away from the host's.
+
+**What you get:**
+- a summary in the console, including cities, units, gold and advances per
+  player in the last round both instances played;
+- the folders `ctp2_code/ctp/autotest_host` and `ctp2_code/ctp/autotest_client`
+  (copies of the build, git-ignored), each containing:
+  - `autotest_log.txt`: steps, rounds, a stats line per player and round,
+    resync and CRC events;
+  - `autotest_result.txt`: the machine-readable result;
+  - `autotest_round_<nnn>.png`: a screenshot of the own turn start, taken
+    even while the window is hidden.
+
+**How it works:** the script passes command-line switches to the game,
+implemented in `ctp2_code/ctp/ctp2_utils/autotest.cpp`:
+
+| Switch | Meaning |
+|---|---|
+| `autohost` | host a direct-connection game |
+| `autojoin=<addr>` | join the host at `<addr>`, e.g. `127.0.0.1:21157` |
+| `autoturns=<n>` | stop after n rounds (default 20) |
+| `autoai=<n>` | host only: number of AI civilisations (default 2) |
+| `autohumans=<n>` | host only: human players to wait for (default 2) |
+| `autoname=<name>` | player profile name |
+| `autoshots=<n>` | screenshot every n rounds (default 1, 0 = none) |
+| `autoshow` | keep the window visible (hidden by default) |
+
+The network windows press the same buttons a player would press, and in the
+game the test ends its own turn. The test players do not play their
+civilisation: settlers stay where they are. The AI civilisations play
+normally. In hidden mode the game uses a software renderer and does not
+draw to the screen. Edge scrolling is also off, because the mouse is
+outside the hidden window and the map would otherwise scroll forever.
+
+Known limitation: the host waits in the lobby until the client is there,
+because a direct-connection client does not see a game the host created
+before it joined (see [PLAN.md](PLAN.md)).
 
 ### Game files and licence
 
@@ -252,7 +316,63 @@ spiegelt das Upstream-Projekt.
 - Baut mit den Visual Studio 2022 Build Tools (MSVC 14.44) ohne Adminrechte:
   `pwsh tools/win-build.ps1` → `ctp2_code/ctp/x64/ctp2.exe`.
 - Startet und spielt das Intro-Video über FFmpeg ab.
-- Multiplayer und Hochskalierung: Analyse abgeschlossen, Umsetzung steht aus.
+- Multiplayer über **Direktverbindung** (Hosten bzw. Beitreten per
+  IP-Adresse, ohne Lobbyserver): in Handtests über 50 Runden ohne Absturz.
+  Die Netzwerkabstürze, die AddressSanitizer gefunden hat, sind behoben.
+- **Automatischer Multiplayer-Test**: Zwei Instanzen spielen im Hintergrund
+  gegeneinander, siehe unten.
+- Hochskalierung: Analyse abgeschlossen, Umsetzung steht aus.
+
+### Automatischer Multiplayer-Test
+
+`tools/mptest.ps1` startet einen Host und einen Client des eigenen Builds
+auf demselben PC. Beide klicken sich selbst durch die Netzwerkbildschirme,
+spielen eine Partie über Direktverbindung gegeneinander und beenden ihre
+Züge. Es öffnet sich kein Fenster, das Spiel ist stumm, und niemand muss
+etwas anklicken.
+
+```
+pwsh tools/mptest.ps1                    # 20 Runden, 2 KI-Völker
+pwsh tools/mptest.ps1 -Turns 50 -AIPlayers 3
+pwsh tools/mptest.ps1 -Show              # beide Spielfenster ansehen
+pwsh tools/mptest.ps1 -ShotEvery 5       # Bild jede 5. Runde (0 = keine)
+pwsh tools/mptest.ps1 -Asan              # Client mit AddressSanitizer
+```
+
+Voraussetzung sind ein Final-SDL-x64-Build (`tools/win-build.ps1`) und die
+Spieldaten in der Arbeitskopie. Exit-Code 0 heißt bestanden. Der Test ist
+bestanden, wenn:
+
+- beide Instanzen die gewünschte Runde erreichen, ohne Absturz oder Hänger;
+- keine Prüfsummenfehler (CRC) der Datenbanken auftreten;
+- der Client nie einen Neuabgleich beim Host anfordert. Eine solche
+  Anforderung bedeutet, dass der Spielstand des Clients von dem des Hosts
+  abgewichen ist.
+
+**Was man bekommt:**
+- eine Zusammenfassung in der Konsole, mit Städten, Einheiten, Gold und
+  Fortschritten je Spieler in der letzten gemeinsam gespielten Runde;
+- die Ordner `ctp2_code/ctp/autotest_host` und `ctp2_code/ctp/autotest_client`
+  (Kopien des Builds, von git ignoriert), jeweils mit:
+  - `autotest_log.txt`: Schritte, Runden, eine Statuszeile je Spieler und
+    Runde, Neuabgleich- und CRC-Ereignisse;
+  - `autotest_result.txt`: das Ergebnis in maschinenlesbarer Form;
+  - `autotest_round_<nnn>.png`: ein Bild vom eigenen Zugbeginn, auch bei
+    verstecktem Fenster.
+
+**Wie es funktioniert:** Das Skript übergibt dem Spiel Kommandozeilen-
+Schalter, umgesetzt in `ctp2_code/ctp/ctp2_utils/autotest.cpp`. Die Tabelle
+der Schalter steht im englischen Teil oben. Die Netzwerkfenster drücken
+dieselben Knöpfe wie ein Spieler, und im Spiel beendet der Test seinen Zug
+selbst. Die Testspieler spielen ihr Volk nicht, ihre Siedler bleiben stehen.
+Die KI-Völker spielen normal. Im versteckten Modus nutzt das Spiel einen
+Software-Renderer und zeichnet nicht auf den Bildschirm. Außerdem ist das
+Rand-Scrollen aus, denn die Maus liegt außerhalb des versteckten Fensters
+und die Karte würde sonst endlos scrollen.
+
+Bekannte Einschränkung: Der Host wartet in der Lobby, bis der Client da ist.
+Ein Direkt-Client sieht nämlich kein Spiel, das der Host vor seinem
+Beitritt angelegt hat (siehe [PLAN.md](PLAN.md)).
 
 ### Spieldaten und Lizenz
 

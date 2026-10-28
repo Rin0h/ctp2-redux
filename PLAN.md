@@ -117,9 +117,15 @@ Startet Host und Client unsichtbar auf diesem PC (Kopien des Builds in
 klicken sich selbst durch Netshell und Spiel-Setup, beenden ihre Züge und
 schreiben `autotest_result.txt`. Bestanden = beide erreichen die Runde, kein
 Absturz/Hänger, keine CRC-Fehler, keine Resync-Anforderung.
-`-Turns N -AIPlayers K -Show -Asan`. Spielseitig: Schalter `autohost`,
-`autojoin=<adresse>`, `autoturns=`, `autoai=`, `autoname=`, `autoshow`
-(`ctp/ctp2_utils/autotest.cpp`). Unsichtbar heißt: verstecktes Fenster,
+`-Turns N -AIPlayers K -ShotEvery N -Show -Asan`. Spielseitig: Schalter
+`autohost`, `autojoin=<adresse>`, `autoturns=`, `autoai=`, `autoname=`,
+`autoshots=`, `autoshow` (`ctp/ctp2_utils/autotest.cpp`). Verlauf sichtbar
+über Statuszeilen je Spieler und Runde (Städte, Einheiten, Gold,
+Fortschritte) und `autotest_round_<nnn>.png` vom eigenen Zugbeginn, auch
+bei verstecktem Fenster. Bedienung ausführlich im README. Idee: die
+Statuszeilen von Host und Client automatisch vergleichen (Desync-Prüfung);
+Testspieler ihr Volk von der KI spielen lassen, damit mehr Aktionen übers
+Netz laufen. Unsichtbar heißt: verstecktes Fenster,
 Software-Renderer ohne Present, kein Rand-Scrollen (die Maus liegt außerhalb
 und `CivApp::ProcessUI` scrollte sonst endlos). Bekannt: der Host wartet in
 der Lobby auf den Client, weil ein Direkt-Client ein bereits angelegtes Spiel
