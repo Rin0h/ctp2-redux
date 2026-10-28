@@ -82,6 +82,7 @@ ctp_ctp2_LDFLAGS = \
 ctp_ctp2_SOURCES = \
 	ctp/ctp2_utils/appstrings.cpp \
 	ctp/ctp2_utils/autotest.cpp \
+	ctp/ctp2_utils/emailsend.cpp \
 	ctp/ctp2_utils/c3cmdline.cpp \
 	ctp/ctp2_utils/c3debug.cpp \
 	ctp/ctp2_utils/c3errors.cpp \

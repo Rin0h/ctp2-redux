@@ -547,6 +547,8 @@ SLICFUNC(SFR_VOID, AddEffect)
 SLICFUNC(SFR_INT,  PlayerCivilization)
 SLICFUNC(SFR_INT,  CivilizationIndex)
 SLICFUNC(SFR_VOID, ExitToDesktop)
+SLICFUNC(SFR_VOID, SendEmailTurn)       // ctp2-redux: e-mail game, send the save game
+SLICFUNC(SFR_VOID, ShowEmailTurnFile)   // ctp2-redux: e-mail game, show the save game
 
 SLICFUNC(SFR_INT,  Import)
 SLICFUNC(SFR_VOID, Export)

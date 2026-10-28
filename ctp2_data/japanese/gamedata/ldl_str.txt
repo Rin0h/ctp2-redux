@@ -3007,6 +3007,10 @@ HOTSEAT_AI "コンピュータ"
 
 SHOW_ME "表示"
 BUTTON_QUIT_GAME "ゲームの終了"
+BUTTON_SEND_EMAIL		"Send by e-mail"
+BUTTON_SHOW_FILE		"Show file"
+EMAIL_TURN_SUBJECT		"Call to Power II: your turn (round %d)"
+EMAIL_TURN_BODY		"Your turn in Call to Power II. Save the attached file and open it with 'Load game'."
 
 TEST_BEGIN_TURN "自国の値は{myValue}"
 TEST_UNIT_KILLED "{unit[0].name}は倒されました｡"

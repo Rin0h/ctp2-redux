@@ -623,6 +623,10 @@ BUTTON_LET_THEM_STAY	"Teilnehmen lassen"
 BUTTON_CONTINUE				"Fortfahren"
 BUTTON_END_GAME				"Spiel beenden"
 BUTTON_QUIT_GAME			"Spiel beenden"
+BUTTON_SEND_EMAIL		"Per E-Mail senden"
+BUTTON_SHOW_FILE		"Datei zeigen"
+EMAIL_TURN_SUBJECT		"Call to Power II: Du bist dran (Runde %d)"
+EMAIL_TURN_BODY		"Du bist dran in Call to Power II. Speichere den angehängten Spielstand und öffne ihn mit 'Spiel laden'."
 
 # Buttons razing, enslaving etc. of cities
 BUTTON_RAZE				"Schleifen"

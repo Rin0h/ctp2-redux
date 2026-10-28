@@ -623,6 +623,10 @@ BUTTON_LET_THEM_STAY	"Let Them Stay"
 BUTTON_CONTINUE				"Pokracovat"
 BUTTON_END_GAME				"Konec Hry"
 BUTTON_QUIT_GAME			"Quit Game"
+BUTTON_SEND_EMAIL		"Send by e-mail"
+BUTTON_SHOW_FILE		"Show file"
+EMAIL_TURN_SUBJECT		"Call to Power II: your turn (round %d)"
+EMAIL_TURN_BODY		"Your turn in Call to Power II. Save the attached file and open it with 'Load game'."
 
 # Buttons razing, enslaving etc. of cities
 BUTTON_RAZE				"Raze"

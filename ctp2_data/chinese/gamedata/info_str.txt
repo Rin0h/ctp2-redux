@@ -623,6 +623,10 @@ BUTTON_LET_THEM_STAY	"让他们等会"
 BUTTON_CONTINUE				"继续"
 BUTTON_END_GAME				"结束游戏"
 BUTTON_QUIT_GAME			"离开游戏"
+BUTTON_SEND_EMAIL		"Send by e-mail"
+BUTTON_SHOW_FILE		"Show file"
+EMAIL_TURN_SUBJECT		"Call to Power II: your turn (round %d)"
+EMAIL_TURN_BODY		"Your turn in Call to Power II. Save the attached file and open it with 'Load game'."
 
 # Buttons razing, enslaving etc. of cities
 BUTTON_RAZE				"毁灭"

@@ -794,6 +794,8 @@ void SlicEngine::AddBuiltinFunctions()
 	m_functionHash->Add(new Slic_PlayerCivilization);
 	m_functionHash->Add(new Slic_CivilizationIndex);
 	m_functionHash->Add(new Slic_ExitToDesktop);
+	m_functionHash->Add(new Slic_SendEmailTurn);
+	m_functionHash->Add(new Slic_ShowEmailTurnFile);
 
 	m_functionHash->Add(new Slic_Import);
 	m_functionHash->Add(new Slic_Export);

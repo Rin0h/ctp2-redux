@@ -68,6 +68,7 @@
 //..\ctp2_code\gs\slic\SlicEngine.cpp
 
 #include "c3.h"
+#include "emailsend.h"                  // ctp2-redux, e-mail games
 #include "SlicFunc.h"
 #include "slicif.h"
 #include "StrDB.h"
@@ -5930,6 +5931,20 @@ SFN_ERROR Slic_CivilizationIndex::Call(SlicArgList *args)
 SFN_ERROR Slic_ExitToDesktop::Call(SlicArgList *args)
 {
 	ExitGame();
+	return SFN_ERROR_OK;
+}
+
+// ctp2-redux: e-mail games, hand over the save game written for the next
+// player (emailsend.h)
+SFN_ERROR Slic_SendEmailTurn::Call(SlicArgList *args)
+{
+	emailsend_Send();
+	return SFN_ERROR_OK;
+}
+
+SFN_ERROR Slic_ShowEmailTurnFile::Call(SlicArgList *args)
+{
+	emailsend_ShowFile();
 	return SFN_ERROR_OK;
 }
 

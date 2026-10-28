@@ -35,6 +35,7 @@
 //----------------------------------------------------------------------------
 
 #include "c3.h"
+#include "emailsend.h"                  // ctp2-redux, e-mail games
 #include "TurnCnt.h"
 
 #include "AgreementPool.h"          // g_theAgreementPool
@@ -1190,6 +1191,8 @@ void TurnCount::SendNextPlayerMessageEvent()
 		strcat(fullPath, turnString);
 		strcat(fullPath, ".c2g");
 		GameFile::SaveGame(fullPath, NULL);
+		// ctp2-redux: offered for sending in the message below
+		emailsend_Remember(fullPath, g_player[player]->m_email, GetRound());
 	}
 
 	SlicObject * so =
