@@ -316,7 +316,30 @@ Plan und Entscheidungen (2026-10-28):
   Faktor mit mind. 1024x768, 4K → 1920x1080 ×2), SDL vergrößert ganzzahlig
   mit „nearest“. Fenster: gewählte Auflösung × Faktor. Wer im Vollbild eine
   feste Auflösung wählt, schaltet die Skalierung aus (altes Verhalten).
-  `display_ApplyScale` in ctp/display.cpp, aui_sdlui.cpp.
+  `display_ApplyScale` in ctp/display.cpp, aui_sdlui.cpp. Dazu DPI-fähig
+  (`SDL_HINT_WINDOWS_DPI_AWARENESS`), sonst skaliert Windows bei 200 %
+  Anzeigeskalierung ein zweites Mal. Besitzer spielt 4K mit 3-fach
+  (1280x720): „3x ist voll ok und keiner wird's größer wollen“.
+- HD-Umbau (Entscheidung 2026-10-28, „jetzt müssen die Texturen schöner
+  sein“): das Spiel zeichnet in voller Monitorauflösung mit hochskalierten
+  Bildern, Logik bleibt in Spielpixeln. Vergleich an Spielbildern
+  (`_local/vergleich_*.png`): KI schlägt Laufzeitfilter klar.
+  Modelle: Oberfläche **realesr-animevideov3** (x2/x3/x4 passend zum
+  Faktor; x4plus verschluckt Details z. B. bei Schrift), Karte vermutlich
+  **realesrgan-x4plus** (auf Faktor verkleinert) – vor M4 eigener Vergleich.
+  Etappen, nach jeder lauffähig:
+  - M1 Unterbau: Primärfläche in Monitorauflösung, jede `aui_Surface` mit
+    Faktor; 1x-Flächen werden beim Zusammensetzen ganzzahlig vergrößert;
+    Maus ÷ Faktor, Dirty-Rects × Faktor. Optisch wie heute.
+  - M2 Schrift in HD: Fensterflächen × Faktor, Blitter/Primitive/Fonts
+    rechnen Zielkoordinaten um, Schrift in Faktor × Punktgröße. Direkte
+    Pixelzugriffe (~190 Stellen) je Fenster prüfen; nicht umgestellte
+    Fenster bleiben 1x und werden vergrößert.
+  - M3 Oberflächenbilder: Skript entpackt UI-Bilder (lose TGA + .zfs),
+    skaliert mit animevideov3, legt sie in `ctp2_data\redux_hires`; Bild-
+    Lader nimmt die HD-Fassung (Fläche mit Faktor).
+  - M4 Karte: Gelände/Sprites/Städte in HD (Kachelkonstanten, Formate).
+  - B1 Videos (Skript-Infrastruktur aus M3).
 - Werkzeuge beim Spieler: eigenes `ctp2-assets.exe` (mit dem Spiel gebaut,
   FFmpeg ist schon drin; zfs/spr/til/Videos entpacken und packen) und
   Real-ESRGAN ncnn-vulkan (BSD-3, jede Vulkan-GPU, CPU-Notlauf), das Skript

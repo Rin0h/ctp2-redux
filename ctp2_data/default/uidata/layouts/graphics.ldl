@@ -38,7 +38,7 @@ GraphicsWindow {
 	string	xanchor	"center"
 	string	yanchor	"center"
 	int	widthpix	700
-	int	heightpix	450
+	int	heightpix	490
 	int	xpix	0
 	int	ypix	0
 	Name:CTP_GREY_TITLE_FONT {
@@ -53,7 +53,7 @@ GraphicsWindow {
 
 	AcceptButton {
 		int	xpix	404
-		int	ypix	217
+		int	ypix	257
 		int	widthpix	48
 		int	heightpix	19
 		int	bevelwidth	0
@@ -65,7 +65,7 @@ GraphicsWindow {
 	##############################################
 	WalkButton:GRAPHICS_CHECKBOX {
 		int	xpix	30
-		int	ypix	130
+		int	ypix	170
 		stringtable {
 			string	string0	"str_ldl_Unit_Animation_Off"
 			string	string1	"str_ldl_Unit_Animation_On"
@@ -73,7 +73,7 @@ GraphicsWindow {
 	}
 	TradeButton:GRAPHICS_CHECKBOX {
 		int	xpix	30
-		int	ypix	160
+		int	ypix	200
 		stringtable {
 			string	string0	"str_ldl_Animated_Trade_Routes_Off"
 			string	string1	"str_ldl_Animated_Trade_Routes_On"
@@ -81,7 +81,7 @@ GraphicsWindow {
 	}
 	WonderButton:GRAPHICS_CHECKBOX {
 		int	xpix	30
-		int	ypix	190
+		int	ypix	230
 		stringtable {
 			string	string0	"str_ldl_Wonder_Movies_Off"
 			string	string1	"str_ldl_Wonder_Movies_On"
@@ -89,7 +89,7 @@ GraphicsWindow {
 	}
 	ArmyNamesButton:GRAPHICS_CHECKBOX {
 		int	xpix	30
-		int	ypix	220
+		int	ypix	260
 		stringtable {
 			string	string0	"str_ldl_Army_Names_Off"
 			string	string1	"str_ldl_Army_Names_On"
@@ -97,7 +97,7 @@ GraphicsWindow {
 	}
 	CivFlagButton:GRAPHICS_CHECKBOX {
 		int	xpix	30
-		int	ypix	250
+		int	ypix	290
 		stringtable {
 			string	string0	"str_ldl_Civ_Flags_Off"
 			string	string1	"str_ldl_Civ_Flags_On"
@@ -105,7 +105,7 @@ GraphicsWindow {
 	}
 	ShowCityProdButton:GRAPHICS_CHECKBOX {
 		int	xpix	30
-		int	ypix	280
+		int	ypix	320
 		stringtable {
 			string	string0	"str_ldl_Show_City_Prod_Off"
 			string	string1	"str_ldl_Show_City_Prod_On"
@@ -113,7 +113,7 @@ GraphicsWindow {
 	}
 	WindowedModeButton:GRAPHICS_CHECKBOX {
 		int	xpix	30
-		int	ypix	310
+		int	ypix	350
 		stringtable {
 			string	string0	"str_ldl_Windowed_Mode_Off"
 			string	string1	"str_ldl_Windowed_Mode_On"
@@ -125,7 +125,7 @@ GraphicsWindow {
 
 	PoliticalBordersButton:GRAPHICS_CHECKBOX {
 		int	xpix	350
-		int	ypix	130
+		int	ypix	170
 		stringtable {
 			string	string0	"str_ldl_ShowPoliticalBorders_Off"
 			string	string1	"str_ldl_ShowPoliticalBorders_On"
@@ -133,7 +133,7 @@ GraphicsWindow {
 	}
 	TradeRoutesButton:GRAPHICS_CHECKBOX {
 		int	xpix	350
-		int	ypix	160
+		int	ypix	200
 		stringtable {
 			string	string0	"str_ldl_ShowTradeRoutes_Off"
 			string	string1	"str_ldl_ShowTradeRoutes_On"
@@ -141,7 +141,7 @@ GraphicsWindow {
 	}
 	CityInflenceButton:GRAPHICS_CHECKBOX {
 		int	xpix	350
-		int	ypix	190
+		int	ypix	230
 		stringtable {
 			string	string0	"str_ldl_Show_City_Inflence_Off"
 			string	string1	"str_ldl_Show_City_Inflence_On"
@@ -149,7 +149,7 @@ GraphicsWindow {
 	}
 	GridButton:GRAPHICS_CHECKBOX {
 		int	xpix	350
-		int	ypix	220
+		int	ypix	260
 		stringtable {
 			string	string0	"str_ldl_Grid_Off"
 			string	string1	"str_ldl_Grid_On"
@@ -157,7 +157,7 @@ GraphicsWindow {
 	}
 	SmoothButton:GRAPHICS_CHECKBOX {
 		int	xpix	350
-		int	ypix	250
+		int	ypix	290
 		stringtable {
 			string	string0	"str_ldl_SmoothBorders_Off"
 			string	string1	"str_ldl_SmoothBorders_On"
@@ -165,7 +165,7 @@ GraphicsWindow {
 	}
 	GoodsButton:GRAPHICS_CHECKBOX {
 		int	xpix	350
-		int	ypix	280
+		int	ypix	320
 		stringtable {
 			string	string0	"str_ldl_Good_Animations_Off"
 			string	string1	"str_ldl_Good_Animations_On"
@@ -174,20 +174,15 @@ GraphicsWindow {
 	# ctp2-redux: classic (original) or Apolyton interface, after a restart
 	ClassicInterfaceButton:GRAPHICS_CHECKBOX {
 		int	xpix	30
-		int	ypix	340
+		int	ypix	380
 		stringtable {
 			string	string0	"str_ldl_Classic_Interface_Off"
 			string	string1	"str_ldl_Classic_Interface_On"
 		}
 	}
-	# ctp2-redux: sharp scaling (text set by the code), after a restart
-	DisplayScaleButton:GRAPHICS_CHECKBOX {
-		int	xpix	350
-		int	ypix	340
-	}
 	RunInBackgroundButton:GRAPHICS_CHECKBOX {
 		int	xpix	350
-		int	ypix	310
+		int	ypix	350
 		stringtable {
 			string	string0	"str_ldl_Run_In_Background_Off"
 			string	string1	"str_ldl_Run_In_Background_On"
@@ -203,7 +198,7 @@ GraphicsWindow {
 		string	imagebltflag	"chromakey"
 #		int xpix	279
 		string	xanchor	"center"
-		int	ypix	380
+		int	ypix	420
 		string	text	"str_ldl_RES_CHANGE_BUTTON"
 	}
 
@@ -277,6 +272,50 @@ GraphicsWindow {
 		string	pattern	"uptg20e.tga"
 		String	just	"right"
 		string	text	"str_profile_ShowCityNames"
+	}
+	####################################
+	# ctp2-redux: sharp scaling, after a restart (off, automatic, 1x to 4x)
+	DisplayScaleSlider {
+		string	xanchor	"center"
+		int	ypix	125
+		int	widthpix	300
+		int	heightpix	40
+		int	maxxval	5
+		int	maxyval	0
+		int	pagexval	1
+		int	pageyval	1
+		int	xval	1
+		string	pattern	"uptg20e.tga"
+		string	type	"slider"
+		string	orientation	"horizontal"
+		bool	rigidthumb	TRUE
+		bool	quantizedrag	TRUE
+		int	minthumbsize	9
+		int	ticks	1
+		thumb {
+			int	widthpix	9
+			int	heightpix	40
+			string	image0	"upba2513.tga"
+			string	imagebltflag	"chromakey"
+		}
+	}
+	DisplayScaleName:CTP2_STANDARD_FONT {
+		int	xpix	30
+		int	ypix	135
+		int	widthpix	140
+		int	heightpix	20
+		string	pattern	"uptg20e.tga"
+		String	just	"right"
+		string	text	"str_ldl_Display_Scale"
+	}
+	DisplayScaleValue:CTP2_STANDARD_FONT {
+		int	xpix	515
+		int	ypix	135
+		int	widthpix	170
+		int	heightpix	20
+		string	pattern	"uptg20e.tga"
+		String	just	"left"
+		string	text	""
 	}
 }
 

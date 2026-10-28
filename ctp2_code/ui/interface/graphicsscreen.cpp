@@ -20,6 +20,7 @@
 #include "civapp.h"
 #include "SpriteGroupList.h"
 #include "MessageBoxDialog.h"
+#include <algorithm>              // std::min, std::max
 #include "StrDB.h"              // g_theStringDB
 
 extern C3UI            * g_c3ui;
@@ -44,6 +45,9 @@ static c3_Static * s_unitSpeedN     = NULL;
 static C3Slider  * s_unitSpeed      = NULL;
 static c3_Static * s_cityNameAlphaN = NULL;
 static C3Slider  * s_cityNameAlpha  = NULL;
+static c3_Static * s_displayScaleN     = NULL; // ctp2-redux
+static C3Slider  * s_displayScale      = NULL;
+static c3_Static * s_displayScaleValue = NULL;
 
 static aui_Switch	*s_walk						= NULL,
 
@@ -63,7 +67,6 @@ static aui_Switch	*s_walk						= NULL,
 					*s_runInBackground			= NULL,
 					*s_cityProd					= NULL,
 					*s_classicInterface			= NULL, // ctp2-redux
-					*s_displayScale				= NULL, // ctp2-redux
 #if defined(__AUI_USE_SDL__)
 					*s_windowedMode				= NULL,
 #endif
@@ -99,7 +102,6 @@ enum
 	GS_WINDOWEDMODE,
 	GS_RUNINBACKGROUNT,
 	GS_CLASSICINTERFACE,
-	GS_DISPLAYSCALE,
 
 	GS_TOTAL
 };
@@ -126,16 +128,18 @@ static uint32 check[] =
 	GS_WINDOWEDMODE,
 	GS_RUNINBACKGROUNT,
 	GS_CLASSICINTERFACE,
-	GS_DISPLAYSCALE,
 
 	GS_TOTAL
 };
 
-// ctp2-redux: the scaling switch steps through automatic, 1x to 3x and off
-// (profile DisplayScale 0, 1 to 3, -1); lit while scaling is on
+// ctp2-redux: the scaling slider, positions off, automatic, 1x to 4x
+// (profile DisplayScale -1, 0, 1 to 4)
+static sint32 graphicsscreen_scaleToSlider(sint32 scale) { return std::min<sint32>(std::max<sint32>(scale, -1), 4) + 1; }
+static sint32 graphicsscreen_sliderToScale(sint32 value) { return value - 1; }
+
 static void graphicsscreen_showScale()
 {
-	if (!s_displayScale) return;
+	if (!s_displayScaleValue) return;
 
 	sint32 const scale = g_theProfileDB->GetDisplayScale();
 	MBCHAR text[256];
@@ -146,8 +150,7 @@ static void graphicsscreen_showScale()
 	else
 		sprintf(text, g_theStringDB->GetNameStr("str_ldl_Display_Scale_Fixed"), scale);
 
-	s_displayScale->SetText(text);
-	s_displayScale->SetState(scale < 0 ? 0 : 1);
+	s_displayScaleValue->SetText(text);
 }
 
 sint32 TransformCityNameAlphaToSliderValue(sint32 cityNameAlpha)
@@ -217,6 +220,8 @@ void graphicsscreen_initializeValues()
 	s_cityProd        ->SetState(g_theProfileDB->IsShowCityProduction());
 	if (s_classicInterface)
 		s_classicInterface->SetState(g_theProfileDB->IsClassicInterface());
+	if (s_displayScale)
+		s_displayScale->SetValue(graphicsscreen_scaleToSlider(g_theProfileDB->GetDisplayScale()), 0);
 	graphicsscreen_showScale();
 #if defined(__AUI_USE_SDL__)
 	s_windowedMode    ->SetState(g_theProfileDB->IsWindowedMode());
@@ -301,9 +306,13 @@ AUI_ERRCODE graphicsscreen_Initialize( void )
 	if (aui_Ldl::IsValid(classicBlock))
 		s_classicInterface = spNew_aui_Switch(&errcode, windowBlock, "ClassicInterfaceButton", graphicsscreen_checkPress, &check[GS_CLASSICINTERFACE]);
 	// ctp2-redux: sharp scaling
-	sprintf(classicBlock, "%s.%s", windowBlock, "DisplayScaleButton");
+	sprintf(classicBlock, "%s.%s", windowBlock, "DisplayScaleSlider");
 	if (aui_Ldl::IsValid(classicBlock))
-		s_displayScale = spNew_aui_Switch(&errcode, windowBlock, "DisplayScaleButton", graphicsscreen_checkPress, &check[GS_DISPLAYSCALE]);
+	{
+		s_displayScale      = spNew_C3Slider (&errcode, windowBlock, "DisplayScaleSlider", graphicsscreen_displayScaleSlide);
+		s_displayScaleN     = spNew_c3_Static(&errcode, windowBlock, "DisplayScaleName");
+		s_displayScaleValue = spNew_c3_Static(&errcode, windowBlock, "DisplayScaleValue");
+	}
 #if defined(__AUI_USE_SDL__)
 	s_windowedMode     = spNew_aui_Switch  (&errcode, windowBlock, "WindowedModeButton",     graphicsscreen_checkPress, &check[GS_WINDOWEDMODE]);
 #endif
@@ -356,6 +365,8 @@ void graphicsscreen_Cleanup()
 	mycleanup(s_cityProd);
 	mycleanup(s_classicInterface);
 	mycleanup(s_displayScale);
+	mycleanup(s_displayScaleN);
+	mycleanup(s_displayScaleValue);
 #if defined(__AUI_USE_SDL__)
 	mycleanup(s_windowedMode);
 #endif
@@ -462,20 +473,6 @@ void graphicsscreen_checkPress(aui_Control *control, uint32 action, uint32 data,
 	case GS_CITYPROD:
 		func = &ProfileDB::SetShowCityProduction;
 		break;
-	case GS_DISPLAYSCALE:
-	{
-		// takes effect at the next start, like the interface
-		static bool s_hintShown = false;
-		sint32 const scale = g_theProfileDB->GetDisplayScale();
-		g_theProfileDB->SetDisplayScale(scale < 0 ? 0 : (scale >= 3 ? -1 : scale + 1));
-		graphicsscreen_showScale();
-		if (!s_hintShown)
-		{
-			s_hintShown = true;
-			MessageBoxDialog::Information("str_ldl_Display_Scale_Restart", "InfoDisplayScale");
-		}
-		break;
-	}
 	case GS_CLASSICINTERFACE:
 		// ctp2-redux: the layouts are loaded at the start of the game
 		func = &ProfileDB::SetClassicInterface;
@@ -518,6 +515,25 @@ void graphicsscreen_colorSlide(aui_Control *control, uint32 action, uint32 data,
 void graphicsscreen_contrastSlide(aui_Control *control, uint32 action, uint32 data, Cookie cookie )
 {
 
+}
+
+// ctp2-redux: takes effect at the next start, like the interface
+void graphicsscreen_displayScaleSlide(aui_Control *control, uint32 action, uint32 data, Cookie cookie)
+{
+	if (action != AUI_RANGER_ACTION_VALUECHANGE || !s_displayScale) return;
+
+	sint32 const scale = graphicsscreen_sliderToScale(s_displayScale->GetValueX());
+	if (scale == g_theProfileDB->GetDisplayScale()) return;
+
+	g_theProfileDB->SetDisplayScale(scale);
+	graphicsscreen_showScale();
+
+	static bool s_hintShown = false;
+	if (!s_hintShown)
+	{
+		s_hintShown = true;
+		MessageBoxDialog::Information("str_ldl_Display_Scale_Restart", "InfoDisplayScale");
+	}
 }
 
 void graphicsscreen_unitSpeedSlide(aui_Control *control, uint32 action, uint32 data, Cookie cookie )

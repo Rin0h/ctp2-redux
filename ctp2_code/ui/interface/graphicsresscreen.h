@@ -37,6 +37,7 @@ sint32 graphicsresscreen_removeMyWindow(uint32 action);
 AUI_ERRCODE graphicsresscreen_Initialize( void );
 AUI_ERRCODE graphicsresscreen_Cleanup();
 
+void graphicsscreen_displayScaleSlide(aui_Control *control, uint32 action, uint32 data, Cookie cookie );
 void graphicsscreen_unitSpeedSlide(aui_Control *control, uint32 action, uint32 data, Cookie cookie );
 void graphicsresscreen_acceptPress(aui_Control *control, uint32 action, uint32 data, Cookie cookie );
 
