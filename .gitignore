@@ -907,3 +907,6 @@ _local/
 ctp2_code/ctp/autotest_host/
 ctp2_code/ctp/autotest_client/
 ctp2_code/ctp/autotest_single/
+
+# ctp2-redux: HD graphics made by tools/upscale (never in the repository)
+ctp2_data/redux_hires/

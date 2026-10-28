@@ -128,10 +128,10 @@ AUI_ERRCODE aui_Mouse::InitCommonLdl( const MBCHAR *ldlBlock )
 					if ( !cursor ) return AUI_ERRCODE_LOADFAILED;
 
 					Assert(cursor->TheSurface() != NULL);
-					Assert( cursor->TheSurface()->Width() <= k_MOUSE_MAXSIZE );
-					Assert( cursor->TheSurface()->Height() <= k_MOUSE_MAXSIZE );
-					if ( cursor->TheSurface()->Width() > k_MOUSE_MAXSIZE
-					||   cursor->TheSurface()->Height() > k_MOUSE_MAXSIZE )
+					Assert( cursor->TheSurface()->LogicalWidth() <= k_MOUSE_MAXSIZE );
+					Assert( cursor->TheSurface()->LogicalHeight() <= k_MOUSE_MAXSIZE );
+					if ( cursor->TheSurface()->LogicalWidth() > k_MOUSE_MAXSIZE
+					||   cursor->TheSurface()->LogicalHeight() > k_MOUSE_MAXSIZE )
 					{
 						g_ui->UnloadCursor( cursor );
 						return AUI_ERRCODE_INVALIDDIMENSION;
@@ -245,11 +245,11 @@ void aui_Mouse::SetCursor(sint32 index, MBCHAR * cursor)
 		Assert(c);
 		if (c)
 		{
-			Assert(c->TheSurface()->Width() <= k_MOUSE_MAXSIZE);
-			Assert(c->TheSurface()->Height() <= k_MOUSE_MAXSIZE);
+			Assert(c->TheSurface()->LogicalWidth() <= k_MOUSE_MAXSIZE);
+			Assert(c->TheSurface()->LogicalHeight() <= k_MOUSE_MAXSIZE);
 
-			if (    c->TheSurface()->Width() > k_MOUSE_MAXSIZE
-			     || c->TheSurface()->Height() > k_MOUSE_MAXSIZE
+			if (    c->TheSurface()->LogicalWidth() > k_MOUSE_MAXSIZE
+			     || c->TheSurface()->LogicalHeight() > k_MOUSE_MAXSIZE
 			   )
 			{
 				g_ui->UnloadCursor(c);

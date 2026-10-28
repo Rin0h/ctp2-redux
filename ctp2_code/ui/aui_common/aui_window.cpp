@@ -677,7 +677,7 @@ void aui_Window::SetStencilFromImage(const MBCHAR *imageFileName)
 
 	RECT imageRect = {
 		0, 0,
-		image->TheSurface()->Width(), image->TheSurface()->Height()
+		image->TheSurface()->LogicalWidth(), image->TheSurface()->LogicalHeight()
 	};
 	g_ui->TheBlitter()->Blt(&tempSurface, 0, 0,
 							image->TheSurface(),

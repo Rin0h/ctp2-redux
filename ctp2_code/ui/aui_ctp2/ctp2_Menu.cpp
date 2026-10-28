@@ -256,8 +256,8 @@ ctp2_Menu::Item *ctp2_Menu::CreateItem(const MBCHAR *block, const MBCHAR *text, 
 		if(box->NumChildren() > 2) {
 			ctp2_Static *iconBox = (ctp2_Static *)box->GetChildByIndex(2);
 			Assert(iconBox);
-			iconWidth = iconBox->GetImage()->TheSurface()->Width() + k_LEFT_ITEM_MARGIN;
-			iconHeight = iconBox->GetImage()->TheSurface()->Width();
+			iconWidth = iconBox->GetImage()->TheSurface()->LogicalWidth() + k_LEFT_ITEM_MARGIN;
+			iconHeight = iconBox->GetImage()->TheSurface()->LogicalWidth();
 		}
 
 

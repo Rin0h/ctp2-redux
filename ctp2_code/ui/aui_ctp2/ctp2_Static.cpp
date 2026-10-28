@@ -176,8 +176,8 @@ ctp2_Static::ConstructImageRect(uint32 index)
 	if (surf == NULL)
 		return false;
 
-	rect->right  = surf->Width();
-	rect->bottom = surf->Height();
+	rect->right  = surf->LogicalWidth();
+	rect->bottom = surf->LogicalHeight();
 
 	return true;
 }
@@ -473,7 +473,7 @@ void ctp2_Static::FitToBitmap(void)
 	if (surf == NULL)
 		return;
 
-	Resize(surf->Width(), surf->Height());
+	Resize(surf->LogicalWidth(), surf->LogicalHeight());
 }
 
 

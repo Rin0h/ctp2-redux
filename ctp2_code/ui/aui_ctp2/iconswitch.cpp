@@ -24,7 +24,7 @@ IconSwitch::IconSwitch(
 :
 	aui_ImageBase( (sint32)0 ),
 	aui_TextBase(NULL),
-	aui_Switch( retval, id, x, y, icon->TheSurface()->Width(), icon->TheSurface()->Height(), ActionFunc, cookie, selected ),
+	aui_Switch( retval, id, x, y, icon->TheSurface()->LogicalWidth(), icon->TheSurface()->LogicalHeight(), ActionFunc, cookie, selected ),
 	PatternBase( pattern ),
 	m_icon( icon ),
 	m_color( color )

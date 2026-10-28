@@ -104,12 +104,12 @@ AUI_ERRCODE ctp2_Switch::DrawThis(
 	aui_Image *im = GetImage(imIndex);
 	RECT imRect = rect;
 	if(im && im->TheSurface()) {
-		sint32 imWidth = im->TheSurface()->Width();
+		sint32 imWidth = im->TheSurface()->LogicalWidth();
 		if(m_width > imWidth) {
 			imRect.left += (m_width - imWidth) / 2;
 		}
 
-		sint32 imHeight = im->TheSurface()->Height();
+		sint32 imHeight = im->TheSurface()->LogicalHeight();
 		if(m_height > imHeight) {
 			imRect.top += (m_height - imHeight) / 2;
 		}

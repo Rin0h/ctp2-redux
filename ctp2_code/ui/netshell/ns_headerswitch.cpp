@@ -156,8 +156,8 @@ AUI_ERRCODE ns_HeaderSwitch::DrawThis(
 		{
 			0,
 			0,
-			m_icon->TheSurface()->Width(),
-			m_icon->TheSurface()->Height()
+			m_icon->TheSurface()->LogicalWidth(),
+			m_icon->TheSurface()->LogicalHeight()
 		};
 
 		g_ui->TheBlitter()->Blt(

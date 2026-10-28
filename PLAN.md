@@ -338,6 +338,12 @@ Plan und Entscheidungen (2026-10-28):
   - M3 Oberflächenbilder: Skript entpackt UI-Bilder (lose TGA + .zfs),
     skaliert mit animevideov3, legt sie in `ctp2_data\redux_hires`; Bild-
     Lader nimmt die HD-Fassung (Fläche mit Faktor).
+  - Stand 2026-10-28: M1, M2, M3 erledigt. M3: `tools/upscale/ctp2-redux-
+    hochskalieren.bat/.ps1` (Windows PowerShell 5.1, Pixelarbeit als C# per
+    Add-Type, Magenta vorher aus Nachbarn aufgefüllt und danach exakt wieder
+    gesetzt, Ausgabe 16-Bit-TGA 555); 2388 Bilder in 27 s auf RTX 5090,
+    656 MB bei 3x. `LoadHD` in c3imageformats.cpp, Bildgrößen-Abfragen auf
+    `LogicalWidth/Height`. Zeiger ausgenommen (Spiel vergrößert sie selbst).
   - M4 Karte: Gelände/Sprites/Städte in HD (Kachelkonstanten, Formate).
   - B1 Videos (Skript-Infrastruktur aus M3).
 - Werkzeuge beim Spieler: eigenes `ctp2-assets.exe` (mit dem Spiel gebaut,

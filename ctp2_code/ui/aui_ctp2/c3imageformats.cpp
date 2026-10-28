@@ -50,6 +50,9 @@
 #include "aui.h"
 #include "aui_image.h"
 #include "aui_surface.h"
+#include "CivPaths.h"
+#include "autotest.h"
+#include "aui_ui.h"
 
 #include "pixelutils.h"
 #include "prjfile.h"
@@ -64,6 +67,66 @@
 
 extern ProjectFile *    g_ImageMapPF;
 extern sint32           g_is565Format;
+
+//----------------------------------------------------------------------------
+//
+// Name       : LoadHD
+//
+// Description: ctp2-redux: the HD version of an image, made from the own
+//              installation by the upscaling script: a 16 bit Targa named
+//              like the image in ctp2_data/redux_hires/<scale>x, as many
+//              times as large as the original. The surface gets the scale,
+//              so the image keeps its size in game pixels.
+//
+// Returns    : true when loaded
+//
+//----------------------------------------------------------------------------
+static bool LoadHD(MBCHAR const * filename, aui_Image * image)
+{
+	sint32 const scale = g_ui ? g_ui->Scale() : 1;
+	if (scale <= 1 || !g_civPaths) return false;
+
+	char const * lastSep = strrchr(filename, '\\');
+	if (!lastSep) lastSep = strrchr(filename, '/');
+	char const * basename = lastSep ? lastSep + 1 : filename;
+	size_t const length   = strlen(basename);
+	if (length < 4 || length > 200) return false;
+
+	MBCHAR name[256];
+	strcpy(name, basename);
+	strcpy(name + length - 3, "tga");
+
+	MBCHAR path[_MAX_PATH + 1];
+	snprintf(path, sizeof(path), "%s%sredux_hires%s%dx%s%s",
+	         g_civPaths->GetDataPath(), FILE_SEP, FILE_SEP, scale, FILE_SEP, name);
+
+#ifdef WIN32
+	bool const exists = _access(path, 0) == 0;
+#else
+	struct stat st;
+	bool const exists = stat(path, &st) == 0;
+#endif
+	if (autotest_Active())
+		autotest_Log("image %s: %s", name, exists ? "HD" : "-");
+	if (!exists) return false;
+
+	int width, height, bpp;
+	if (!Get_TGA_Dimension(path, width, height, bpp) || bpp != 16
+	||  width % scale != 0 || height % scale != 0)
+		return false;
+
+	if (image->LoadEmpty(width, height, 16) != AUI_ERRCODE_OK) return false;
+
+	aui_Surface * surface = image->TheSurface();
+	uint16 *      buffer  = NULL;
+	if (!surface || surface->Lock(NULL, (LPVOID *)&buffer, 0) != AUI_ERRCODE_OK) return false;
+
+	bool const loaded = Load_TGA_File(path, (uint8 *)buffer, (int)surface->Pitch(), width, height, NULL, TRUE);
+	surface->Unlock(buffer);
+	if (loaded)
+		surface->SetScale(scale);
+	return loaded;
+}
 
 AUI_ERRCODE TiffImageFormat::Load(MBCHAR const * filename, aui_Image *image )
 {
@@ -102,6 +165,11 @@ AUI_ERRCODE TiffImageFormat::Load(MBCHAR const * filename, aui_Image *image )
 
 AUI_ERRCODE TargaImageFormat::Load(MBCHAR const * filename, aui_Image *image)
 {
+	if (LoadHD(filename, image))
+	{
+		return AUI_ERRCODE_OK;
+	}
+
 #ifdef WIN32
 	if (_access(CI_FixName(filename), 0) != 0)
 #else

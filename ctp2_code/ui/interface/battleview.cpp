@@ -380,16 +380,16 @@ void BattleView::UpdateDisplay(void)
 		return;
 
 	RECT rect = {0, 0,
-					m_backgroundImage->TheSurface()->Width(),
-					m_backgroundImage->TheSurface()->Height()};
+					m_backgroundImage->TheSurface()->LogicalWidth(),
+					m_backgroundImage->TheSurface()->LogicalHeight()};
 
 	g_c3ui->TheBlitter()->Blt(m_battleSurface, 0, 0, m_backgroundImage->TheSurface(),
 							&rect, k_AUI_BLITTER_FLAG_COPY);
 
 	if(m_cityImage) {
 		RECT cityrect = {0, 0,
-				m_cityImage->TheSurface()->Width(),
-				m_cityImage->TheSurface()->Height() };
+				m_cityImage->TheSurface()->LogicalWidth(),
+				m_cityImage->TheSurface()->LogicalHeight() };
 
 		g_c3ui->TheBlitter()->Blt(m_battleSurface, m_battleSurface->Width() - cityrect.right, 0,
 								  m_cityImage->TheSurface(), &cityrect, k_AUI_BLITTER_FLAG_COPY);

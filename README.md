@@ -46,8 +46,13 @@ upstream.
   `DisplayScale`): the game runs at the screen size divided by a whole
   factor (automatic: 4K → 1920x1080 doubled) and is enlarged pixel by
   pixel instead of being blurred.
-- Upscaled graphics and videos: plan in PLAN.md (a local script, nothing
-  shipped), not started.
+- **HD interface graphics**: `tools/upscale/ctp2-redux-hochskalieren.bat`
+  (in the game folder) upscales the interface images of your own
+  installation with Real-ESRGAN (realesr-animevideov3, downloaded once from
+  its GitHub release) into `ctp2_data/redux_hires/<scale>x`; the game draws
+  windows and text at monitor resolution and takes these images. Nothing
+  is shipped, deleting `redux_hires` undoes it. Map graphics and videos
+  follow.
 
 ### Automated multiplayer test
 
@@ -387,8 +392,13 @@ spiegelt das Upstream-Projekt.
   `DisplayScale`): Das Spiel rechnet in Bildschirmgröße geteilt durch einen
   ganzen Faktor (automatisch: 4K → 1920x1080 verdoppelt) und wird Pixel für
   Pixel vergrößert statt weichgezeichnet.
-- Hochskalierte Grafiken und Videos: Plan in PLAN.md (lokales Skript, wir
-  verteilen nichts), noch nicht begonnen.
+- **HD-Oberflächengrafiken**: `tools/upscale/ctp2-redux-hochskalieren.bat`
+  (im Spielordner) skaliert die Oberflächenbilder der eigenen Installation
+  mit Real-ESRGAN (realesr-animevideov3, einmalig von dessen GitHub-Seite
+  geladen) nach `ctp2_data/redux_hires/<Faktor>x`; das Spiel zeichnet
+  Fenster und Schrift in Monitorauflösung und nimmt diese Bilder. Wir
+  verteilen nichts, `redux_hires` löschen macht es rückgängig. Kartengrafik
+  und Videos folgen.
 
 ### Automatischer Multiplayer-Test
 

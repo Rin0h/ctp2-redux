@@ -382,8 +382,8 @@ AUI_ERRCODE aui_ImageBase::DrawImage(
 	{
 		0,
 		0,
-		srcSurf->Width(),
-		srcSurf->Height()
+		srcSurf->LogicalWidth(),
+		srcSurf->LogicalHeight()
 	};
 
 	uint32 flag = 0;

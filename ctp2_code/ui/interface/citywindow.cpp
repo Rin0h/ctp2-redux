@@ -2239,14 +2239,14 @@ AUI_ERRCODE CityWindow::DrawUnhappyIcons(ctp2_Static *control,
 	if(numIcons <= 0)
 		numIcons = 1;
 
-	sint32 w = (rect.right - im->TheSurface()->Width() - rect.left) / numIcons;
-	if(w > im->TheSurface()->Width())
-		w = im->TheSurface()->Width();
+	sint32 w = (rect.right - im->TheSurface()->LogicalWidth() - rect.left) / numIcons;
+	if(w > im->TheSurface()->LogicalWidth())
+		w = im->TheSurface()->LogicalWidth();
 
 	RECT srcRect = {
 		0, 0,
-		im->TheSurface()->Width(),
-		im->TheSurface()->Height()
+		im->TheSurface()->LogicalWidth(),
+		im->TheSurface()->LogicalHeight()
 	};
 	im->SetChromakey(255,0,255);
 
@@ -2280,14 +2280,14 @@ AUI_ERRCODE CityWindow::DrawHappyIcons(ctp2_Static *control,
 	if(numIcons <= 0)
 		numIcons = 1;
 
-	sint32 w = (rect.right - im->TheSurface()->Width() - rect.left) / numIcons;
-	if(w > im->TheSurface()->Width())
-		w = im->TheSurface()->Width();
+	sint32 w = (rect.right - im->TheSurface()->LogicalWidth() - rect.left) / numIcons;
+	if(w > im->TheSurface()->LogicalWidth())
+		w = im->TheSurface()->LogicalWidth();
 
 	RECT srcRect = {
 		0, 0,
-		im->TheSurface()->Width(),
-		im->TheSurface()->Height()
+		im->TheSurface()->LogicalWidth(),
+		im->TheSurface()->LogicalHeight()
 	};
 	im->SetChromakey(255,0,255);
 

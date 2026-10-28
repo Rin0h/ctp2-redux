@@ -445,13 +445,13 @@ AUI_ERRCODE IntelligenceWindow::DrawPlayerRegard(ctp2_Static *control,
 
 		if(image) {
 
-			rect.left += ((rect.right - rect.left) / 2) - (image->TheSurface()->Width() / 2);
-			rect.top += ((rect.bottom - rect.top) / 2) - (image->TheSurface()->Height() / 2);
+			rect.left += ((rect.right - rect.left) / 2) - (image->TheSurface()->LogicalWidth() / 2);
+			rect.top += ((rect.bottom - rect.top) / 2) - (image->TheSurface()->LogicalHeight() / 2);
 
 			RECT srcRect = {
 				0, 0,
-				image->TheSurface()->Width(),
-				image->TheSurface()->Height()
+				image->TheSurface()->LogicalWidth(),
+				image->TheSurface()->LogicalHeight()
 			};
 
 			image->SetChromakey(255,0,255);
@@ -500,13 +500,13 @@ AUI_ERRCODE IntelligenceWindow::DrawPlayerStrength(ctp2_Static *control,
 
 		if(image) {
 
-			rect.left += ((rect.right - rect.left) / 2) - (image->TheSurface()->Width() / 2);
-			rect.top += ((rect.bottom - rect.top) / 2) - (image->TheSurface()->Height() / 2);
+			rect.left += ((rect.right - rect.left) / 2) - (image->TheSurface()->LogicalWidth() / 2);
+			rect.top += ((rect.bottom - rect.top) / 2) - (image->TheSurface()->LogicalHeight() / 2);
 
 			RECT srcRect = {
 				0, 0,
-				image->TheSurface()->Width(),
-				image->TheSurface()->Height()
+				image->TheSurface()->LogicalWidth(),
+				image->TheSurface()->LogicalHeight()
 			};
 
 			image->SetChromakey(255,0,255);
@@ -561,13 +561,13 @@ AUI_ERRCODE IntelligenceWindow::DrawEmbassy(ctp2_Static *control,
 
 		if(image)
 		{
-			rect.left += ((rect.right - rect.left) / 2) - (image->TheSurface()->Width() / 2);
-			rect.top += ((rect.bottom - rect.top) / 2) - (image->TheSurface()->Height() / 2);
+			rect.left += ((rect.right - rect.left) / 2) - (image->TheSurface()->LogicalWidth() / 2);
+			rect.top += ((rect.bottom - rect.top) / 2) - (image->TheSurface()->LogicalHeight() / 2);
 
 			RECT srcRect = {
 				0, 0,
-				image->TheSurface()->Width(),
-				image->TheSurface()->Height()
+				image->TheSurface()->LogicalWidth(),
+				image->TheSurface()->LogicalHeight()
 			};
 
 			image->SetChromakey(255,0,255);
@@ -617,16 +617,16 @@ AUI_ERRCODE IntelligenceWindow::DrawTreaties(ctp2_Static *control, aui_Surface *
 
 		RECT srcRect = {
 		    0, 0,
-		    image->TheSurface()->Width(),
-		    image->TheSurface()->Height()
+		    image->TheSurface()->LogicalWidth(),
+		    image->TheSurface()->LogicalHeight()
 		    };
 
 		image->SetChromakey(255,0,255);
 
-		sint32 x = image->TheSurface()->Width() * slot;
+		sint32 x = image->TheSurface()->LogicalWidth() * slot;
 
 		g_c3ui->TheBlitter()->Blt(surface, rect.left + x,
-		    rect.top + (((rect.bottom - rect.top) - image->TheSurface()->Height()) / 2),
+		    rect.top + (((rect.bottom - rect.top) - image->TheSurface()->LogicalHeight()) / 2),
 		    image->TheSurface(),
 		    &srcRect,
 		    k_AUI_BLITTER_FLAG_CHROMAKEY);

@@ -85,8 +85,8 @@ AUI_ERRCODE NetShell::Enter( uint32 flags )
 		aui_Image * image    = g_ui->LoadImage(bg->GetImage()->GetFilename());
 		aui_Image * oldImage = g_ui->SetBackgroundImage
 		    (image,
-		     (g_ui->Width() - image->TheSurface()->Width()) / 2,
-		     (g_ui->Height() - image->TheSurface()->Height()) / 2
+		     (g_ui->Width() - image->TheSurface()->LogicalWidth()) / 2,
+		     (g_ui->Height() - image->TheSurface()->LogicalHeight()) / 2
 		    );
 		if (oldImage)
 		{

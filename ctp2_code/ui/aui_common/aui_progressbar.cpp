@@ -334,8 +334,8 @@ AUI_ERRCODE aui_ProgressBar::DrawBar( aui_Surface *surface, RECT *bound )
 			{
 				0,
 				0,
-				m_barImage->TheSurface()->Width(),
-				m_barImage->TheSurface()->Height()
+				m_barImage->TheSurface()->LogicalWidth(),
+				m_barImage->TheSurface()->LogicalHeight()
 			};
 			srcRect.left = sint32(start * (double)srcRect.right + 0.5);
 			srcRect.right = sint32(stop * (double)srcRect.right + 0.5);
@@ -372,8 +372,8 @@ AUI_ERRCODE aui_ProgressBar::DrawBar( aui_Surface *surface, RECT *bound )
 			{
 				0,
 				0,
-				m_barImage->TheSurface()->Width(),
-				m_barImage->TheSurface()->Height()
+				m_barImage->TheSurface()->LogicalWidth(),
+				m_barImage->TheSurface()->LogicalHeight()
 			};
 			srcRect.bottom = sint32(start * (double)srcRect.bottom + 0.5);
 			srcRect.top = sint32(stop * (double)srcRect.bottom + 0.5);

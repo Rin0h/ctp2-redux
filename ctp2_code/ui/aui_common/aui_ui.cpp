@@ -392,8 +392,8 @@ aui_Image *aui_UI::SetBackgroundImage( aui_Image *image, sint32 x, sint32 y )
 
 	if (m_image)
 	{
-		m_imageRect.right += m_image->TheSurface()->Width();
-		m_imageRect.bottom += m_image->TheSurface()->Height();
+		m_imageRect.right += m_image->TheSurface()->LogicalWidth();
+		m_imageRect.bottom += m_image->TheSurface()->LogicalHeight();
 
 		if ( !m_imageAreas )
 		{

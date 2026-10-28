@@ -126,7 +126,7 @@ AUI_ERRCODE CityManagerWindow::InitCommonLdl(const MBCHAR *ldlBlock)
 
 	Assert(m_bg);
 	if(m_bg) {
-		Resize(m_bg->TheSurface()->Width(), m_bg->TheSurface()->Height());
+		Resize(m_bg->TheSurface()->LogicalWidth(), m_bg->TheSurface()->LogicalHeight());
 	}
 
 	SetDraggable(TRUE);

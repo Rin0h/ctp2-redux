@@ -482,8 +482,8 @@ void LoadSaveMapWindow::SetRadarMap(SaveMapInfo *info)
 	{
 		0,
 		0,
-		m_mapTabImageBackup->TheSurface()->Width(),
-		m_mapTabImageBackup->TheSurface()->Height()
+		m_mapTabImageBackup->TheSurface()->LogicalWidth(),
+		m_mapTabImageBackup->TheSurface()->LogicalHeight()
 	};
 
 	if ( !info )

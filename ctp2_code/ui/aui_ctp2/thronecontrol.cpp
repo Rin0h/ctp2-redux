@@ -211,8 +211,8 @@ void ThroneControl::InitCommon(void)
 
 		m_upgradeRect[i].left = s_upgradeLoc[i].x;
 		m_upgradeRect[i].top = s_upgradeLoc[i].y;
-		m_upgradeRect[i].right = m_upgradeRect[i].left + m_upgradeImage[i]->TheSurface()->Width();
-		m_upgradeRect[i].bottom = m_upgradeRect[i].top + m_upgradeImage[i]->TheSurface()->Height();
+		m_upgradeRect[i].right = m_upgradeRect[i].left + m_upgradeImage[i]->TheSurface()->LogicalWidth();
+		m_upgradeRect[i].bottom = m_upgradeRect[i].top + m_upgradeImage[i]->TheSurface()->LogicalHeight();
 
 		m_drawOrder[i] = (sint8)i;
 	}
@@ -242,7 +242,7 @@ void ThroneControl::UpdateThrone(aui_Surface *surf, sint32 x, sint32 y)
 
 sint32 ThroneControl::RenderThrone( aui_Surface *surf )
 {
-	RECT	rect = { 0, 0, m_background->TheSurface()->Width(), m_background->TheSurface()->Height() };
+	RECT	rect = { 0, 0, m_background->TheSurface()->LogicalWidth(), m_background->TheSurface()->LogicalHeight() };
 
 	g_c3ui->TheBlitter()->Blt( surf, 0, 0, m_background->TheSurface(), &rect, k_AUI_BLITTER_FLAG_CHROMAKEY );
 
@@ -327,8 +327,8 @@ void ThroneControl::CrossFadeImage( const MBCHAR *filename )
 	AUI_ERRCODE errcode = AUI_ERRCODE_OK;
 	aui_Surface *tempBG = NULL;
 
-	sint32 width = m_upgradeImage[ m_selectedImage ]->TheSurface()->Width();
-	sint32 height = m_upgradeImage[ m_selectedImage ]->TheSurface()->Height();
+	sint32 width = m_upgradeImage[ m_selectedImage ]->TheSurface()->LogicalWidth();
+	sint32 height = m_upgradeImage[ m_selectedImage ]->TheSurface()->LogicalHeight();
 
 	m_isCrossFade = TRUE;
 
@@ -378,8 +378,8 @@ void ThroneControl::DisplayZoomedImage( const MBCHAR *filename )
 
 	m_zoomedImage->SetImage( filename );
 
-	sint32 width = m_zoomedImage->GetImage()->TheSurface()->Width();
-	sint32 height = m_zoomedImage->GetImage()->TheSurface()->Height();
+	sint32 width = m_zoomedImage->GetImage()->TheSurface()->LogicalWidth();
+	sint32 height = m_zoomedImage->GetImage()->TheSurface()->LogicalHeight();
 	sint32 x = ( m_width - width ) / 2;
 	sint32 y = ( m_height - height ) / 2;
 

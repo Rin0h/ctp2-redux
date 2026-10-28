@@ -624,8 +624,8 @@ void LoadSaveWindow::SetPowerGraph(SaveInfo *info)
 	{
 		0,
 		0,
-		m_powerTabImageBackup->TheSurface()->Width(),
-		m_powerTabImageBackup->TheSurface()->Height()
+		m_powerTabImageBackup->TheSurface()->LogicalWidth(),
+		m_powerTabImageBackup->TheSurface()->LogicalHeight()
 	};
 
 	if ( !info )
@@ -685,8 +685,8 @@ void LoadSaveWindow::SetRadarMap(SaveInfo *info)
 	{
 		0,
 		0,
-		m_mapTabImageBackup->TheSurface()->Width(),
-		m_mapTabImageBackup->TheSurface()->Height()
+		m_mapTabImageBackup->TheSurface()->LogicalWidth(),
+		m_mapTabImageBackup->TheSurface()->LogicalHeight()
 	};
 
 	if ( !info )

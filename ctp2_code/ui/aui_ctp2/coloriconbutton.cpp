@@ -84,8 +84,8 @@ void ColorIconButton::ResizePictureRect(void)
 
 	if (GetImage(0) && GetImage(0)->TheSurface()) {
 
-		sint32 pictureWidth = GetImage(0)->TheSurface()->Width();
-		sint32 pictureHeight = GetImage(0)->TheSurface()->Height();
+		sint32 pictureWidth = GetImage(0)->TheSurface()->LogicalWidth();
+		sint32 pictureHeight = GetImage(0)->TheSurface()->LogicalHeight();
 
 		RECT buttonRect = {0,0,m_width,m_height};
 		RECT iconRect = {0,0,pictureWidth,pictureHeight};

@@ -48,10 +48,10 @@ AUI_ERRCODE IconTab::DrawThis( aui_Surface *surface, sint32 x, sint32 y )
 	ToWindow( &rect );
 
 	RECT center;
-	center.left = (m_width - m_icon->TheSurface()->Width()) / 2;
-	center.top = (m_height - m_icon->TheSurface()->Height()) / 2;
-	center.right = center.left + m_icon->TheSurface()->Width();
-	center.bottom = center.top + m_icon->TheSurface()->Height();
+	center.left = (m_width - m_icon->TheSurface()->LogicalWidth()) / 2;
+	center.top = (m_height - m_icon->TheSurface()->LogicalHeight()) / 2;
+	center.right = center.left + m_icon->TheSurface()->LogicalWidth();
+	center.bottom = center.top + m_icon->TheSurface()->LogicalHeight();
 	OffsetRect( &center, rect.left, rect.top );
 
 	if ( m_pattern )

@@ -162,10 +162,10 @@ void aui_ImageList::ExchangeImage(sint32 state, sint32 imageIndex,
 
 			if(info->m_rect.right < 0)
 				info->m_rect.right = info->m_rect.left +
-				theImage->TheSurface()->Width();
+				theImage->TheSurface()->LogicalWidth();
 			if(info->m_rect.bottom < 0)
 				info->m_rect.bottom = info->m_rect.top +
-				theImage->TheSurface()->Height();
+				theImage->TheSurface()->LogicalHeight();
 
 		info->m_image = theImage;
 
