@@ -21,8 +21,11 @@
 #include "autotour.h"
 #include "autotest.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cstdio>
+#include <cstring>
+#include <vector>
 
 #include "player.h"                 // g_player
 #include "SelItem.h"                // g_selected_item
@@ -48,6 +51,18 @@
 #include "helptile.h"
 #include "dipwizard.h"
 #include "sciencevictorydialog.h"
+#include "aui_ldl.h"
+#include "c3ui.h"
+extern C3UI *g_c3ui;
+#include "initialplaywindow.h"
+#include "spnewgamewindow.h"
+#include "spnewgametribescreen.h"
+#include "spnewgamediffscreen.h"
+#include "spnewgameplayersscreen.h"
+#include "spnewgamemapsizescreen.h"
+#include "spnewgamemapshapescreen.h"
+#include "spnewgamerulesscreen.h"
+#include "custommapscreen.h"
 
 namespace
 {
@@ -153,11 +168,122 @@ namespace
 	};
 	const int k_count = sizeof(k_windows) / sizeof(k_windows[0]);
 
+	// --- screens before a game
+	const uint32 k_exec = AUI_BUTTON_ACTION_EXECUTE;
+
+	bool HasSPScreen()
+	{
+		return aui_Ldl::GetObject("InitPlayWindow", "SPButton") && aui_Ldl::IsValid("SPWindow");
+	}
+
+	void ShellNothing()     {}
+	void OpenSPScreen()     { if (HasSPScreen()) initialplayscreen_spPress(NULL, k_exec, 0, Cookie()); }
+	void CloseSPScreen()    { if (HasSPScreen()) spscreen_returnPress(NULL, k_exec, 0, Cookie()); }
+	void OpenNewGame()      { initialplayscreen_removeMyWindow(k_exec); spnewgamescreen_displayMyWindow(); }
+	void CloseNewGame()     { spnewgamescreen_removeMyWindow(k_exec); initialplayscreen_displayMyWindow(); }
+	// The pop-ups are closed by removing the windows they added: their own
+	// remove functions apply the choice and expect one (the tribe screen
+	// reads the selected list item, NULL without a click).
+	std::vector<aui_Region *> s_windowsBefore;
+
+	void NoteWindows()
+	{
+		s_windowsBefore.clear();
+		tech_WLList<aui_Region *> *list = g_c3ui->ChildList();
+		ListPos pos = list->GetHeadPosition();
+		for (size_t i = list->L(); i; i--)
+			s_windowsBefore.push_back(list->GetNext(pos));
+	}
+
+	void RemoveNewWindows()
+	{
+		std::vector<aui_Region *> added;
+		tech_WLList<aui_Region *> *list = g_c3ui->ChildList();
+		ListPos pos = list->GetHeadPosition();
+		for (size_t i = list->L(); i; i--)
+		{
+			aui_Region *w = list->GetNext(pos);
+			if (std::find(s_windowsBefore.begin(), s_windowsBefore.end(), w) == s_windowsBefore.end())
+				added.push_back(w);
+		}
+		for (size_t i = 0; i < added.size(); i++)
+			g_c3ui->RemoveWindow(added[i]->Id());
+	}
+
+	void OpenTribe()        { NoteWindows(); spnewgametribescreen_displayMyWindow(); }
+	void OpenDiff()         { NoteWindows(); spnewgamediffscreen_displayMyWindow(); }
+	void OpenPlayers()      { NoteWindows(); spnewgameplayersscreen_displayMyWindow(); }
+	void OpenMapSize()      { NoteWindows(); spnewgamemapsizescreen_displayMyWindow(); }
+	void OpenMapShape()     { NoteWindows(); spnewgamemapshapescreen_displayMyWindow(); }
+	void OpenRules()        { NoteWindows(); spnewgamerulesscreen_displayMyWindow(); }
+	void OpenCustomMap()    { NoteWindows(); custommapscreen_displayMyWindow(); }
+
+	const TourWindow k_shell[] =
+	{
+		{ "mainmenu",       ShellNothing,  ShellNothing   },
+		{ "spscreen",       OpenSPScreen,  CloseSPScreen  },
+		{ "newgame",        OpenNewGame,   ShellNothing   },
+		{ "ng_tribe",       OpenTribe,     RemoveNewWindows     },
+		{ "ng_difficulty",  OpenDiff,      RemoveNewWindows      },
+		{ "ng_players",     OpenPlayers,   RemoveNewWindows   },
+		{ "ng_mapsize",     OpenMapSize,   RemoveNewWindows   },
+		{ "ng_mapshape",    OpenMapShape,  RemoveNewWindows  },
+		{ "ng_rules",       OpenRules,     RemoveNewWindows     },
+		{ "ng_custommap",   OpenCustomMap, RemoveNewWindows },
+		{ "ng_back",        ShellNothing,  CloseNewGame   },
+	};
+	const int k_shellCount = sizeof(k_shell) / sizeof(k_shell[0]);
+
 	double Seconds()
 	{
 		static const auto start = std::chrono::steady_clock::now();
 		return std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
 	}
+}
+
+bool autotour_ProcessShell()
+{
+	static int    s_index = 0;
+	static int    s_phase = 0;   // 0 open, 1 screenshot, 2 close
+	static double s_since = 0.0;
+
+	if (s_index >= k_shellCount)
+		return false;
+
+	const TourWindow &w = k_shell[s_index];
+	switch (s_phase)
+	{
+	case 0:
+		autotest_Log("tour: %s", w.name);
+		w.open();
+		s_since = Seconds();
+		s_phase = 1;
+		break;
+
+	case 1:
+		if (Seconds() - s_since > 1.0)
+		{
+			if (strcmp(w.name, "ng_back") != 0)
+			{
+				char path[96];
+				snprintf(path, sizeof(path), "autotest_ui_00%c_%s.png", 'a' + s_index, w.name);
+				autotest_Screenshot(path);
+			}
+			s_since = Seconds();
+			s_phase = 2;
+		}
+		break;
+
+	case 2:
+		if (Seconds() - s_since > 0.5)
+		{
+			w.close();
+			s_index++;
+			s_phase = 0;
+		}
+		break;
+	}
+	return true;
 }
 
 bool autotour_Process()

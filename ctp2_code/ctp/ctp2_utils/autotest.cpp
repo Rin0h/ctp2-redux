@@ -420,17 +420,10 @@ void autotest_Process(bool gameLoaded)
 		{
 			// as many civilisations as in the network test: the humans
 			// there are one human and AIs here (+1 for the barbarians)
-			// classic interface: the single player screen too
-			bool const spScreen = aui_Ldl::GetObject("InitPlayWindow", "SPButton") && aui_Ldl::IsValid("SPWindow");
-			if (s_tour && s_mainMenuSeen && autotest_Step("shot-mainmenu"))
-				autotest_Screenshot("autotest_ui_00_mainmenu.png");
-			else if (s_tour && spScreen && autotest_Step("open-spscreen"))
-				initialplayscreen_spPress(NULL, AUI_BUTTON_ACTION_EXECUTE, 0, Cookie());
-			else if (s_tour && spScreen && autotest_Step("shot-spscreen"))
-				autotest_Screenshot("autotest_ui_00_spscreen.png");
-			else if (s_tour && spScreen && autotest_Step("close-spscreen"))
-				spscreen_returnPress(NULL, AUI_BUTTON_ACTION_EXECUTE, 0, Cookie());
-			else if (s_mainMenuSeen && autotest_Step("mainmenu-single"))
+			// tour: the screens before a game first
+			if (s_tour && s_mainMenuSeen && autotour_ProcessShell())
+				return;
+			if (s_mainMenuSeen && autotest_Step("mainmenu-single"))
 			{
 				g_theProfileDB->SetNPlayers(s_humanPlayers + s_aiPlayers + 1);
 				initialplayscreen_instantPress(NULL, AUI_BUTTON_ACTION_EXECUTE, 0, NULL);

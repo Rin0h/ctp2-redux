@@ -13,4 +13,9 @@
 // true while the tour is still running.
 bool autotour_Process();
 
+// The screens before a game (main menu, single player screen, new game
+// screen and its pop-ups), called every frame at the main menu. Returns
+// true while running; afterwards the main menu is shown again.
+bool autotour_ProcessShell();
+
 #endif
