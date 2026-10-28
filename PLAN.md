@@ -325,8 +325,9 @@ Plan und Entscheidungen (2026-10-28):
   Bildern, Logik bleibt in Spielpixeln. Vergleich an Spielbildern
   (`_local/vergleich_*.png`): KI schlägt Laufzeitfilter klar.
   Modelle: Oberfläche **realesr-animevideov3** (x2/x3/x4 passend zum
-  Faktor; x4plus verschluckt Details z. B. bei Schrift), Karte vermutlich
-  **realesrgan-x4plus** (auf Faktor verkleinert) – vor M4 eigener Vergleich.
+  Faktor; x4plus verschluckt Details z. B. bei Schrift). Karte ebenfalls
+  **realesr-animevideov3** (Vergleich 2026-10-28, `_local/vergleich_karte.png`:
+  behält die Geländestruktur, x4plus/x4plus-anime verwaschen Sand und Gras).
   Etappen, nach jeder lauffähig:
   - M1 Unterbau: Primärfläche in Monitorauflösung, jede `aui_Surface` mit
     Faktor; 1x-Flächen werden beim Zusammensetzen ganzzahlig vergrößert;
@@ -345,6 +346,25 @@ Plan und Entscheidungen (2026-10-28):
     656 MB bei 3x. `LoadHD` in c3imageformats.cpp, Bildgrößen-Abfragen auf
     `LogicalWidth/Height`. Zeiger ausgenommen (Spiel vergrößert sie selbst).
   - M4 Karte: Gelände/Sprites/Städte in HD (Kachelkonstanten, Formate).
+    Befund (2026-10-28):
+    - .til (Speicher-gemappt, `TileSet::QuickLoadMapped`): Basiskacheln roh
+      (Werte 0–3 = Pixel aus Übergang k), Hüte/Flüsse/Ausbauten als RLE mit
+      8-Bit-Lauflänge und u16-Zeilenoffsets; `tileDataLen`/`hatLen` u16.
+    - .spr: gleiche RLE-Art (8 Bit, u16-Offsets), Hot-/Feuer-/Schildpunkte in
+      Pixeln, eigene Mini-Frames. Kein TGA-Export im Spiel, `.til`-Encoder ist
+      toter Code; Quell-TGAs liegen aber vor (`tiles/gtset/`, 94x72).
+    - Zoom-Tabelle 0,5–1,0, Normal = größte Stufe; alle „Scaled“-Funktionen
+      verkleinern nur → mit N-fachen Quelldaten funktionieren sie, wenn
+      `k_TILE_*` (273 Stellen, 142 in tiledraw) Laufzeitwerte × N werden.
+    - Kartenicons (upc*) eigener Lader → RLE; Städtenamen eigener Font.
+    Weg: Kachelgeometrie zur Laufzeit (× N), Kartenfläche in Pufferpixeln
+    (`m_gamePixels` weg, `SetScale(N)`), `m_scale` bleibt Ziel/Quelle;
+    Umrechnung nur an den Rändern (Maus, Hintergrund-Offset, Dirty-Rects,
+    Font). HD-Daten beim Start aus `redux_hires/<N>x/{tiles,sprites,icons}`
+    (TGA je Element + Index mit Punkten × N), Encoder teilt Läufe > 255,
+    Längen u32. Farbe per KI, Schlüsselfarben (Übergang 0–3, Colorize,
+    Schatten, Chroma) über Nearest-Masken. Risiko: u16-Zeilenoffsets bei 4x
+    (ggf. nur 2x/3x), Speicher N², Arbeitskarte/Ressourcenkarte/tilecontrol.
   - B1 Videos (Skript-Infrastruktur aus M3).
 - Werkzeuge beim Spieler: eigenes `ctp2-assets.exe` (mit dem Spiel gebaut,
   FFmpeg ist schon drin; zfs/spr/til/Videos entpacken und packen) und

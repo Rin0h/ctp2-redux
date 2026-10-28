@@ -12,6 +12,11 @@
 # The game takes the HD version of an image when the folder for its
 # scaling exists.
 #
+# The videos (videos\*.avi) go the same way frame by frame and become
+# redux_hires\<scale>x\videos\<name>.mkv (H.264 by Windows Media Foundation,
+# the sound stays). For that the script needs ffmpeg.exe next to it, built
+# from the FFmpeg sources of the game (LGPL).
+#
 # Runs with Windows PowerShell 5.1 (part of Windows 10 and 11); the pixel
 # work is done by a small C# class compiled at the start.
 
@@ -488,44 +493,109 @@ foreach ($name in $sources.Keys) {
         Say "  uebersprungen: $name ($($_.Exception.Message))"
     }
 }
-if ($todo.Count -eq 0) {
-    Say 'Alles schon hochskaliert. (Mit -Force neu erzeugen.)'
-    Remove-Item -Recurse -Force $work
-    exit 0
-}
-Say "Hochzuskalieren: $($todo.Count) Bilder"
-
-# --- upscale --------------------------------------------------------------------
-Say "Skaliere mit Real-ESRGAN ($Model, $Scale-fach) ... das kann je nach Grafikkarte einige Minuten dauern."
-function Invoke-Esrgan([string[]]$extra) {
+# --- upscale (the work folder must hold only the pictures of this step) -------
+function Invoke-Esrgan([string]$from, [string]$to, [string]$format) {
     # its progress goes to stderr; a log keeps PowerShell from taking it as an error
-    $quoted = @('-i', "`"$inDir`"", '-o', "`"$outDir`"", '-n', $Model, '-s', "$Scale", '-f', 'png') + $extra
-    $process = Start-Process -FilePath $esrgan.FullName -ArgumentList $quoted -NoNewWindow -Wait -PassThru `
-        -RedirectStandardError (Join-Path $work 'esrgan.log') -RedirectStandardOutput (Join-Path $work 'esrgan-out.log')
+    $quoted = @('-i', "`"$from`"", '-o', "`"$to`"", '-n', $Model, '-s', "$Scale", '-f', $format)
+    $count = @(Get-ChildItem -Path $from -File).Count
+    foreach ($extra in @(@(), @('-g', '-1'))) {
+        if ($extra.Count) { Say 'Mit der Grafikkarte ging es nicht, versuche es mit dem Prozessor (langsam) ...' }
+        Start-Process -FilePath $esrgan.FullName -ArgumentList ($quoted + $extra) -NoNewWindow -Wait `
+            -RedirectStandardError (Join-Path $work 'esrgan.log') -RedirectStandardOutput (Join-Path $work 'esrgan-out.log') | Out-Null
+        if (@(Get-ChildItem -Path $to -File).Count -ge $count) { return $true }
+    }
+    return $false
+}
+
+$ok = 0
+if ($todo.Count -eq 0) {
+    Say 'Bilder: alles schon hochskaliert. (Mit -Force neu erzeugen.)'
+} else {
+    Say "Hochzuskalieren: $($todo.Count) Bilder"
+    Say "Skaliere mit Real-ESRGAN ($Model, $Scale-fach) ... das kann je nach Grafikkarte einige Minuten dauern."
+    Invoke-Esrgan $inDir $outDir 'png' | Out-Null
+
+    # --- import -----------------------------------------------------------------
+    foreach ($name in $todo) {
+        $up = Join-Path $outDir "$name.png"
+        if (-not (Test-Path $up)) { Say "  fehlt: $name"; continue }
+        try {
+            [Ctp2Assets]::BlackKey = [bool]$sources[$name].black
+            [Ctp2Assets]::Import($up, (Join-Path $origDir "$name.png"), $Scale, (Join-Path $target "$name.tga"))
+            $ok++
+        } catch {
+            Say "  fehlgeschlagen: $name ($($_.Exception.Message))"
+        }
+    }
+    Say "Bilder: $ok von $($todo.Count) fertig."
+}
+
+# --- the videos -------------------------------------------------------------------
+# ffmpeg.exe is built with the game (FFmpeg, LGPL) and comes with the release
+$ffmpeg = $null
+foreach ($p in @($PSScriptRoot, $Install, $program, $(if ($program) { Join-Path $program 'x64' }),
+                 (Join-Path $Install 'ctp2_code\msvc\bin\x64'))) {
+    if ($p -and (Test-Path (Join-Path $p 'ffmpeg.exe'))) { $ffmpeg = Join-Path $p 'ffmpeg.exe'; break }
+}
+
+function Invoke-Ffmpeg([string[]]$arguments) {
+    $quoted = @('-hide_banner', '-y') + ($arguments | ForEach-Object { if ($_ -match '[\s%]') { "`"$_`"" } else { $_ } })
+    $process = Start-Process -FilePath $ffmpeg -ArgumentList $quoted -NoNewWindow -Wait -PassThru `
+        -RedirectStandardError (Join-Path $work 'ffmpeg.log') -RedirectStandardOutput (Join-Path $work 'ffmpeg-out.log')
     return $process.ExitCode
 }
-Invoke-Esrgan @() | Out-Null
-$done = @(Get-ChildItem -Path $outDir -Filter '*.png').Count
-if ($done -lt $todo.Count) {
-    Say 'Mit der Grafikkarte ging es nicht, versuche es mit dem Prozessor (langsam) ...'
-    Invoke-Esrgan @('-g', '-1') | Out-Null
-}
 
-# --- import ---------------------------------------------------------------------
-$ok = 0
-foreach ($name in $todo) {
-    $up = Join-Path $outDir "$name.png"
-    if (-not (Test-Path $up)) { Say "  fehlt: $name"; continue }
-    try {
-        [Ctp2Assets]::BlackKey = [bool]$sources[$name].black
-        [Ctp2Assets]::Import($up, (Join-Path $origDir "$name.png"), $Scale, (Join-Path $target "$name.tga"))
-        $ok++
-    } catch {
-        Say "  fehlgeschlagen: $name ($($_.Exception.Message))"
+$videos = [ordered]@{}
+foreach ($dir in @('default', $language)) {
+    $base = Join-Path $data "$dir\videos"
+    if (Test-Path $base) {
+        foreach ($f in Get-ChildItem -Path $base -Filter '*.avi') { $videos[$f.BaseName.ToLower()] = $f.FullName }
     }
+}
+$videoDir = Join-Path $target 'videos'
+$videoTodo = @($videos.Keys | Where-Object { $Force -or -not (Test-Path (Join-Path $videoDir "$_.mkv")) })
+$videoOk = 0
+if (-not $ffmpeg) {
+    Say 'Videos: ffmpeg.exe nicht gefunden (gehoert neben dieses Skript), Videos bleiben im Original.'
+} elseif ($videoTodo.Count -eq 0) {
+    Say 'Videos: alles schon hochskaliert.'
+} else {
+    New-Item -ItemType Directory -Force $videoDir | Out-Null
+    Say "Videos: $($videoTodo.Count) hochzuskalieren, je etwa eine halbe Minute ..."
+    $frames   = Join-Path $work 'video_ein'
+    $upFrames = Join-Path $work 'video_aus'
+    $bitrate  = "$([int]($Scale * $Scale * 500))k"
+    $n = 0
+    foreach ($name in $videoTodo) {
+        $n++
+        Say "  ($n/$($videoTodo.Count)) $name"
+        $source = $videos[$name]
+        foreach ($d in @($frames, $upFrames)) {
+            Remove-Item -Recurse -Force $d -ErrorAction SilentlyContinue
+            New-Item -ItemType Directory -Force $d | Out-Null
+        }
+        # the frame rate of the original (all of them have 15)
+        Invoke-Ffmpeg @('-i', $source) | Out-Null
+        $rate = '15'
+        $match = Select-String -Path (Join-Path $work 'ffmpeg.log') -Pattern '([\d.]+) fps' | Select-Object -First 1
+        if ($match) { $rate = $match.Matches[0].Groups[1].Value }
+
+        if ((Invoke-Ffmpeg @('-i', $source, '-fps_mode', 'passthrough', (Join-Path $frames '%05d.bmp'))) -ne 0) {
+            Say "    uebersprungen: Video nicht lesbar"; continue
+        }
+        if (-not (Invoke-Esrgan $frames $upFrames 'webp')) { Say "    uebersprungen: Hochskalieren fehlgeschlagen"; continue }
+
+        # H.264 by Windows (Media Foundation), MPEG-4 where that is missing; the sound stays
+        $out = Join-Path $videoDir "$name.mkv"
+        $encodeFrom = @('-framerate', $rate, '-i', (Join-Path $upFrames '%05d.webp'), '-i', $source, '-map', '0:v', '-map', '1:a?', '-c:a', 'copy')
+        $code = Invoke-Ffmpeg ($encodeFrom + @('-c:v', 'h264_mf', '-b:v', $bitrate, '-pix_fmt', 'nv12', $out))
+        if ($code -ne 0) { $code = Invoke-Ffmpeg ($encodeFrom + @('-c:v', 'mpeg4', '-q:v', '2', $out)) }
+        if ($code -eq 0) { $videoOk++ } else { Remove-Item $out -ErrorAction SilentlyContinue; Say "    fehlgeschlagen (siehe ffmpeg)" }
+    }
+    Say "Videos: $videoOk von $($videoTodo.Count) fertig."
 }
 Remove-Item -Recurse -Force $work
 
 Say ''
-Say "Fertig: $ok von $($todo.Count) Bildern in $target."
-Say 'Die HD-Bilder gelten fuer die eingestellte Skalierung. Rueckgaengig: den Ordner redux_hires loeschen.'
+Say "Fertig. HD-Dateien in $target."
+Say 'Die HD-Dateien gelten fuer die eingestellte Skalierung. Rueckgaengig: den Ordner redux_hires loeschen.'

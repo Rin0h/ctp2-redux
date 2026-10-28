@@ -72,4 +72,16 @@ Write-Host "MSBuild $Config|$Platform toolset=$Toolset sdk=$Sdk"
     "-p:WindowsTargetPlatformVersion=$Sdk" "-p:VCTargetsPath=$vcTargets\" -m -nologo -v:minimal `
     -fl "-flp:LogFile=$log;Verbosity=normal"
 if ($LASTEXITCODE -ne 0) { throw "Build failed, see $log" }
+
+# --- ffmpeg.exe for the upscaling script (videos), from the same FFmpeg ------
+if ($Platform -eq 'x64') {
+    $smp = Join-Path $root 'ctp2_code\libs\FFmpeg-n6.1.2\SMP'
+    foreach ($project in @('libpostproc', 'ffmpeg')) {
+        & $msbuild (Join-Path $smp "$project.vcxproj") -t:Build -p:Configuration=Release "-p:Platform=$Platform" `
+            "-p:PlatformToolset=$Toolset" "-p:WindowsTargetPlatformVersion=$Sdk" "-p:VCTargetsPath=$vcTargets\" `
+            -p:BuildProjectReferences=false -m -nologo -v:minimal -fl "-flp:LogFile=$local\build-$project.log;Verbosity=normal" | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "Build of $project failed, see $local\build-$project.log" }
+    }
+    Copy-Item (Join-Path $root 'ctp2_code\msvc\bin\x64\ffmpeg.exe') (Join-Path $root 'ctp2_code\ctp\x64\ffmpeg.exe') -Force
+}
 Write-Host "OK - see ctp2_code\ctp\$(if ($Platform -eq 'x64') { 'x64\' })ctp2*.exe"

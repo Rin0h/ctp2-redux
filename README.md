@@ -51,8 +51,9 @@ upstream.
   installation with Real-ESRGAN (realesr-animevideov3, downloaded once from
   its GitHub release) into `ctp2_data/redux_hires/<scale>x`; the game draws
   windows and text at monitor resolution and takes these images. Nothing
-  is shipped, deleting `redux_hires` undoes it. Map graphics and videos
-  follow.
+  is shipped, deleting `redux_hires` undoes it. The videos are upscaled
+  the same way frame by frame (H.264 by Windows Media Foundation, via an
+  `ffmpeg.exe` built from the game's own FFmpeg). Map graphics follow.
 
 ### Automated multiplayer test
 
@@ -397,8 +398,10 @@ spiegelt das Upstream-Projekt.
   mit Real-ESRGAN (realesr-animevideov3, einmalig von dessen GitHub-Seite
   geladen) nach `ctp2_data/redux_hires/<Faktor>x`; das Spiel zeichnet
   Fenster und Schrift in Monitorauflösung und nimmt diese Bilder. Wir
-  verteilen nichts, `redux_hires` löschen macht es rückgängig. Kartengrafik
-  und Videos folgen.
+  verteilen nichts, `redux_hires` löschen macht es rückgängig. Die Videos
+  werden genauso Bild für Bild hochskaliert (H.264 über Windows Media
+  Foundation, mit einem `ffmpeg.exe` aus dem FFmpeg des Spiels).
+  Kartengrafik folgt.
 
 ### Automatischer Multiplayer-Test
 

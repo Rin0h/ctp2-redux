@@ -65,6 +65,9 @@ extern C3UI *g_c3ui;
 #include "spnewgamemapshapescreen.h"
 #include "spnewgamerulesscreen.h"
 #include "custommapscreen.h"
+#include "wondermoviewin.h"
+#include "WonderRecord.h"
+#include "IconRecord.h"
 
 namespace
 {
@@ -151,6 +154,21 @@ namespace
 	void CloseTile()      { if (helptile_isShown()) helptile_closeWindow(); }
 	void OpenWizard()     { if (DipWizard::CanInitiateRightNow()) DipWizard::Display(); }
 	void CloseWizard()    { DipWizard::Hide(); }
+	// the movie of the first wonder that has one
+	void OpenWonderMovie()
+	{
+		for (sint32 i = 0; i < g_theWonderDB->NumRecords(); ++i)
+		{
+			const WonderRecord * rec = g_theWonderDB->Get(i);
+			const MBCHAR *       file = rec && rec->GetDefaultIcon() ? rec->GetDefaultIcon()->GetMovie() : NULL;
+			if (file && stricmp(file, "NULL") != 0)
+			{
+				wondermoviewin_Initialize();
+				wondermoviewin_DisplayWonderMovie(i);
+				return;
+			}
+		}
+	}
 	void OpenGaia()       { ScienceVictoryDialog::Open(); }
 	void CloseGaia()      { ScienceVictoryDialog::Close(); }
 
@@ -186,6 +204,7 @@ namespace
 		{ "info_ranking", OpenRanking,    CloseInfo      },
 		{ "buildqueue",   OpenQueue,      CloseQueue     },
 		{ "gaia",         OpenGaia,       CloseGaia      },
+		{ "wondermovie",  OpenWonderMovie, wondermoviewin_Cleanup },
 		{ "tileinfo",     OpenTile,       CloseTile      },
 		{ "options",      OpenOptions,    CloseOptions   },
 		{ "graphics",     OpenGraphics,   CloseGraphics  },

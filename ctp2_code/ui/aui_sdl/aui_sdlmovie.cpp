@@ -11,6 +11,8 @@
 #if defined(__AUI_USE_SDL__)
 
 #include "c3files.h"
+#include "CivPaths.h"
+#include "autotest.h"
 
 #if defined(USE_SDL_FFMPEG)
 
@@ -1999,6 +2001,44 @@ AUI_ERRCODE aui_SDLMovie::Unload()
 	return Close();
 }
 
+#if defined(USE_SDL_FFMPEG)
+//----------------------------------------------------------------------------
+//
+// Name       : HDMovie
+//
+// Description: ctp2-redux: the HD version of a movie, made from the own
+//              installation by the upscaling script: <name>.mkv in
+//              ctp2_data/redux_hires/<scale>x/videos.
+//
+// Returns    : the file to play, filename when there is no HD version
+//
+//----------------------------------------------------------------------------
+static MBCHAR const * HDMovie(MBCHAR const * filename, MBCHAR * path, size_t size)
+{
+	sint32 const scale = g_ui ? g_ui->Scale() : 1;
+	if (scale <= 1 || !g_civPaths) return filename;
+
+	char const * lastSep = strrchr(filename, '\\');
+	if (!lastSep) lastSep = strrchr(filename, '/');
+	char const * basename = lastSep ? lastSep + 1 : filename;
+	char const * dot      = strrchr(basename, '.');
+	size_t const length   = dot ? (size_t)(dot - basename) : strlen(basename);
+	if (length == 0 || length > 200) return filename;
+
+	MBCHAR name[256];
+	for (size_t i = 0; i < length; ++i)
+		name[i] = (MBCHAR)tolower((unsigned char)basename[i]);
+	name[length] = '\0';
+
+	snprintf(path, size, "%s%sredux_hires%s%dx%svideos%s%s.mkv",
+	         g_civPaths->GetDataPath(), FILE_SEP, FILE_SEP, scale, FILE_SEP, FILE_SEP, name);
+	bool const exists = c3files_PathIsValid(path) != 0;
+	if (autotest_Active())
+		autotest_Log("movie %s: %s", name, exists ? "HD" : "-");
+	return exists ? path : filename;
+}
+#endif // USE_SDL_FFMPEG
+
 AUI_ERRCODE aui_SDLMovie::Open(uint32 flags, aui_Surface *surface, RECT *rect)
 {
 	if(!c3files_PathIsValid(m_filename))
@@ -2007,6 +2047,9 @@ AUI_ERRCODE aui_SDLMovie::Open(uint32 flags, aui_Surface *surface, RECT *rect)
 	}
 
 #if defined(USE_SDL_FFMPEG)
+	MBCHAR hdPath[MAX_PATH + 1];
+	MBCHAR const * file = HDMovie(m_filename, hdPath, sizeof(hdPath));
+
 	if (!m_renderer || (!(flags & k_AUI_MOVIE_PLAYFLAG_ONSCREEN) && !m_background))
 	{
 		return AUI_ERRCODE_MOVIEFAILED;
@@ -2045,7 +2088,7 @@ AUI_ERRCODE aui_SDLMovie::Open(uint32 flags, aui_Surface *surface, RECT *rect)
 	}
 
 	// Adjust volume range ctp2 [0..10] -> ffmpeg [0..100]
-	m_videoState = stream_open(m_filename, g_theProfileDB->GetSFXVolume() * 10);
+	m_videoState = stream_open(file, g_theProfileDB->GetSFXVolume() * 10);
 	if (m_videoState && !(m_flags & k_AUI_MOVIE_PLAYFLAG_ONSCREEN))
 	{
 		m_videoState->xleft = rect->left * g_ui->Scale();
@@ -2253,10 +2296,14 @@ void aui_SDLMovie::GrabLastFrame()
 			SDL_Rect surfaceRect = { 0, 0, surface->w, surface->h };
 			SDL_RenderCopy(m_renderer, backgroundTexture, NULL, &surfaceRect);
 
+			// ctp2-redux: the rectangle in game pixels, the surface and the
+			// movie (HD version) may be larger (see aui_Surface::Scale)
 			RECT *destRect = GetDestRect();
-			SDL_Rect sdlSrcRect = {0, 0, destRect->right - destRect->left, destRect->bottom - destRect->top };
-			SDL_Rect sdlDestRect = { destRect->left, destRect->top, sdlSrcRect.w, sdlSrcRect.h };
-			SDL_RenderCopy(m_renderer, m_videoState->vid_texture, &sdlSrcRect, &sdlDestRect);
+			sint32 const scale = sdlSurface->Scale();
+			SDL_Rect sdlDestRect = { destRect->left * scale, destRect->top * scale,
+			                         (destRect->right - destRect->left) * scale,
+			                         (destRect->bottom - destRect->top) * scale };
+			SDL_RenderCopy(m_renderer, m_videoState->vid_texture, NULL, &sdlDestRect);
 			SDL_RenderReadPixels(m_renderer, &surfaceRect, surface->format->format, surface->pixels, surface->pitch);
 
 			SDL_RenderClear(m_renderer);
