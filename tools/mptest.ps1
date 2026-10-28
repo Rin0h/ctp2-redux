@@ -10,6 +10,7 @@
 #   pwsh tools/mptest.ps1 -Idle                # test players only end their turns
 #   pwsh tools/mptest.ps1 -AnetLog             # network library with logging (dp.log)
 #   pwsh tools/mptest.ps1 -Single -Tour        # screenshots of all game windows (autotest_ui_*.png)
+#   pwsh tools/mptest.ps1 -Single -Tour -Apolyton   # the same with the Apolyton interface
 #   pwsh tools/mptest.ps1 -JoinAddress '[::1]:21157'   # client joins over IPv6
 #
 # By default the two test players play a simple turn (settle, walk, fill
@@ -37,6 +38,7 @@ param(
     [switch]$Idle,
     [switch]$Single,
     [switch]$Tour,
+    [switch]$Apolyton,
     [switch]$AnetLog,
     [string]$Port = '21157',
     [string]$JoinAddress = ''
@@ -57,10 +59,26 @@ function Prepare-Instance([string]$name) {
     Copy-Item (Join-Path $build 'dll') $dir -Recurse -Force
     # release network DLL (the logging variant only if the folder had one)
     Copy-Item (Join-Path $build 'anet2.dll') $dir -Force
+    # Own base directory: with the "..'" of the build every instance would
+    # read and write ctp2_code\ctp\userprofile.txt and share the saves.
+    # Base "." means the data is one level further up.
+    $paths = Get-Content (Join-Path $build 'civpaths.txt')
+    $paths[0] = '.'
+    $paths = $paths | ForEach-Object { if ($_ -like '..\..\*') { '..\' + $_ } else { $_ } }
+    Set-Content -Path (Join-Path $dir 'civpaths.txt') -Value $paths -Encoding ascii
     Remove-Item (Join-Path $dir 'dp.ini'), (Join-Path $dir 'autotest_*.txt'), (Join-Path $dir 'autotest_*.png') -ErrorAction SilentlyContinue
-    Set-Content -Path (Join-Path $dir 'userprofile.txt') -Encoding ascii -Value @(
-        'WindowedMode=Yes', 'ScreenResWidth=800', 'ScreenResHeight=600', 'TryWindowsResolution=No',
-        'FullScreenMovies=No', 'SfxVolume=0', 'VoiceVolume=0', 'MusicVolume=0')
+    # profile: the shared one of the working copy (if any) with the test
+    # settings on top; a nearly empty profile leaves e.g. the map plugin
+    # settings in a state that asks for a library with an empty name
+    $settings = [ordered]@{
+        WindowedMode = 'Yes'; ScreenResWidth = '1024'; ScreenResHeight = '768'; TryWindowsResolution = 'No'
+        FullScreenMovies = 'No'; SfxVolume = '0'; VoiceVolume = '0'; MusicVolume = '0'
+        ClassicInterface = $(if ($Apolyton) { 'No' } else { 'Yes' })
+    }
+    $shared = Join-Path $ctpDir 'userprofile.txt'
+    $profile = @(if (Test-Path $shared) { Get-Content $shared | Where-Object { $_ -notmatch "^($($settings.Keys -join '|'))=" } })
+    $profile += $settings.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }
+    Set-Content -Path (Join-Path $dir 'userprofile.txt') -Encoding ascii -Value $profile
     return $dir
 }
 

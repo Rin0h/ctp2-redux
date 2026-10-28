@@ -185,7 +185,7 @@ InitPlayWindow {
 
 		string text "str_ldl_Disclaimer1"
 		int xpix 269 
-		int ypix 498
+		int ypix 492
 		int widthpix 260
 		int heightpix 24
 	}
@@ -194,10 +194,10 @@ InitPlayWindow {
 		int fontcolorgreen 0
 		int fontcolorblue 0
 
-		string text "str_ldl_Disclaimer2"
-		int xpix 125 
-		int ypix 515
-		int widthpix 260
+		string text "str_ldl_Disclaimer_Redux"
+		int xpix 200
+		int ypix 507
+		int widthpix 400
 		int heightpix 24
 	}
 	Disclaimer3:CTP2_STATIC_BASE {
@@ -205,10 +205,10 @@ InitPlayWindow {
 		int fontcolorgreen 0
 		int fontcolorblue 0
 
-		string text "str_ldl_Disclaimer3"
-		int xpix 461 
-		int ypix 515
-		int widthpix 260
+		string text "str_ldl_Disclaimer_Apolyton"
+		int xpix 200
+		int ypix 521
+		int widthpix 400
 		int heightpix 24
 	}
 	Background {

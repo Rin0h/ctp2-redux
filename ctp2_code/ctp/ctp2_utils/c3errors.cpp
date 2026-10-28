@@ -39,6 +39,7 @@
 
 #include "aui_ui.h"
 #include "StrDB.h"      // g_theStringDB
+#include "autotest.h"   // ctp2-redux test mode: no dialogs, log instead
 
 extern aui_UI *g_ui;
 
@@ -126,7 +127,10 @@ void c3errors_ErrorDialogFromDB(const char *module, const char *err, ...)
 	vsprintf(str, dbError, list);
 	va_end(list);
 
-	MessageBox(NULL, str, dbTitle, MB_OK | MB_ICONEXCLAMATION) ;
+	if (autotest_Active())
+		autotest_Log("error dialog: %s: %s", dbTitle, str);
+	else
+		MessageBox(NULL, str, dbTitle, MB_OK | MB_ICONEXCLAMATION) ;
 }
 
 void c3errors_ErrorDialog(const char* module, const char* fmt, ...)
@@ -166,7 +170,13 @@ void c3errors_ErrorDialog(const char* module, const char* fmt, ...)
 
 	// TODO: Make it work with LPTSTR szFmtTmp if it is worth the efforts at all.
 //	MessageBox(NULL, szFmtTmp, szTitle, MB_OK | MB_ICONEXCLAMATION);
-	sint32 result = MessageBox(NULL, Tmp, szTitle, MB_YESNO | MB_ICONEXCLAMATION);
+	// ctp2-redux: an unattended test must not stop at a dialog (it may
+	// even run hidden); it logs the message and continues
+	sint32 result = IDYES;
+	if (autotest_Active())
+		autotest_Log("error dialog: %s: %s", szTitle, szFmtTmp);
+	else
+		result = MessageBox(NULL, Tmp, szTitle, MB_YESNO | MB_ICONEXCLAMATION);
 
 #if defined(WIN32)
 	LocalFree(szTitle);

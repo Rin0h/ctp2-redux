@@ -484,6 +484,7 @@ void InitDataIncludePath(void)
 		snprintf(classicPath, sizeof(classicPath), "%s%sclassic", g_civPaths->GetDataPath(), FILE_SEP);
 		g_civPaths->InsertExtraDataPath(classicPath);
 	}
+	autotest_Log("data: classic interface %s", g_theProfileDB->IsClassicInterface() ? "on" : "off");
 
 	MBCHAR                  ruleSets[MAX_PATH];
 	strcpy(ruleSets, g_theProfileDB->GetRuleSets());
