@@ -309,8 +309,55 @@ public static class Ctp2Assets
         }
     }
 
-    // the upscaled image with the transparent areas of the original (each
-    // original pixel scale x scale) as a 16 bit Targa (555) for the game
+    // Catmull-Rom weight
+    static double Cubic(double t)
+    {
+        t = Math.Abs(t);
+        if (t < 1) return 1.5 * t * t * t - 2.5 * t * t + 1;
+        if (t < 2) return -0.5 * t * t * t + 2.5 * t * t - 4 * t + 2;
+        return 0;
+    }
+
+    // the transparent areas at the new size: the mask of the original sampled
+    // smoothly and cut at one half, so round edges follow the shape instead
+    // of the pixel steps of the original
+    static bool[] ScaleMask(byte[] orig, int ow, int oh, int scale)
+    {
+        double[] opaque = new double[ow * oh];
+        for (int i = 0; i < opaque.Length; i++)
+            opaque[i] = IsKey(orig[i * 3], orig[i * 3 + 1], orig[i * 3 + 2]) ? 0 : 1;
+
+        int tw = ow * scale, th = oh * scale;
+        bool[] key = new bool[tw * th];
+        for (int y = 0; y < th; y++)
+        {
+            double sy = (y + 0.5) / scale - 0.5;
+            int iy = (int)Math.Floor(sy);
+            for (int x = 0; x < tw; x++)
+            {
+                double sx = (x + 0.5) / scale - 0.5;
+                int ix = (int)Math.Floor(sx);
+                double sum = 0, weight = 0;
+                for (int dy = -1; dy <= 2; dy++)
+                {
+                    int yy = Math.Min(Math.Max(iy + dy, 0), oh - 1);
+                    double wy = Cubic(sy - (iy + dy));
+                    for (int dx = -1; dx <= 2; dx++)
+                    {
+                        int xx = Math.Min(Math.Max(ix + dx, 0), ow - 1);
+                        double wgt = wy * Cubic(sx - (ix + dx));
+                        sum += wgt * opaque[yy * ow + xx];
+                        weight += wgt;
+                    }
+                }
+                key[y * tw + x] = sum / weight < 0.5;
+            }
+        }
+        return key;
+    }
+
+    // the upscaled image with the transparent areas of the original as a
+    // 16 bit Targa (555) for the game
     public static void Import(string upscaled, string original, int scale, string tgaPath)
     {
         int w, h, ow, oh;
@@ -318,19 +365,19 @@ public static class Ctp2Assets
         byte[] orig = LoadPng(original, out ow, out oh);
         int tw = ow * scale, th = oh * scale;
         if (w != tw || h != th) throw new Exception("unerwartete Groesse " + w + "x" + h);
+        bool[] key = ScaleMask(orig, ow, oh, scale);
 
         byte[] tga = new byte[18 + tw * th * 2];
         tga[2] = 2;
         BitConverter.GetBytes((ushort)tw).CopyTo(tga, 12);
         BitConverter.GetBytes((ushort)th).CopyTo(tga, 14);
         tga[16] = 16;
-        tga[17] = 0x20;   // top row first
+        tga[17] = 0;      // bottom row first, as the game reads them
         for (int y = 0; y < th; y++)
             for (int x = 0; x < tw; x++)
             {
-                int o = ((y / scale) * ow + (x / scale)) * 3;
                 int p;
-                if (IsKey(orig[o], orig[o + 1], orig[o + 2]))
+                if (key[y * tw + x])
                     p = (31 << 10) | 31;
                 else
                 {
@@ -339,7 +386,7 @@ public static class Ctp2Assets
                     // keep upscaled pixels from turning into the transparent color
                     if (p == ((31 << 10) | 31)) p = (31 << 10) | 30;
                 }
-                BitConverter.GetBytes((ushort)p).CopyTo(tga, 18 + (y * tw + x) * 2);
+                BitConverter.GetBytes((ushort)p).CopyTo(tga, 18 + ((th - 1 - y) * tw + x) * 2);
             }
         File.WriteAllBytes(tgaPath, tga);
     }
@@ -349,7 +396,8 @@ public static class Ctp2Assets
 # --- collect the images (later sources override earlier ones, like the game) --
 Say "Spielordner: $Install"
 Say "Sprache: $language, Ziel: $target"
-$sources = [ordered]@{}
+$rims  = @{}
+$loose = @{}
 foreach ($dir in @('default', $language)) {
     foreach ($kind in @(@{ folder = 'pictures'; zfs = 'pic565.zfs' }, @{ folder = 'patterns'; zfs = 'pat565.zfs' })) {
         $base = Join-Path $data "$dir\graphics\$($kind.folder)"
@@ -357,16 +405,26 @@ foreach ($dir in @('default', $language)) {
         if (Test-Path $zfs) {
             $entries = [Ctp2Assets]::ReadZfs($zfs)
             foreach ($name in $entries.Keys) {
-                if ($name -like '*.rim') { $sources[[IO.Path]::GetFileNameWithoutExtension($name).ToLower()] = @{ rim = $entries[$name] } }
+                if ($name -like '*.rim') { $rims[[IO.Path]::GetFileNameWithoutExtension($name).ToLower()] = $entries[$name] }
             }
         }
         if (Test-Path $base) {
             foreach ($f in Get-ChildItem -Path $base -Filter '*.tga') {
-                $sources[$f.BaseName.ToLower()] = @{ tga = $f.FullName }
+                $loose[$f.BaseName.ToLower()] = $f.FullName
             }
         }
     }
 }
+# a loose .tga overrides the picture of the package; where both exist the
+# package version is kept as <name>_rim (the classic interface asks for
+# name.rim to get the original picture, see LoadHD in the game)
+$sources = [ordered]@{}
+foreach ($name in $rims.Keys) {
+    $key = $name
+    if ($loose.ContainsKey($name)) { $key = $name + '_rim' }
+    $sources[$key] = @{ rim = $rims[$name] }
+}
+foreach ($name in $loose.Keys) { $sources[$name] = @{ tga = $loose[$name] } }
 Say "Bilder gefunden: $($sources.Count)"
 
 # --- export (only what is not done yet) -----------------------------------------

@@ -92,26 +92,32 @@ static bool LoadHD(MBCHAR const * filename, aui_Image * image)
 	size_t const length   = strlen(basename);
 	if (length < 4 || length > 200) return false;
 
+	// name.rim asks for the picture of the package; where a loose name.tga
+	// overrides it, the script keeps the package version as name_rim.tga
+	bool const packageVersion = stricmp(basename + length - 3, "rim") == 0;
+
 	MBCHAR name[256];
-	strcpy(name, basename);
-	strcpy(name + length - 3, "tga");
-
 	MBCHAR path[_MAX_PATH + 1];
-	snprintf(path, sizeof(path), "%s%sredux_hires%s%dx%s%s",
-	         g_civPaths->GetDataPath(), FILE_SEP, FILE_SEP, scale, FILE_SEP, name);
-
+	bool   exists = false;
+	for (int attempt = packageVersion ? 0 : 1; attempt < 2 && !exists; ++attempt)
+	{
+		strcpy(name, basename);
+		strcpy(name + length - 4, attempt == 0 ? "_rim.tga" : ".tga");
+		snprintf(path, sizeof(path), "%s%sredux_hires%s%dx%s%s",
+		         g_civPaths->GetDataPath(), FILE_SEP, FILE_SEP, scale, FILE_SEP, name);
 #ifdef WIN32
-	bool const exists = _access(path, 0) == 0;
+		exists = _access(path, 0) == 0;
 #else
-	struct stat st;
-	bool const exists = stat(path, &st) == 0;
+		struct stat st;
+		exists = stat(path, &st) == 0;
 #endif
+	}
 	if (autotest_Active())
 		autotest_Log("image %s: %s", name, exists ? "HD" : "-");
 	if (!exists) return false;
 
 	int width, height, bpp;
-	if (!Get_TGA_Dimension(path, width, height, bpp) || bpp != 16
+	if (!Get_TGA_Dimension(path, width, height, bpp) || bpp != 2   // bytes per pixel
 	||  width % scale != 0 || height % scale != 0)
 		return false;
 

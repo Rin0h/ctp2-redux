@@ -88,6 +88,7 @@ AUI_ERRCODE aui_Window::InitCommon( sint32 bpp, AUI_WINDOW_TYPE type )
 
 	m_bpp = bpp ? bpp : g_ui->BitsPerPixel();
 	m_type = type;
+	m_gamePixels = false;
 	m_surface = NULL;
 	m_isDragging = FALSE;
 	m_opaqueControls = FALSE;
@@ -126,9 +127,9 @@ AUI_ERRCODE aui_Window::CreateSurface( void )
 	if ( !m_surface )
 	{
 		// ctp2-redux: windows are drawn in the pixels of the frame (sharp
-		// text, later HD images); the background with the map stays in game
-		// pixels, the map code draws into it directly
-		const sint32 scale = ( g_ui && m_type != AUI_WINDOW_TYPE_BACKGROUND ) ? g_ui->Scale() : 1;
+		// text, HD images); the background with the map stays in game
+		// pixels, the map code draws into it directly (see Background)
+		const sint32 scale = ( g_ui && !m_gamePixels ) ? g_ui->Scale() : 1;
 		m_surface = aui_Factory::new_Surface(errcode, m_width * scale, m_height * scale);
 
 		Assert( AUI_NEWOK(m_surface,errcode) );

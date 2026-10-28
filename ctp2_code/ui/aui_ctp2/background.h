@@ -68,6 +68,12 @@ public:
             m_lbutton_isdown = FALSE;
             m_rbutton_isdown = FALSE;
             m_current_mouse_tile.Set(-1,-1);
+
+            // ctp2-redux: the map draws into this surface in game pixels
+            m_gamePixels = true;
+            delete m_surface;
+            m_surface = NULL;
+            CreateSurface();
 #ifdef __USING_SPANS__
 
 			if ( m_dirtyList ) delete m_dirtyList;

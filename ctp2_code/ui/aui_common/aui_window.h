@@ -107,6 +107,7 @@ protected:
 	aui_Window()
     :   aui_Region          (),
 	    m_surface           (NULL),
+        m_gamePixels        (false),
         m_opaqueControls    (FALSE),
         m_bpp               (0),
         m_type              (AUI_WINDOW_TYPE_STANDARD),
@@ -229,6 +230,8 @@ protected:
 	void DeleteSurfaceIfDynamic( void );
 
 	aui_Surface	*m_surface;
+	// ctp2-redux: the surface stays in game pixels (the map draws into it)
+	bool m_gamePixels;
 
 	BOOL m_opaqueControls;
 	sint32 m_bpp;
