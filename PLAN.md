@@ -360,6 +360,16 @@ Bestandsaufnahme (37 geänderte + 2 neue Layouts, Struktur-Diff):
   (Regeloptionen), custommap, scenarioeditor, ns_launch, ns_selcnct,
   ns_selserv (unsere Direktverbindung); neu: ctp2.ldl, LanguageScreen.ldl.
 
+Stand: erledigt sind Hauptmenü und Einzelspieler-Untermenü
+(`classic\default\uidata\layouts\spnewgame.ldl`; Original-Untermenü-Code aus
+dem Activision-Import zurückgeholt; Hintergründe als `*.rim` direkt aus dem
+Bildpaket, damit lose Apolyton-Bilder sie nicht überdecken; Lizenzhinweis
+auf dem Startbildschirm: englischer Activision-Satz, ctp2-redux von
+RinoLetsPlay - Falco Alex mit impressum@rinoletsplay.de, Apolyton Edition).
+Achtung: Commit 9e512ec trägt versehentlich die Nachricht des Vorgängers.
+Nächste Fenster: Neues-Spiel-Fenster (restliche Blöcke von spnewgame.ldl
+und spnewgamepopups), dann Stadtfenster.
+
 Werkzeug: Bildschirmtour im Testmodus (Einzelspieler, öffnet die Fenster
 nacheinander und macht je ein Bild), damit jedes Fenster ohne Klicken
 geprüft werden kann. Danach Skalierung (intern kleiner rendern, scharf
