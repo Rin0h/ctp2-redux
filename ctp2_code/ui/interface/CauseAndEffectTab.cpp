@@ -37,6 +37,8 @@
 // - Added SupportGold and CommodityGold to totalsaving calculation
 // - TODO: need to expand this window and break down income (add franchises, advertsing etc)
 // - Added more information to empire manager domestic tab. (22-Jul-2009 Maq)
+// - ctp2-redux classic interface: the details may be in a tab of their own
+//   (ce_GetObject), the summary may leave lines out (ce_SetText).
 //
 //----------------------------------------------------------------------------
 
@@ -54,6 +56,7 @@
 #include "ctp2_spinner.h"
 #include "ctp2_Static.h"
 #include "ctp2_Tab.h"
+#include "ctp2_TabGroup.h"
 #include "DomesticManagementDialog.h"
 #include "FeatTracker.h"                // g_featTracker
 #include "GameSettings.h"
@@ -72,6 +75,48 @@
 #include "wonderutil.h"
 
 static sint32 k_ONE_FIVE__NEG_TWO_TWO_CONVERSION = 3;
+
+// ctp2-redux classic interface: the original window (576 x 384) has room for
+// a summary only; the details of the three columns are in a tab of their
+// own, and the summary leaves some lines out.
+namespace
+{
+	char const * const k_detailsTab      = "DomesticDialog.TabGroup.Tab3";
+	char const * const k_detailsTabPanel = "DomesticDialog.TabGroup.Tab3.TabPanel";
+
+	// the spinners of the Apolyton header have their original place
+	struct ce_ClassicName
+	{
+		char const * name;
+		char const * classic;
+	};
+
+	ce_ClassicName const s_classicNames[] =
+	{
+		{ "PWSpinner",      "Production.Modify.Secondary.Spinner" },
+		{ "ScieTaxSpinner", "Commerce.Modify.Secondary.Spinner"   },
+	};
+
+	void * ce_GetObject(MBCHAR const * block, MBCHAR const * name)
+	{
+		void * object = aui_Ldl::GetObject(block, name);
+		if (!object)
+			object = aui_Ldl::GetObject(k_detailsTabPanel, name);
+
+		for (ce_ClassicName const & alias : s_classicNames)
+		{
+			if (!object && strcmp(name, alias.name) == 0)
+				object = aui_Ldl::GetObject(block, alias.classic);
+		}
+
+		return object;
+	}
+
+	void ce_SetText(ctp2_Static * text, MBCHAR const * value)
+	{
+		if (text) text->SetText(value);
+	}
+}
 static sint32 k_ZERO_FOUR__NEG_TWO_TWO_CONVERSION = 2;
 
 CauseAndEffectTab::CauseAndEffectTab(const MBCHAR *ldlBlock) :
@@ -80,183 +125,183 @@ m_detailsButton(static_cast<ctp2_Button*>(aui_Ldl::GetObject(
 	"DomesticDialog.DetailsButton"))),
 m_optimizeSliderButton(static_cast<ctp2_Button*>(aui_Ldl::GetObject(
 	"DomesticDialog.OptimizeSlidersButton"))), // Added by Martin Gühmann
-m_numberOfCities(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_numberOfCities(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"CitiesValue"))),
-m_population(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_population(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"PopulationValue"))),
 
-m_happinessValue(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_happinessValue(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"HappinessValue"))),
-m_happinessBar(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_happinessBar(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"HappinessBar"))),
 
-m_government(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_government(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"CurrentGovernment"))),
-m_foodRationsSpinner(static_cast<C3Slider*>(aui_Ldl::GetObject(ldlBlock,
+m_foodRationsSpinner(static_cast<C3Slider*>(ce_GetObject(ldlBlock,
 	"Food.Modify.Primary.Slider"))),
-//m_foodRequired(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+//m_foodRequired(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 //	"Food.Modify.Secondary.Value"))),
-m_foodHappinessValue(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_foodHappinessValue(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Food.Modify.Primary.Value"))),
-m_foodCurValue(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_foodCurValue(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Food.Modify.Primary.CurValue"))),
-m_foodHappinessIcon(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_foodHappinessIcon(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Food.Modify.Primary.Icon"))),
 
-m_detailsFoodTotal(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsFoodTotal(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Food.InformationDetails.Collected.Value"))),
-m_detailsFoodTerrainTotal(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsFoodTerrainTotal(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Food.InformationDetails.Terrain.Value"))),
-m_detailsFoodFromBuildings(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsFoodFromBuildings(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Food.InformationDetails.Buildings.Value"))),
-m_detailsFoodFarmers(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsFoodFarmers(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Food.InformationDetails.Farmers.Value"))),
-m_detailsFoodFeatWonder(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsFoodFeatWonder(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Food.InformationDetails.FeatsWonders.Value"))),
-m_detailsFoodGovBonus(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsFoodGovBonus(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Food.InformationDetails.FoodGovBonus.Value"))),
-m_detailsFoodCrime(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsFoodCrime(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Food.InformationDetails.Crime.Value"))),
-m_detailsFoodConsumed(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsFoodConsumed(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Food.InformationDetails.Consumed.Value"))),
-m_detailsFoodStored(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsFoodStored(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Food.InformationDetails.Remainder.Value"))),
-m_summaryFoodTotal(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_summaryFoodTotal(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Food.InformationSummary.Collected.Value"))),
-m_summaryFoodConsumed(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_summaryFoodConsumed(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Food.InformationSummary.Consumed.Value"))),
-m_summaryFoodCrime(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_summaryFoodCrime(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Food.InformationSummary.Crime.Value"))),
-m_summaryFoodStored(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_summaryFoodStored(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Food.InformationSummary.Remainder.Value"))),
 
-m_productionWorkdaySpinner(static_cast<C3Slider*>(aui_Ldl::GetObject(ldlBlock,
+m_productionWorkdaySpinner(static_cast<C3Slider*>(ce_GetObject(ldlBlock,
 	"Production.Modify.Primary.Slider"))),
-m_productionPublicWorksSpinner(static_cast<ctp2_Spinner*>(aui_Ldl::GetObject(ldlBlock,
+m_productionPublicWorksSpinner(static_cast<ctp2_Spinner*>(ce_GetObject(ldlBlock,
 	"PWSpinner"))),
 
-m_productionHappinessValue(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_productionHappinessValue(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Production.Modify.Primary.Value"))),
-m_productionCurValue(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_productionCurValue(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Production.Modify.Primary.CurValue"))),
-m_productionHappinessIcon(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_productionHappinessIcon(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Production.Modify.Primary.Icon"))),
 
-m_detailsProductionTotal(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsProductionTotal(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Production.InformationDetails.Collected.Value"))),
-m_detailsProdTerrainTotal(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsProdTerrainTotal(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Production.InformationDetails.Terrain.Value"))),
-m_detailsProdWorkdayTotal(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsProdWorkdayTotal(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Production.InformationDetails.Workday.Value"))),
-m_detailsProdFromBuildingsTotal(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsProdFromBuildingsTotal(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Production.InformationDetails.ProdBuildings.Value"))),
-m_detailsProductionLaborersTotal(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsProductionLaborersTotal(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Production.InformationDetails.Laborers.Value"))),
-m_detailsProductionFeatWonderTotal(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsProductionFeatWonderTotal(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Production.InformationDetails.FeatsWonders.Value"))),
-m_detailsProductionGovBonusTotal(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsProductionGovBonusTotal(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Production.InformationDetails.ProdGovBonus.Value"))),
-m_detailsProductionFranchiseBioLoss(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsProductionFranchiseBioLoss(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Production.InformationDetails.Enemy.Value"))),
-m_detailsProductionCrime(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsProductionCrime(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Production.InformationDetails.Crime.Value"))),
-m_detailsProductionUnitUpkeep(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsProductionUnitUpkeep(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Production.InformationDetails.Upkeep.Value"))),
-m_detailsProductionPublicWorks(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsProductionPublicWorks(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Production.InformationDetails.PublicWorks.Value"))),
-m_detailsProductionCityUse(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsProductionCityUse(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Production.InformationDetails.CityUse.Value"))),
-m_summaryProductionTotal(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_summaryProductionTotal(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Production.InformationSummary.Collected.Value"))),
-m_summaryProductionFranchiseBioLoss(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_summaryProductionFranchiseBioLoss(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Production.InformationSummary.Enemy.Value"))),
-m_summaryProductionUnitUpkeep(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_summaryProductionUnitUpkeep(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Production.InformationSummary.Upkeep.Value"))),
-m_summaryProductionCrime(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_summaryProductionCrime(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Production.InformationSummary.Crime.Value"))),
-m_summaryProductionPublicWorks(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_summaryProductionPublicWorks(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Production.InformationSummary.PublicWorks.Value"))),
-m_summaryProductionCityUse(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_summaryProductionCityUse(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Production.InformationSummary.CityUse.Value"))),
 
-m_commerceWagesSpinner(static_cast<C3Slider*>(aui_Ldl::GetObject(ldlBlock,
+m_commerceWagesSpinner(static_cast<C3Slider*>(ce_GetObject(ldlBlock,
 	"Commerce.Modify.Primary.Slider"))),
-m_commerceScienceTaxSpinner(static_cast<ctp2_Spinner*>(aui_Ldl::GetObject(ldlBlock,
+m_commerceScienceTaxSpinner(static_cast<ctp2_Spinner*>(ce_GetObject(ldlBlock,
 	"ScieTaxSpinner"))),
-m_commerceHappinessValue(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_commerceHappinessValue(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.Modify.Primary.Value"))),
-m_commerceCurValue(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_commerceCurValue(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.Modify.Primary.CurValue"))),
-m_commerceHappinessIcon(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_commerceHappinessIcon(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.Modify.Primary.Icon"))),
 
-m_detailsCommerceTerrain(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsCommerceTerrain(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationDetails.Terrain.Value"))),
-m_detailsCommerceWages(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsCommerceWages(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationDetails.Wages.Value"))),
-m_detailsCommerceBuildingUpkeep(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsCommerceBuildingUpkeep(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationDetails.Upkeep.Value"))),
-m_detailsCommerceTotal(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsCommerceTotal(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationDetails.Collected.Value"))),
-m_detailsCommerceScieCrime(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsCommerceScieCrime(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationDetails.ScieCrime.Value"))),
-m_detailsCommerceGoldCrime(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsCommerceGoldCrime(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationDetails.GoldCrime.Value"))),
-m_detailsCommerceScienceBasic(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsCommerceScienceBasic(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationDetails.BasicScience.Value"))),
-m_detailsGoldFromCommerce(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsGoldFromCommerce(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationDetails.BasicGold.Value"))),
-m_detailsCommerceScienceBuildings(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsCommerceScienceBuildings(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationDetails.ScienceBuildings.Value"))),
-m_detailsCommerceGoldBuildings(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsCommerceGoldBuildings(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationDetails.GoldBuildings.Value"))),
-m_detailsCommerceScientistsScie(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsCommerceScientistsScie(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationDetails.Scientists.Value"))),
-m_detailsCommerceFeatWonderScie(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsCommerceFeatWonderScie(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationDetails.FeatsWondersScie.Value"))),
-m_detailsCommerceMerchantsGold(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsCommerceMerchantsGold(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationDetails.Merchants.Value"))),
-m_detailsCommerceFeatWonderGold(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsCommerceFeatWonderGold(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationDetails.FeatsWondersGold.Value"))),
-m_detailsCommerceTradeGold(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsCommerceTradeGold(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationDetails.TradeGold.Value"))),
-m_detailsCommerceConversionsGold(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsCommerceConversionsGold(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationDetails.ConversionsGold.Value"))),
-m_detailsCommerceScienceGov(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsCommerceScienceGov(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationDetails.ScieGovBonus.Value"))),
-m_detailsCommerceGoldGov(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsCommerceGoldGov(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationDetails.GoldGovBonus.Value"))),
-m_detailsCommerceScieSubTotal(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsCommerceScieSubTotal(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationDetails.ScieSubTotal.Value"))),
-m_detailsCommerceGoldSubTotal(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsCommerceGoldSubTotal(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationDetails.GoldSubTotal.Value"))),
-m_detailsCommerceConvGoldLoss(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsCommerceConvGoldLoss(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationDetails.Enemy.Value"))),
-m_detailsCommerceUnitWages(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsCommerceUnitWages(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationDetails.UnitWages.Value"))),
-m_detailsCommerceScience(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsCommerceScience(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationDetails.Science.Value"))),
-m_detailsCommerceSavings(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_detailsCommerceSavings(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationDetails.Savings.Value"))),
-m_summaryCommerceTotal(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_summaryCommerceTotal(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationSummary.Collected.Value"))),
-m_summaryCommerceScieSubTotal(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_summaryCommerceScieSubTotal(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationSummary.ScieSubTotal.Value"))),
-m_summaryCommerceGoldSubTotal(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_summaryCommerceGoldSubTotal(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationSummary.GoldSubTotal.Value"))),
-m_summaryCommerceConvGoldLoss(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_summaryCommerceConvGoldLoss(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationSummary.Enemy.Value"))),
-m_summaryCommerceUnitWages(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_summaryCommerceUnitWages(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationSummary.UnitWages.Value"))),
-m_summaryCommerceScieCrime(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_summaryCommerceScieCrime(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationSummary.ScieCrime.Value"))),
-m_summaryCommerceGoldCrime(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_summaryCommerceGoldCrime(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationSummary.GoldCrime.Value"))),
-m_summaryCommerceScience(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_summaryCommerceScience(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationSummary.Science.Value"))),
-m_summaryCommerceSavings(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_summaryCommerceSavings(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationSummary.Savings.Value"))),
-m_summaryCommerceConversionsGold(static_cast<ctp2_Static*>(aui_Ldl::GetObject(ldlBlock,
+m_summaryCommerceConversionsGold(static_cast<ctp2_Static*>(ce_GetObject(ldlBlock,
 	"Commerce.InformationSummary.ConversionsGold.Value")))
 {
 
@@ -394,6 +439,10 @@ void CauseAndEffectTab::Update()
 void CauseAndEffectTab::DisplayDetails(bool flag)
 {
 	m_displayDetails = flag;
+
+	// classic interface: summary here, details on their own tab, both shown
+	if (!aui_Ldl::GetObject(m_ldlBlock, "Food.InformationDetails"))
+		return;
 
 	if(m_tabPanel->IsHidden())
 		return;
@@ -555,35 +604,35 @@ void CauseAndEffectTab::UpdateFoodValues()
 	//m_foodRequired->SetText(stringBuffer);
 
 	sprintf(stringBuffer, "%.0f", totalTerrainFood);
-	m_detailsFoodTerrainTotal->SetText(stringBuffer);
+	ce_SetText(m_detailsFoodTerrainTotal, stringBuffer);
 
 	sprintf(stringBuffer, "%.0f", totalFoodFromBuildings);
-	m_detailsFoodFromBuildings->SetText(stringBuffer);
+	ce_SetText(m_detailsFoodFromBuildings, stringBuffer);
 
 	sprintf(stringBuffer, "%.0f", totalFoodFarmers);
-	m_detailsFoodFarmers->SetText(stringBuffer);
+	ce_SetText(m_detailsFoodFarmers, stringBuffer);
 
 	sprintf(stringBuffer, "%.0f", totalFeatWonderFood);
-	m_detailsFoodFeatWonder->SetText(stringBuffer);
+	ce_SetText(m_detailsFoodFeatWonder, stringBuffer);
 
 	sprintf(stringBuffer, "%.0f", totalFoodGovBonus);
-	m_detailsFoodGovBonus->SetText(stringBuffer);
+	ce_SetText(m_detailsFoodGovBonus, stringBuffer);
 
 	sprintf(stringBuffer, "%.0f", totalFood);
-	m_detailsFoodTotal->SetText(stringBuffer);
-	m_summaryFoodTotal->SetText(stringBuffer);
+	ce_SetText(m_detailsFoodTotal, stringBuffer);
+	ce_SetText(m_summaryFoodTotal, stringBuffer);
 
 	sprintf(stringBuffer, "%.0f", totalFoodCrime);
-	m_detailsFoodCrime->SetText(stringBuffer);
-	m_summaryFoodCrime->SetText(stringBuffer);
+	ce_SetText(m_detailsFoodCrime, stringBuffer);
+	ce_SetText(m_summaryFoodCrime, stringBuffer);
 
 	sprintf(stringBuffer, "%.0f", totalFoodConsumed);
-	m_detailsFoodConsumed->SetText(stringBuffer);
-	m_summaryFoodConsumed->SetText(stringBuffer);
+	ce_SetText(m_detailsFoodConsumed, stringBuffer);
+	ce_SetText(m_summaryFoodConsumed, stringBuffer);
 
 	sprintf(stringBuffer, "%.0f", totalFoodStored);
-	m_detailsFoodStored->SetText(stringBuffer);
-	m_summaryFoodStored->SetText(stringBuffer);
+	ce_SetText(m_detailsFoodStored, stringBuffer);
+	ce_SetText(m_summaryFoodStored, stringBuffer);
 
 	sint32 happiness = static_cast<sint32>(
 		Happy::CalcCityIndependentRations(player));
@@ -715,46 +764,46 @@ void CauseAndEffectTab::UpdateProductionValues()
 
 	// sub total
 	sprintf(stringBuffer, "%.0f", totalProduction);
-	m_detailsProductionTotal->SetText(stringBuffer);
-	m_summaryProductionTotal->SetText(stringBuffer);
+	ce_SetText(m_detailsProductionTotal, stringBuffer);
+	ce_SetText(m_summaryProductionTotal, stringBuffer);
 
 	sprintf(stringBuffer, "%.0f", totalTerrainProd);
-	m_detailsProdTerrainTotal->SetText(stringBuffer);
+	ce_SetText(m_detailsProdTerrainTotal, stringBuffer);
 
 	sprintf(stringBuffer, "%.0f", totalWorkdayBonus);
-	m_detailsProdWorkdayTotal->SetText(stringBuffer);
+	ce_SetText(m_detailsProdWorkdayTotal, stringBuffer);
 
 	sprintf(stringBuffer, "%.0f", totalProdFromBuildings);
-	m_detailsProdFromBuildingsTotal->SetText(stringBuffer);
+	ce_SetText(m_detailsProdFromBuildingsTotal, stringBuffer);
 
 	sprintf(stringBuffer, "%.0f", totalLaborersProd);
-	m_detailsProductionLaborersTotal->SetText(stringBuffer);
+	ce_SetText(m_detailsProductionLaborersTotal, stringBuffer);
 
 	sprintf(stringBuffer, "%.0f", totalFeatWonderProd);
-	m_detailsProductionFeatWonderTotal->SetText(stringBuffer);
+	ce_SetText(m_detailsProductionFeatWonderTotal, stringBuffer);
 
 	sprintf(stringBuffer, "%.0f", totalProdGovBonus);
-	m_detailsProductionGovBonusTotal->SetText(stringBuffer);
+	ce_SetText(m_detailsProductionGovBonusTotal, stringBuffer);
 
 	sprintf(stringBuffer, "%.0f", totalFranchiseBioLoss);
-	m_detailsProductionFranchiseBioLoss->SetText(stringBuffer);
-	m_summaryProductionFranchiseBioLoss->SetText(stringBuffer);
+	ce_SetText(m_detailsProductionFranchiseBioLoss, stringBuffer);
+	ce_SetText(m_summaryProductionFranchiseBioLoss, stringBuffer);
 
 	sprintf(stringBuffer, "%.0f", totalProductionCrime);
-	m_detailsProductionCrime->SetText(stringBuffer);
-	m_summaryProductionCrime->SetText(stringBuffer);
+	ce_SetText(m_detailsProductionCrime, stringBuffer);
+	ce_SetText(m_summaryProductionCrime, stringBuffer);
 
 	sprintf(stringBuffer, "%d", totalProductionUnitUpkeep);
-	m_detailsProductionUnitUpkeep->SetText(stringBuffer);
-	m_summaryProductionUnitUpkeep->SetText(stringBuffer);
+	ce_SetText(m_detailsProductionUnitUpkeep, stringBuffer);
+	ce_SetText(m_summaryProductionUnitUpkeep, stringBuffer);
 
 	sprintf(stringBuffer, "%d", totalProductionPublicWorks);
-	m_detailsProductionPublicWorks->SetText(stringBuffer);
-	m_summaryProductionPublicWorks->SetText(stringBuffer);
+	ce_SetText(m_detailsProductionPublicWorks, stringBuffer);
+	ce_SetText(m_summaryProductionPublicWorks, stringBuffer);
 
 	sprintf(stringBuffer, "%.0f", totalProductionCityUse);
-	m_detailsProductionCityUse->SetText(stringBuffer);
-	m_summaryProductionCityUse->SetText(stringBuffer);
+	ce_SetText(m_detailsProductionCityUse, stringBuffer);
+	ce_SetText(m_summaryProductionCityUse, stringBuffer);
 
 	sint32 happiness = static_cast<sint32>(
 		Happy::CalcCityIndependentWorkday(player));
@@ -984,86 +1033,86 @@ void CauseAndEffectTab::UpdateCommerceValues()
 	static char formatBuffer[64];
 
 	sprintf(stringBuffer, "%d", totalCommerceTerrain);
-	m_detailsCommerceTerrain->SetText(stringBuffer);
+	ce_SetText(m_detailsCommerceTerrain, stringBuffer);
 
 	sprintf(stringBuffer, "%d", totalCommerceWages);
-	m_detailsCommerceWages->SetText(stringBuffer);
+	ce_SetText(m_detailsCommerceWages, stringBuffer);
 
 	sprintf(stringBuffer, "%d", totalCommerceCityBuildingUpkeep);
-	m_detailsCommerceBuildingUpkeep->SetText(stringBuffer);
+	ce_SetText(m_detailsCommerceBuildingUpkeep, stringBuffer);
 
 	sprintf(stringBuffer, "%d", totalCommerce);
-	m_detailsCommerceTotal->SetText(stringBuffer);
-	m_summaryCommerceTotal->SetText(stringBuffer);
+	ce_SetText(m_detailsCommerceTotal, stringBuffer);
+	ce_SetText(m_summaryCommerceTotal, stringBuffer);
 
 	sprintf(stringBuffer, "%d", totalScienceFromCommerce);
-	m_detailsCommerceScienceBasic->SetText(stringBuffer);
+	ce_SetText(m_detailsCommerceScienceBasic, stringBuffer);
 
 	sprintf(stringBuffer, "%d", totalGoldFromCommerce);
-	m_detailsGoldFromCommerce->SetText(stringBuffer);
+	ce_SetText(m_detailsGoldFromCommerce, stringBuffer);
 
 	sprintf(stringBuffer, "%d", totalCommerceScience);
-	m_detailsCommerceScience->SetText(stringBuffer);
-	m_summaryCommerceScience->SetText(stringBuffer);
+	ce_SetText(m_detailsCommerceScience, stringBuffer);
+	ce_SetText(m_summaryCommerceScience, stringBuffer);
 
 	sprintf(stringBuffer, "%d", totalScienceFromBuildings);
-	m_detailsCommerceScienceBuildings->SetText(stringBuffer);
+	ce_SetText(m_detailsCommerceScienceBuildings, stringBuffer);
 
 	sprintf(stringBuffer, "%d", totalGoldFromBuildings);
-	m_detailsCommerceGoldBuildings->SetText(stringBuffer);
+	ce_SetText(m_detailsCommerceGoldBuildings, stringBuffer);
 
 	sprintf(stringBuffer, "%d", totalScientistsScie);
-	m_detailsCommerceScientistsScie->SetText(stringBuffer);
+	ce_SetText(m_detailsCommerceScientistsScie, stringBuffer);
 
 	sprintf(stringBuffer, "%d", totalFeatWonderScie);
-	m_detailsCommerceFeatWonderScie->SetText(stringBuffer);
+	ce_SetText(m_detailsCommerceFeatWonderScie, stringBuffer);
 
 	sprintf(stringBuffer, "%d", totalMerchantsGold);
-	m_detailsCommerceMerchantsGold->SetText(stringBuffer);
+	ce_SetText(m_detailsCommerceMerchantsGold, stringBuffer);
 
 	sprintf(stringBuffer, "%d", totalFeatWonderGold);
-	m_detailsCommerceFeatWonderGold->SetText(stringBuffer);
+	ce_SetText(m_detailsCommerceFeatWonderGold, stringBuffer);
 
 	sprintf(stringBuffer, "%d", totalGoldTradeRoutes);
-	m_detailsCommerceTradeGold->SetText(stringBuffer);
+	ce_SetText(m_detailsCommerceTradeGold, stringBuffer);
 
 	sprintf(stringBuffer, "%d", totalScienceGov);
-	m_detailsCommerceScienceGov->SetText(stringBuffer);
+	ce_SetText(m_detailsCommerceScienceGov, stringBuffer);
 
 	sprintf(stringBuffer, "%d", totalGoldGov);
-	m_detailsCommerceGoldGov->SetText(stringBuffer);
+	ce_SetText(m_detailsCommerceGoldGov, stringBuffer);
 
 	sprintf(stringBuffer, "%d", totalScieSubTotal);
-	m_detailsCommerceScieSubTotal->SetText(stringBuffer);
-	m_summaryCommerceScieSubTotal->SetText(stringBuffer);
+	ce_SetText(m_detailsCommerceScieSubTotal, stringBuffer);
+	ce_SetText(m_summaryCommerceScieSubTotal, stringBuffer);
 
 	sprintf(stringBuffer, "%d", totalGoldSubTotal);
-	m_detailsCommerceGoldSubTotal->SetText(stringBuffer);
-	m_summaryCommerceGoldSubTotal->SetText(stringBuffer);
+	ce_SetText(m_detailsCommerceGoldSubTotal, stringBuffer);
+	ce_SetText(m_summaryCommerceGoldSubTotal, stringBuffer);
 
 	sprintf(stringBuffer, "%d", totalGoldConversionLoss);
-	m_detailsCommerceConvGoldLoss->SetText(stringBuffer);
-	m_summaryCommerceConvGoldLoss->SetText(stringBuffer);
+	ce_SetText(m_detailsCommerceConvGoldLoss, stringBuffer);
+	ce_SetText(m_summaryCommerceConvGoldLoss, stringBuffer);
 
 	sprintf(stringBuffer, "%d", totalUnitWages);
-	m_detailsCommerceUnitWages->SetText(stringBuffer);
-	m_summaryCommerceUnitWages->SetText(stringBuffer);
+	ce_SetText(m_detailsCommerceUnitWages, stringBuffer);
+	ce_SetText(m_summaryCommerceUnitWages, stringBuffer);
 
 	sprintf(stringBuffer, "%d", totalCommerceGoldCrime);
-	m_detailsCommerceGoldCrime->SetText(stringBuffer);
-	m_summaryCommerceGoldCrime->SetText(stringBuffer);
+	ce_SetText(m_detailsCommerceGoldCrime, stringBuffer);
+	ce_SetText(m_summaryCommerceGoldCrime, stringBuffer);
 
 	sprintf(stringBuffer, "%d", totalCommerceScieCrime);
-	m_detailsCommerceScieCrime->SetText(stringBuffer);
-	m_summaryCommerceScieCrime->SetText(stringBuffer);
+	ce_SetText(m_detailsCommerceScieCrime, stringBuffer);
+	ce_SetText(m_summaryCommerceScieCrime, stringBuffer);
 
 	sprintf(stringBuffer, "%d", totalCommerceSavings);
-	m_detailsCommerceSavings->SetText(stringBuffer);
-	m_summaryCommerceSavings->SetText(stringBuffer);
+	ce_SetText(m_detailsCommerceSavings, stringBuffer);
+	ce_SetText(m_summaryCommerceSavings, stringBuffer);
 
 	sprintf(stringBuffer, "%d", totalGoldConversions);
-	m_detailsCommerceConversionsGold->SetText(stringBuffer);
-	m_summaryCommerceConversionsGold->SetText(stringBuffer);
+	ce_SetText(m_detailsCommerceConversionsGold, stringBuffer);
+	ce_SetText(m_summaryCommerceConversionsGold, stringBuffer);
 
 	sint32 happiness = static_cast<sint32>(
 		Happy::CalcCityIndependentWages(player));
@@ -1304,6 +1353,15 @@ void CauseAndEffectTab::DetailsButtonActionCallback(aui_Control *control,
 {
 	if(action != static_cast<uint32>(AUI_BUTTON_ACTION_EXECUTE))
 		return;
+
+	// classic interface: the button opens the details tab
+	ctp2_TabGroup * tabGroup   = static_cast<ctp2_TabGroup *>(aui_Ldl::GetObject("DomesticDialog.TabGroup"));
+	ctp2_Tab *      detailsTab = static_cast<ctp2_Tab *>(aui_Ldl::GetObject(k_detailsTab));
+	if (tabGroup && detailsTab && aui_Ldl::GetObject(k_detailsTabPanel, "Food.InformationDetails"))
+	{
+		tabGroup->SelectTab(detailsTab);
+		return;
+	}
 
 	static_cast<CauseAndEffectTab*>(cookie.m_voidPtr)->DisplayDetails(
 		!(static_cast<CauseAndEffectTab*>(cookie.m_voidPtr)->m_displayDetails));

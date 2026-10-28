@@ -1032,8 +1032,7 @@ CityWindow:CTP2_DIALOG_WINDOW {
 					int ypix 5
 					int heightpix 16
 					int widthpix 155
-					string pattern "uptg04e.tga"
-					string text "str_ldl_CityWinTotalHappinessFormat"
+					string	text	""
 					string just "left"
 				}
 				HappinessList:CTP2_LISTBOX {
@@ -1060,7 +1059,6 @@ CityWindow:CTP2_DIALOG_WINDOW {
 					int	ypix	104
 					int heightpix 16
 					int widthpix 155
-					string pattern "uptg04e.tga"
 					string text "str_ldl_TotalPollutionFormat"
 					string just "left"
 				}

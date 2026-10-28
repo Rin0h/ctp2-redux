@@ -97,6 +97,14 @@ namespace
 	void OpenCitySpecialists() { OpenCityTab("Specialists"); }
 	void OpenCityStatistics()  { OpenCityTab("Statistics"); }
 	void OpenCityUnits()       { OpenCityTab("Units"); }
+	// The details tab of the classic domestic manager
+	void OpenCivDetails()
+	{
+		open_CivStatus();
+		ctp2_TabGroup *group = (ctp2_TabGroup *)aui_Ldl::GetObject("DomesticDialog.TabGroup");
+		ctp2_Tab *     page  = (ctp2_Tab *)aui_Ldl::GetObject("DomesticDialog.TabGroup.Tab3");
+		if (group && page) group->SelectTab(page);
+	}
 	void OpenCityStatus() { open_CityStatus(); }
 	void OpenCivStatus()  { open_CivStatus(); }
 	void OpenScience()    { open_ScienceStatus(); }
@@ -163,6 +171,7 @@ namespace
 		{ "city_units",       OpenCityUnits,       CloseCity },
 		{ "citystatus",   OpenCityStatus, close_CityStatus },
 		{ "civstatus",    OpenCivStatus,  close_CivStatus  },
+		{ "civstatus_details", OpenCivDetails, close_CivStatus },
 		{ "science",      OpenScience,    CloseScience   },
 		{ "advances",     OpenAdvances,   CloseAdvances  },
 		{ "library",      OpenLibrary,    CloseLibrary   },
