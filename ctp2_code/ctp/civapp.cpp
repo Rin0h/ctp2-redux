@@ -487,6 +487,7 @@ void InitDataIncludePath(void)
 		g_civPaths->InsertExtraDataPath(classicPath);
 	}
 	autotest_Log("data: classic interface %s", g_theProfileDB->IsClassicInterface() ? "on" : "off");
+	autotest_Log("data: language %s", g_civPaths->GetLocalizedPath());
 
 	MBCHAR                  ruleSets[MAX_PATH];
 	strcpy(ruleSets, g_theProfileDB->GetRuleSets());

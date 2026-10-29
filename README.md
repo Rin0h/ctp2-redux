@@ -122,6 +122,12 @@ When the game runs in German:
   translated;
 - the German videos are used (they differ from the English ones).
 
+The game speaks the language of your installation: the Windows language
+only counts when its folder has speech or videos of its own, so an English
+GOG version stays English on a German Windows (the Apolyton Edition
+switched its texts to German). Other text languages: `LanguageDirectory=german`
+etc. in `userprofile.txt`.
+
 ## Getting started
 
 A ready-to-play package is in preparation. Until then, build the game
@@ -167,8 +173,10 @@ before building.
 `pwsh tools/make-release.ps1` packs the release zip
 (`_local/release/ctp2-redux-<date>.zip`) to unpack into an installed game:
 the program in `ctp2_program/ctp/x64`, the data files of the repository
-without the ones that are byte for byte original game files, the HD setup,
-`README.txt` and the licences.
+without the ones that are byte for byte original game files, the HD setup
+(it also creates the shortcuts to the 64-bit game, since the GOG shortcut
+starts the original exe, which cannot read the new data),
+`ctp2-redux-README.txt` and the licences.
 
 The solution can also be opened in Visual Studio; use a `-SDL`
 configuration and set `ctp2` as start project. The DirectX configurations
@@ -377,6 +385,12 @@ Wenn das Spiel auf Deutsch läuft:
   gelassen hat, sind übersetzt;
 - es laufen die deutschen Videos (sie unterscheiden sich von den
   englischen).
+
+Das Spiel spricht die Sprache deiner Installation: Die Windows-Sprache
+zählt nur, wenn ihr Ordner eigene Sprachausgabe oder Videos hat. Eine
+englische GOG-Version bleibt so auch auf deutschem Windows Englisch (die
+Apolyton Edition stellte dort die Texte auf Deutsch um). Andere
+Textsprachen: `LanguageDirectory=german` usw. in `userprofile.txt`.
 
 ### Loslegen
 

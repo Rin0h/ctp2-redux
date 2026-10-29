@@ -53,6 +53,8 @@ $texts = @{
         Welcome2       = ('Deine Originaldateien bleiben unverändert. Die HD-Dateien landen im Ordner ' +
                           'ctp2_data\redux_hires; das Spiel nimmt sie automatisch, wenn die Skalierung passt.')
         Welcome3       = 'Die Arbeit ist in Schritte geteilt, die du dir einteilen kannst.'
+        Shortcuts      = ('✔ Verknüpfung »{0}« auf dem Desktop und im Spielordner angelegt. ' +
+                          'Die HD-Dateien sind freiwillig: ohne sie dieses Fenster einfach schließen.')
         ModeCreate     = 'HD-Dateien erzeugen oder ergänzen'
         ModeRemove     = 'HD-Dateien entfernen (zurück zur Originalgrafik)'
         ClickNext      = 'Klicke auf »Weiter«, um fortzufahren.'
@@ -142,6 +144,8 @@ $texts = @{
         Welcome2       = ('Your original files stay untouched. The HD files go to the folder ctp2_data\redux_hires; ' +
                           'the game takes them automatically when the scaling matches.')
         Welcome3       = 'The work is split into steps that you can plan as you like.'
+        Shortcuts      = ('✔ Shortcut "{0}" created on the desktop and in the game folder. ' +
+                          'The HD files are optional: without them just close this window.')
         ModeCreate     = 'Create or complete the HD files'
         ModeRemove     = 'Remove the HD files (back to the original graphics)'
         ClickNext      = 'Click "Next" to continue.'
@@ -292,6 +296,20 @@ function Get-GameInfo([string]$folder) {
             }
         }
     }
+    # without a profile entry the game takes the Windows language, but only
+    # if its folder has own speech or videos (a localized installation)
+    $languageFile = Join-Path $data 'default\gamedata\Language.txt'
+    if (-not $profileLanguage -and (Test-Path $languageFile)) {
+        $iso = [Globalization.CultureInfo]::CurrentUICulture.TwoLetterISOLanguageName
+        foreach ($m in [regex]::Matches((Get-Content $languageFile -Raw), '(?s)LANGUAGE_\w+\s*\{(.*?)\}')) {
+            $block = $m.Groups[1].Value
+            if ($block -match '(?m)^\s*(Disabled|Hidden)\b') { continue }
+            if ($block -notmatch "IsoCode\s+`"$iso`"" -or $block -notmatch 'Directory\s+"([^"]+)"') { continue }
+            $dir = $Matches[1]
+            if ((Test-Path (Join-Path $data "$dir\sound")) -or (Test-Path (Join-Path $data "$dir\videos"))) { $info.Language = $dir }
+            break
+        }
+    }
     return $info
 }
 
@@ -311,6 +329,25 @@ function Find-GameFolder {
         if ($c -and (Get-GameInfo $c)) { return (Resolve-Path $c).Path }
     }
     return ''
+}
+
+# the GOG shortcut starts the original ctp2.exe, which cannot read the data of
+# ctp2-redux; so the assistant links the desktop and the game folder to the
+# 64-bit build (a shortcut in the zip would need the folder of the install)
+$shortcutName = 'Call to Power II (ctp2-redux)'
+function New-Shortcuts($info) {
+    if (-not $info.Exe -or (Split-Path -Leaf (Split-Path $info.Exe)) -ne 'x64') { return $false }
+    $shell = New-Object -ComObject WScript.Shell
+    foreach ($dir in @([Environment]::GetFolderPath('Desktop'), $info.Folder)) {
+        try {
+            $link = $shell.CreateShortcut((Join-Path $dir "$shortcutName.lnk"))
+            $link.TargetPath       = $info.Exe
+            $link.WorkingDirectory = Split-Path $info.Exe
+            $link.IconLocation     = "$($info.Exe),0"
+            $link.Save()
+        } catch { return $false }
+    }
+    return $true
 }
 
 function Find-Ffmpeg($info) {
@@ -407,6 +444,8 @@ Add-Label $pageWelcome $T.Welcome3 112 22 | Out-Null
 $radioCreate = Add-Radio $pageWelcome $T.ModeCreate 160
 $radioCreate.Checked = $true
 $radioRemove = Add-Radio $pageWelcome $T.ModeRemove 186
+$shortcutNote = Add-Label $pageWelcome '' 222 44
+$shortcutNote.ForeColor = [Drawing.Color]::DarkGreen
 Add-Label $pageWelcome $T.ClickNext 280 22 | Out-Null
 
 # page 1: game folder
@@ -491,6 +530,8 @@ function Update-FolderStatus {
     $script:info = Get-GameInfo $folderBox.Text.Trim()
     $script:status = @{}
     if ($script:info) {
+        # at once when the folder is found, so the HD part stays optional
+        if (-not $Screenshots -and (New-Shortcuts $script:info)) { $shortcutNote.Text = $T.Shortcuts -f $shortcutName }
         $folderStatus.ForeColor = [Drawing.Color]::DarkGreen
         $text = $T.FolderOk -f $script:info.Language
         if (Test-Path (Join-Path $script:info.Data 'redux_hires')) { $text += "`n" + $T.FolderHasHD }

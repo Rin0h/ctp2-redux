@@ -113,6 +113,7 @@ public:
 
 	MBCHAR *    GetDesktopPath(void);
 	MBCHAR const * GetDataPath(void) const { return m_dataPath; }
+	MBCHAR const * GetLocalizedPath(void) const { return m_localizedPath; }
 	// ctp2-redux: the folder of the upscaled files, <data>/redux_hires/<scale>x,
 	// with the base directory in front like every other data file
 	MBCHAR *    GetHiResPath(MBCHAR * path, size_t size, sint32 scale) const;
@@ -133,6 +134,7 @@ public:
 private:
 
 	bool CompareLocals(const MBCHAR *locale1, const wchar_t* locale2) const;
+	bool HasOwnMedia(const MBCHAR *languageDir) const;
 
 	MBCHAR *    MakeAssetPath
 	(

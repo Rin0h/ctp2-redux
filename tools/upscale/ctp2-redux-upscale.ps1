@@ -119,17 +119,35 @@ if ($Scale -lt 2 -or $Scale -gt 4) {
 }
 
 # --- the language folder (localized images override default ones) -----------
-# like the game: LanguageDirectory of the profile, else the 4th line of civpaths
+# like the game: LanguageDirectory of the profile, else the Windows language
+# if its folder has own speech or videos, else the 4th line of civpaths
 $gameLanguage = 'english'
 $path = ProgramFile 'civpaths.txt'
 if ($path) {
     $lines = @(Get-Content $path | Where-Object { $_.Trim() })
     if ($lines.Count -ge 4) { $gameLanguage = $lines[3].Trim() }
 }
+$profileLanguage = $null
 $path = ProgramFile 'userprofile.txt'
 if ($path) {
     $line = Select-String -Path $path -Pattern '^LanguageDirectory=(\S+)' | Select-Object -First 1
-    if ($line) { $gameLanguage = $line.Matches[0].Groups[1].Value }
+    if ($line) { $profileLanguage = $line.Matches[0].Groups[1].Value }
+}
+if ($profileLanguage) {
+    $gameLanguage = $profileLanguage
+} else {
+    $iso = [Globalization.CultureInfo]::CurrentUICulture.TwoLetterISOLanguageName
+    $languageFile = Join-Path $data 'default\gamedata\Language.txt'
+    if (Test-Path $languageFile) {
+        foreach ($m in [regex]::Matches((Get-Content $languageFile -Raw), '(?s)LANGUAGE_\w+\s*\{(.*?)\}')) {
+            $block = $m.Groups[1].Value
+            if ($block -match '(?m)^\s*(Disabled|Hidden)\b') { continue }
+            if ($block -notmatch "IsoCode\s+`"$iso`"" -or $block -notmatch 'Directory\s+"([^"]+)"') { continue }
+            $dir = $Matches[1]
+            if ((Test-Path (Join-Path $data "$dir\sound")) -or (Test-Path (Join-Path $data "$dir\videos"))) { $gameLanguage = $dir }
+            break
+        }
+    }
 }
 
 # --- folders --------------------------------------------------------------------

@@ -13,7 +13,7 @@
 #   ctp2_data\, Scenarios\  the data files of the repository (Apolyton Edition
 #                           and ctp2-redux): texts, layouts, Apolyton graphics
 #   ctp2-redux-hd-setup.bat the HD setup (with its two .ps1), in the game folder
-#   README.txt, Licenses\   instructions (English, German) and the licences
+#   ctp2-redux-README.txt, Licenses\  instructions (English, German) and the licences
 #
 # Never in the package: files that are byte for byte original game files
 # (see $originals), the upscaled files (redux_hires), files the game writes
@@ -80,7 +80,7 @@ Write-Host "  data: $copied files"
 
 # --- HD setup, instructions, licences ------------------------------------------
 Copy-Item (Join-Path $root 'tools\upscale\*') $stage
-Copy-Item (Join-Path $PSScriptRoot 'package\README.txt') $stage
+Copy-Item (Join-Path $PSScriptRoot 'package\ctp2-redux-README.txt') $stage
 $licences = Join-Path $stage 'Licenses'
 New-Item -ItemType Directory -Force $licences | Out-Null
 $libs = Join-Path $root 'ctp2_code\libs'

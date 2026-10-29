@@ -928,6 +928,25 @@ void CivPaths::SetLocaleFromLanguage()
 	}
 }
 
+// ctp2-redux: a language of the installed game has its own speech or videos
+// (sound, videos); the language folders of the source tree only bring the
+// texts. Without this the Windows language picked German texts in an English
+// installation on a German Windows.
+bool CivPaths::HasOwnMedia(const MBCHAR *languageDir) const
+{
+	const C3DIR mediaDirs[] = { C3DIR_SOUNDS, C3DIR_VIDEOS };
+	for(size_t i = 0; i < sizeof(mediaDirs) / sizeof(mediaDirs[0]); ++i)
+	{
+		MBCHAR path[_MAX_PATH];
+		snprintf(path, sizeof(path), "%s%s%s%s%s%s%s", m_hdPath, FILE_SEP, m_dataPath, FILE_SEP,
+		         languageDir, FILE_SEP, m_assetPaths[mediaDirs[i]]);
+		if(c3files_PathIsValid(path))
+			return true;
+	}
+
+	return false;
+}
+
 const LanguageRecord* CivPaths::FindLanguage()
 {
 #if defined(__AUI_USE_SDL__)
@@ -946,6 +965,9 @@ const LanguageRecord* CivPaths::FindLanguage()
 					continue;
 
 				if(lanRec->GetHidden())
+					continue;
+
+				if(!HasOwnMedia(lanRec->GetDirectory()))
 					continue;
 
 				if(strcmp(lanRec->GetIsoCode(), locales[j].language) == 0)
@@ -978,6 +1000,9 @@ const LanguageRecord* CivPaths::FindLanguage()
 				continue;
 
 			if(lanRec->GetHidden())
+				continue;
+
+			if(!HasOwnMedia(lanRec->GetDirectory()))
 				continue;
 
 			if(CompareLocals(lanRec->GetIsoCode(), buffer))
