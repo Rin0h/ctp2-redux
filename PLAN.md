@@ -43,11 +43,12 @@ Fensterbetrieb zum Testen: `ctp2_code\ctp\x64\userprofile.txt` mit
 - [x] Final-SDL x64 baut und startet (Intro-Video läuft über FFmpeg)
 - [x] Fork auf GitHub anlegen, Branch `redux` pushen: github.com/Rin0h/ctp2-redux,
       `redux` ist der Standard-Branch (Repo noch privat, Stand 2026-10-29)
-- [ ] CI-Workflow (GitHub Actions, windows-latest) für den Windows-Build –
-      offen: bei einem privaten Repo kosten Windows-Läufe Freiminuten
-      (doppelt gezählt), der Build mit FFmpeg dauert lange; Entscheidung des
-      Besitzers, ob bei jedem Push, nur bei Releases oder erst, wenn das
-      Repo öffentlich ist (dann kostenlos)
+- [x] CI-Workflow `.github/workflows/windows.yml` (seit 2026-10-27, windows-2022,
+      Final-SDL x64, Programm als Artefakt). Ab 2026-10-29 läuft er bei Pushes
+      erst, wenn das Repo öffentlich ist (privat kosten Windows-Läufe doppelt
+      Freiminuten: 29 Läufe ≈ 940 von 2000 im Oktober); von Hand
+      (workflow_dispatch) immer. Repo wird öffentlich, sobald das erste
+      Release freigegeben ist (Besitzer)
 - [x] Spielstart ohne userprofile.txt geprüft (2026-10-29): Vollbild in
       Desktop-Auflösung (`TryWindowsResolution` ist ohne Profil an), die
       automatische Skalierung macht bei 4K 1920x1080 zweifach daraus; auch
