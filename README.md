@@ -130,8 +130,18 @@ etc. in `userprofile.txt`.
 
 ## Getting started
 
-A ready-to-play package is in preparation. Until then, build the game
-yourself (the first build takes a while, FFmpeg is built too):
+**To play:** download the zip of the
+[latest release](https://github.com/Rin0h/ctp2-redux/releases/latest):
+1. Back up your game folder, then unpack the zip into it (where `ctp2_data`
+   and `ctp2_program` are, not into a new subfolder) and replace files.
+2. Start `ctp2-redux-hd-setup.bat` in the game folder. It creates the
+   shortcut **Call to Power II (ctp2-redux)** on the desktop and in the
+   game folder; making the HD files is optional.
+3. Play with that shortcut. The GOG shortcut and GOG Galaxy start the
+   original exe, which cannot read the new data.
+
+**To build it yourself** (the first build takes a while, FFmpeg is built
+too):
 
 1. Install the **Visual Studio 2022 Build Tools** with the C++ workload and
    a Windows SDK.
@@ -394,8 +404,20 @@ Textsprachen: `LanguageDirectory=german` usw. in `userprofile.txt`.
 
 ### Loslegen
 
-Ein fertiges Spielpaket ist in Vorbereitung. Bis dahin baut man das Spiel
-selbst (der erste Build dauert eine Weile, FFmpeg wird mitgebaut):
+**Zum Spielen:** das Zip der
+[neuesten Version](https://github.com/Rin0h/ctp2-redux/releases/latest)
+herunterladen:
+1. Spielordner sichern, dann das Zip hineinentpacken (dorthin, wo
+   `ctp2_data` und `ctp2_program` liegen, nicht in einen neuen
+   Unterordner) und Dateien ersetzen lassen.
+2. `ctp2-redux-hd-setup.bat` im Spielordner starten. Es legt die
+   Verknüpfung **Call to Power II (ctp2-redux)** auf dem Desktop und im
+   Spielordner an; die HD-Dateien zu erzeugen ist freiwillig.
+3. Mit dieser Verknüpfung spielen. Die GOG-Verknüpfung und GOG Galaxy
+   starten die originale exe, die die neuen Daten nicht lesen kann.
+
+**Selbst bauen** (der erste Build dauert eine Weile, FFmpeg wird
+mitgebaut):
 
 1. **Visual Studio 2022 Build Tools** mit C++-Workload und Windows SDK
    installieren.
