@@ -41,7 +41,6 @@
 #include "unitmanager.h"
 #include "armymanagerwindow.h"
 #include "diplomacywindow.h"
-#include "intelligencewindow.h"
 #include "infowindow.h"
 #include "EditQueue.h"
 #include "graphicsscreen.h"
@@ -147,8 +146,6 @@ namespace
 	void CloseArmy()      { ArmyManagerWindow::Hide(); }
 	void OpenDiplomacy()  { open_Diplomacy(); }
 	void CloseDiplomacy() { DiplomacyWindow::Hide(); }
-	void OpenIntel()      { IntelligenceWindow::Display(); }
-	void CloseIntel()     { IntelligenceWindow::Hide(); }
 	void OpenScore()      { InfoWindow::SelectScoreTab(); }
 	void OpenWonders()    { InfoWindow::SelectWonderTab(); }
 	void OpenRanking()    { InfoWindow::SelectRankingTab(); }
@@ -214,8 +211,9 @@ namespace
 		{ "trade",        OpenTrade,      CloseTrade     },
 		{ "units",        OpenUnits,      CloseUnits     },
 		{ "army",         OpenArmy,       CloseArmy      },
+		// the diplomacy window is the intelligence list of the game; the separate
+		// IntelligenceWindow is not reachable in the game (unfinished placeholder art)
 		{ "diplomacy",    OpenDiplomacy,  CloseDiplomacy },
-		{ "intelligence", OpenIntel,      CloseIntel     },
 		{ "dipwizard",    OpenWizard,     CloseWizard    },
 		{ "info_score",   OpenScore,      CloseInfo      },
 		{ "info_wonders", OpenWonders,    CloseInfo      },
