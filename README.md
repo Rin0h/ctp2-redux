@@ -243,9 +243,12 @@ choices come from the test's own random generator, never from the game's
 In hidden mode the game uses a software renderer and edge scrolling is
 off.
 
-### Contributing
+### Forks and reuse
 
-Coding style and tips are in the upstream [contributing guide lines](CONTRIBUTING.md).
+Want to change something? Fork ctp2-redux or take its changes into your
+own fork – with credit ("ctp2-redux by RinoLetsPlay" and a link), under the
+same non-commercial licence. How this fork is made (rules, tests, code
+style, debugging) is in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Game files and licence
 
@@ -399,6 +402,12 @@ Bauen, automatische Tests (Multiplayer-Test und Bildschirmtour mit
 `tools/mptest.ps1`) und die Kommandozeilen-Schalter stehen im englischen
 Teil [oben](#for-developers). Fahrplan, Erkenntnisse und Entscheidungen
 stehen in [PLAN.md](PLAN.md).
+
+Wer etwas ändern möchte, kann ctp2-redux gern forken oder Änderungen in
+seinen eigenen Fork übernehmen – mit Namensnennung („ctp2-redux von
+RinoLetsPlay“ und Link) und unter derselben nicht-kommerziellen Lizenz.
+Wie dieser Fork gemacht ist (Regeln, Tests, Code-Stil, Fehlersuche), steht
+in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ### Spieldaten und Lizenz
 

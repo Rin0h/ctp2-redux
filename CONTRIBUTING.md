@@ -1,48 +1,92 @@
-# Contributing
+# Building on ctp2-redux
 
-## Commits
+ctp2-redux is a fork of the
+[Apolyton CTP2 Source Code Project](https://github.com/civctp2/civctp2) with
+its own goals (see the [README](README.md)); the roadmap and all decisions
+so far are in [PLAN.md](PLAN.md).
 
-Please try to comply with following guidelines:
-- [How to Write a Git Commit Message](https://chris.beams.io/posts/git-commit/)
-- or TL;DR version: https://github.com/erlang/otp/wiki/writing-good-commit-messages
+**Want to change something? Fork it.** You are welcome to fork ctp2-redux
+or to take any of its changes into your own fork – please credit it, e.g.
+"based on / contains changes from
+[ctp2-redux by RinoLetsPlay](https://github.com/Rin0h/ctp2-redux)", and
+keep the credit of the Apolyton project and Activision as well. The licence
+of the source code still applies to every fork: personal and
+non-commercial use only ([LICENSE.md](LICENSE.md)).
 
-## Pull Requests
+The notes below are how this fork is made; they may help you with yours.
 
-If you want to add your changes to the repository, please create a pull request. You can already create a pull request, when you are still working on it. In this case, start the title of your pull request with WIP (Work In progress) and remove the WIP lable when you think your done. This way, people know that there is somebody working on that issue. And they can also give you some tips. However, we work on this project in our free time and people might only be available on the weekend. Therefore, when a pull requests reaches non WIP status, the maintainer will give at least 2 weeks time before merging, so that everybody has a hance to look it. This time can be shortened before an upcoming release, to incooperate last minute bug fixes and readme updates.
+## Ground rules of this fork
 
-## Naming style
+- **No original game files.** Never commit graphics, videos, music or texts
+  of the original game, and never their upscaled versions
+  (`ctp2_data/redux_hires` is ignored for that reason). The HD files are
+  only ever made on the player's PC from their own copy. Call to Power II
+  is not free software: the source code may only be used for personal,
+  non-commercial purposes ([LICENSE.md](LICENSE.md)).
+- **Vanilla look.** The game should look and play like the original from
+  2000, with the bug fixes of the Apolyton Edition. The classic interface
+  is the default; new things are fitted into it in the original style.
+- **Rules stay as they are.** The rules and the balance of the game are
+  not changed silently; every such change is a decision of its own and
+  written down in PLAN.md.
+- **The developers' vision.** Unfinished features of the original
+  developers are completed only where the code or the game data prove what
+  was intended (dead code, layouts, unused texts); the evidence goes into
+  the commit message and PLAN.md.
+- **Windows first.** The fork is developed and tested on Windows x64. The
+  upstream Linux build files are still in the tree but not maintained.
 
-Names of functions, structs, classes, and variables are camel cased. Variables start with a small letter. Member variables are prefixed with m\_, static member variables are prefixed with s\_, and global variables are prefixed with g\_, local variables have no prefix. Enums are all caps. This is inherited from Activion for the main project and the other CTP2 related projects.
+## Building and testing
 
-## Tabs and Spaces
+- Build with `pwsh tools/win-build.ps1` (Visual Studio 2022 Build Tools, no
+  administrator rights needed), see the README.
+- Before a change is committed, the automated tests run – they need no
+  clicking and keep the game windows hidden:
+  - `pwsh tools/mptest.ps1 -Turns 20` – host and client play a network game
+    and must stay in sync;
+  - `pwsh tools/mptest.ps1 -Single -Tour -Scale 3` – screenshots of all
+    menu screens and game windows (`autotest_ui_*.png`); look at the ones
+    your change touches. Add a tour step in
+    `ctp2_code/ctp/ctp2_utils/autotour.cpp` for a new window.
+- Bug fixes that also apply to the Apolyton Edition are worth offering
+  upstream as well.
 
-Most employees at Activision used tabs for indention and a tab was 4 space wide. And so, most of the code is written in this way in the CTP2 project, the map plugins and the Anet library. Code from 3rd party libraries and automatically generated files may not adhere to this. Please, set up your editor accordingly and enable display of white space. For alignment use spaces. In case you decide to reformat source files do not unalign things that have been aligned. If you clean up white psace on large scale put these changes into white space only commits. Even so white space changes for tabs and spaces can be ignored in diff-viewer this is unfortunately not true for new lines. So do not mix large scale white space canges with functional changes, those are then hard to spot.
+## Code style
 
-## AI Testing
+The code follows the style Activision used:
 
-To test the AI, set up a new game and save it before moving any unit or doing anything else with that. Then open the chat window by using the apostrophe key (') and enter `/attach 1` if the player on screen is player 1. Then enter `/rnd 200` and the AI will play 200 turns while you are watching. Important is that the show AI does not show any significant changes if you did not intent that. If you are using an old save game from a previous version type also into the chat window `/reloadslic` to reload slic. There seem to be some incompatibilities in slic from older versions, but that fixes that. The chat window has more commands, which you can find in ChatWindow::CheckForEasterEggs in `./ctp2_code/ui/interface/ChatBox.cpp`.
+- **Names** are camel case. Variables start with a small letter. Member
+  variables are prefixed with `m_`, static members with `s_` (or `sm_`),
+  globals with `g_`; local variables have no prefix. Enums are all caps.
+- **Indentation** with tabs, a tab is 4 spaces wide; alignment with
+  spaces. Do not unalign aligned code. Put large white-space clean-ups in
+  commits of their own, never mixed with functional changes.
+- **Comments, names and commit messages** in English. Mark larger
+  additions of this fork with `ctp2-redux:` in a comment, so they can be
+  told apart from the original code.
+- **Text files** of the game (`ctp2_data/<language>/gamedata/*.txt`) are
+  Latin-1, not UTF-8. A new string goes into `add_str.txt` of *every*
+  language folder – translated where you can, the English text otherwise.
+- **Commit messages:** a short summary line, a blank line, then what and
+  why ([How to Write a Git Commit Message](https://cbea.ms/git-commit/)).
 
-## Leaks
+## Debugging help
 
-The debug version comes with a leak reporter. When CTP2 shutsdown, it reports the leaks to the files CTP_LEAKS_99999.TXT and CTP_LEAKS_ALT_99999.TXT in the directory of the executable. The number in the file name is supposed to be some turn count, but it is always 99999. The file CTP_LEAKS_99999.TXT is the version from the original reporter. Displays the stacks, in which the leak occured from top to bottom. The other file CTP_LEAKS_ALT_99999.TXT displays the stacks from bottom to top. This way, all shared parts f the stack are alingned and the places where the stacks branch are good places to look for the leaks. If the is no leak to report, the files will say None. This is how it should be.
-
-## Logging
-
-The debug version writes log files to `\ctp2_code\ctp\logs` (Windows 32 bit and Linux version) or `\ctp2_code\ctp\x64\logs` (Windows 64 bit version). Visual Studio has a Logging conviguration that generates version with logging. It is optimized like Final and identical to that except for logging. The logs allow you to understand what the AI is doing or the state of diplomacy. There are various flags that determine what is being logged. They are set in main_InitializeLogs in `./ctp2_code/ctp/civ3_main.cpp`, the flags are defined in ´./ctp2_code/ctp/ctp2_utils/c3debug.h`.
-
-## Graphics
-
-New graphics should adhere to the style of the original CTP2 team. For instance, the items in the Great Library have a drop shaddow and their edges are blured to blend in the background. For GIMP here is a [tutorial for dropping shaddows](https://thegimptutorials.com/how-to-add-drop-shadow/) and [one for blurring](https://thegimptutorials.com/how-to-blur-background/) actually you want the smudge tool there.
-
-## Working with Visual Studio
-
-Visual Studio is a powerful Integrated Development Environment. If you are not familiar with it you are expected to familiarize yourself with it. Here are some tips: To understand the code you have to read the code and figure what does what, at least for the pieces you are interested in. For that you must look up function, you can either use the integrated search function. It has three option, search the next occurence, the last occurence and all occurences. All occurences is very useful, as it gives you a list with soe context, so that you can decide what interests you. You can also search in the whole solution, in the current project, in the current file, and in the current selection. Most likely the current project is the most useful to you, as FFmpeg code is not really interesting if you want to find something that you know is in the ctp2 project.
-
-From the right click menu you can go directly to the declarations and definitions of functions and variables. The same goes for include files, even for those of the Windows SDK and the standard library. There is also a show the call stack option. You can also build, link, and CTP2 from inside the Visual Studio if you have setup your working copy, directly. For that just press F5 to build, link, and run CTP2 on the debugger and Ctrl F5 without the debugger.
-
-## Miscelanious
-
-[New issue](https://github.com/civctp2/civctp2/issues/new)<br>
-[Issues](https://github.com/civctp2/civctp2/issues)<br>
-[Fork](https://github.com/civctp2/civctp2/fork)<br>
-[Email](mailto:civctp2@gmail.com)
+- **AI test:** start a game and save it before doing anything. Open the
+  chat window with the apostrophe key (`'`), enter `/attach 1` (if the
+  player on screen is player 1) and `/rnd 200`: the AI plays 200 turns
+  while you watch. With an old save game, also enter `/reloadslic`. More
+  commands are in `ChatWindow::CheckForEasterEggs` in
+  `ctp2_code/ui/interface/ChatBox.cpp`.
+- **Logging:** the `Debug-SDL` and `Logging-SDL` configurations write log
+  files to `logs` next to the program (`ctp2_code/ctp/x64/logs`). The
+  flags are set in `main_InitializeLogs` in `ctp2_code/ctp/civ3_main.cpp`
+  and defined in `ctp2_code/ctp/ctp2_utils/c3debug.h`.
+- **Leaks:** the debug build reports memory leaks on exit to
+  `CTP_LEAKS_99999.TXT` (stacks top to bottom) and
+  `CTP_LEAKS_ALT_99999.TXT` (bottom to top, so shared parts line up) next
+  to the program. "None" is how it should be.
+- **Crashes of the release build:** set `LINK=/DEBUG` before
+  `tools/win-build.ps1` to get `ctp2.pdb`; the addresses in `crash.txt`
+  can then be resolved with `llvm-symbolizer --obj=ctp2.exe` (part of the
+  Visual Studio Build Tools).
