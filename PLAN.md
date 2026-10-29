@@ -41,11 +41,24 @@ Fensterbetrieb zum Testen: `ctp2_code\ctp\x64\userprofile.txt` mit
 - [x] Klon, Build-Umgebung ohne Admin (NASM, lokale VC-Targets, CDKDIR, D:\tmp)
 - [x] MSVC-14.44-Fixes: Anet comm*-Prototypen, FFmpeg `max_align_t`
 - [x] Final-SDL x64 baut und startet (Intro-Video läuft über FFmpeg)
-- [ ] Fork auf GitHub anlegen, Branch `redux` pushen (braucht `gh auth login`)
-- [ ] CI-Workflow (GitHub Actions, windows-latest) für den Windows-Build
-- [ ] Spielstart ohne userprofile.txt prüfen: sinnvolle Standardauflösung
-      (Desktop-Auflösung, Fenster statt Vollbild beim ersten Start)
-- [ ] Bekannte Win-11-Probleme aus upstream prüfen (Issue #432 „Freezing“)
+- [x] Fork auf GitHub anlegen, Branch `redux` pushen: github.com/Rin0h/ctp2-redux,
+      `redux` ist der Standard-Branch (Repo noch privat, Stand 2026-10-29)
+- [ ] CI-Workflow (GitHub Actions, windows-latest) für den Windows-Build –
+      offen: bei einem privaten Repo kosten Windows-Läufe Freiminuten
+      (doppelt gezählt), der Build mit FFmpeg dauert lange; Entscheidung des
+      Besitzers, ob bei jedem Push, nur bei Releases oder erst, wenn das
+      Repo öffentlich ist (dann kostenlos)
+- [x] Spielstart ohne userprofile.txt geprüft (2026-10-29): Vollbild in
+      Desktop-Auflösung (`TryWindowsResolution` ist ohne Profil an), die
+      automatische Skalierung macht bei 4K 1920x1080 zweifach daraus; auch
+      der zweite Start mit dem dann geschriebenen Profil (1024x768,
+      `TryWindowsResolution=No`) bleibt so, denn im Vollbild zählt Desktop
+      geteilt durch Faktor. Vollbild beim ersten Start bleibt (wie im
+      Original); 1024x768 ist die Fenstergröße, wenn man auf Fenster stellt
+- [x] Bekannte Win-11-Probleme aus upstream geprüft (Issue #432 „Freezing“,
+      2026-10-29): betrifft die DirectX-32-Bit-Fassung der Apolyton Edition
+      (friert bei Klicks im Hauptmenü ein); ctp2-redux baut und verteilt nur
+      SDL x64, das täglich auf Windows 11 läuft (Tests und Spiel des Besitzers)
 
 ## Phase 2 – Multiplayer
 
