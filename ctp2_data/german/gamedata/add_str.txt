@@ -89,7 +89,7 @@ str_ldl_CityWinStatisticsTab "Status"
 #str_code_CityWinTotalHappinessFormat "Gesamt: %d"
 
 str_code_QueryRebuildCapitol "Wollen Sie wirklich ein neues Kapitol errichten?"
-str_code_QuerySwitchProduction "Switch production type? (City will lose %d%% stored production)"
+str_code_QuerySwitchProduction "Produktionsart wechseln? (Die Stadt verliert %d%% der angesammelten Produktion)"
 
 # Trade manager strings
 str_ldl_TradeManagerCities "Städte:"
@@ -360,4 +360,6 @@ STATUSBAR_ARMYMAN_NEW_ARMY_BUTTON				"Ermöglicht das Zusammenstellen einer neuen
 CONTEXT_TILE_INFO "Karteninfo"
 
 str_ldl_EditQueueReallyDelete "Bauliste %s dauerhaft löschen?"
-
+str_ldl_MusicHotKey		"Strg+m"
+str_ldl_ZoomOut		"Herauszoomen"
+str_ldl_ZoomIn		"Hineinzoomen"

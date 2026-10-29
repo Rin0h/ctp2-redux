@@ -664,9 +664,9 @@ str_ldl_Cities					"Städte"
 str_ldl_CITIES_COLON				"Städte:"
 str_ldl_City					"Stadt"
 str_ldl_City_Bonus_COLON			"Stadtbonus:"
-str_ldl_City_Air_Attack_Bonus_COLON		"City Air Attack:"
-str_ldl_City_Land_Attack_Bonus_COLON		"City Land Attack:"
-str_ldl_City_Sea_Attack_Bonus_COLON		"City Sea Attack:"
+str_ldl_City_Air_Attack_Bonus_COLON		"Stadt-Luftangriff:"
+str_ldl_City_Land_Attack_Bonus_COLON		"Stadt-Landangriff:"
+str_ldl_City_Sea_Attack_Bonus_COLON		"Stadt-Seeangriff:"
 str_ldl_City_Builder				"Stadterbauer"
 str_ldl_CITY_ESPIONAGE				"Stadtspionage"
 str_ldl_CITY_GOLD				"Gold"
@@ -2424,8 +2424,8 @@ str_ldl_TradeSellingToCity			"Empfänger"
 str_ldl_CaravansAvailable			"Karawanen:"
 str_ldl_CaravansInUse				"Im Einsatz:"
 str_ldl_TotalTradeProfit			"Einnahmen:"
-str_ldl_TotalPiracyLoss				"Expected Piracy Loss:"
-str_ldl_TotalTransitProfit			"Total Transit Profit:"
+str_ldl_TotalPiracyLoss				"Erwarteter Verlust durch Piraterie:"
+str_ldl_TotalTransitProfit			"Gesamter Transitgewinn:"
 str_ldl_TotalTradeRoutes			"Handelswege:"
 
 str_ldl_TradeTitle				"H A N D E L S M A N A G E R"
@@ -3107,20 +3107,20 @@ str_profile_CivFlags                            "Zivilisationseinheitenflaggen e
 str_profile_NoAIProductionDeficit               "KI hat kein Produktionsdefizit"
 str_profile_NoAIGoldDeficit                     "KI-Städte machen keine Schulden"               # AI cities don't go negative in gold
 str_profile_AICityDefenderBonus                 "KI Stadt-Verteigingungsbonus"                  # AI population adds to city defenses
-str_profile_BarbarianCities                     "Entrenched Barbarians settle cities"           # Entrenched barbarians create a city
-str_profile_SectarianHappiness                  "Conflicting citystyle unhappiness"             # Conflicting religious, citystyles and city govts cause unhappiness
-str_profile_RevoltCasualties                    "Revolting Cities lose Population"              # Revolting city loses 1/3 of population
-str_profile_RevoltInsurgents                    "Revolting cities create barbarians"            # Revolting city creates barbarians
-str_profile_BarbarianCamps                      "Entrenched Barbarians create Tile Imps"        # Entrenched barbarians create an imp
-str_profile_BarbarianSpawnsBarbarian            "Entrenched Barbarians spawn Barbarians"        # Entrenched barbs create more barbs
+str_profile_BarbarianCities                     "Verschanzte Barbaren gründen Städte"           # Entrenched barbarians create a city
+str_profile_SectarianHappiness                  "Unzufriedenheit durch fremden Stadtstil"             # Conflicting religious, citystyles and city govts cause unhappiness
+str_profile_RevoltCasualties                    "Revoltierende Städte verlieren Bevölkerung"              # Revolting city loses 1/3 of population
+str_profile_RevoltInsurgents                    "Revoltierende Städte bringen Barbaren hervor"            # Revolting city creates barbarians
+str_profile_BarbarianCamps                      "Verschanzte Barbaren bauen Geländeausbauten"        # Entrenched barbarians create an imp
+str_profile_BarbarianSpawnsBarbarian            "Verschanzte Barbaren bringen Barbaren hervor"        # Entrenched barbs create more barbs
 str_profile_AINoSinking                         "KI Schiffen sinken nicht"                      # AI ships don't sink
 str_profile_AINoCityLimit                       "KI ohne Stadtlimit"                            # AI not affected by city limit
-str_profile_GoldPerUnitSupport                  "1 Gold Per Unit Cost"                          # All pay thins int times unit support calculation
-str_profile_GoldPerCity                         "2 Gold Per City x City Limit"                  # Everyone pays gold amount per city
+str_profile_GoldPerUnitSupport                  "1 Gold Unterhalt pro Einheit"                          # All pay thins int times unit support calculation
+str_profile_GoldPerCity                         "2 Gold pro Stadt x Städtelimit"                  # Everyone pays gold amount per city
 str_profile_AINoShieldHunger                    "AI doesn't pay Shield Hunger"                  # AI doesn't pay shield hunger (gets lots of units)
 str_profile_AINoGoldHunger                      "AI doesn't pay Unit Gold"                      # AI doesnt pay unit gold hunger
-str_profile_AIFreeUpgrade                       "AI Free Upgrades"                              # AI doesn't pay goldfor upgrades
-str_profile_AIMilitiaUnit                       "AI Free Militia Unit"                          # If city is empty at turn start AI gets cheapest unit
+str_profile_AIFreeUpgrade                       "KI: kostenlose Aufwertungen"                              # AI doesn't pay goldfor upgrades
+str_profile_AIMilitiaUnit                       "KI: kostenlose Miliz"                          # If city is empty at turn start AI gets cheapest unit
 str_profile_OneCityChallenge                    "Eine-Stadt-Herausforderung"                    # One city challenge
 str_profile_CityCaptureOptions                  "Stadteroberungsoptionen"                       # Captured city options
 str_profile_DebugCityAstar                      "Straßenbaupfad debuggen"
@@ -3245,3 +3245,5 @@ str_ldl_DIRECT_NO_CONTACT		"Host nicht gefunden"
 str_ldl_DIRECT_TITLE		"Direktverbindung"
 str_ldl_DIRECT_COPY		"Kopieren"
 str_ldl_DIRECT_COPIED		"Kopiert"
+str_ldl_Zoomin		"Hineinzoomen"
+str_ldl_Zoomout		"Herauszoomen"
