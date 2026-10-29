@@ -813,7 +813,9 @@ public static class Ctp2Tiles
                 {
                     int at = y * ws + x;
                     byte src = o.Kind[(y / s) * W + x / s];
-                    bool visible = mask != null ? mask[at * 3 + 1] >= 128 : src == Copy;
+                    // what the original shows stays (the mask loses thin parts, such as
+                    // the edges of hats along the diamond)
+                    bool visible = src == Copy || (mask != null && mask[at * 3 + 1] >= 128);
                     if (visible) { kind[at] = Copy; color[at] = To565(up, at); }
                     else if (src == Shadow || src == Colorize) kind[at] = src;
                 }
