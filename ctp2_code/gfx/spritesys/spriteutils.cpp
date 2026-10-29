@@ -856,9 +856,10 @@ namespace
 		void Open(sint32 a_Scale)
 		{
 			scale = a_Scale;
+			MBCHAR hiRes[_MAX_PATH];
 			MBCHAR path[_MAX_PATH];
-			snprintf(path, sizeof(path), "%s%sredux_hires%s%dx%ssprites%ssprites.hd",
-			         g_civPaths->GetDataPath(), FILE_SEP, FILE_SEP, a_Scale, FILE_SEP, FILE_SEP);
+			snprintf(path, sizeof(path), "%s%ssprites%ssprites.hd",
+			         g_civPaths->GetHiResPath(hiRes, sizeof(hiRes), a_Scale), FILE_SEP, FILE_SEP);
 			file = fopen(path, "rb");
 			if (!file) return;
 			uint8  head[16];

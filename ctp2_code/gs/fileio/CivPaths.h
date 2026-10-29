@@ -113,6 +113,9 @@ public:
 
 	MBCHAR *    GetDesktopPath(void);
 	MBCHAR const * GetDataPath(void) const { return m_dataPath; }
+	// ctp2-redux: the folder of the upscaled files, <data>/redux_hires/<scale>x,
+	// with the base directory in front like every other data file
+	MBCHAR *    GetHiResPath(MBCHAR * path, size_t size, sint32 scale) const;
 
 	std::vector<MBCHAR const *> const &
 	            GetExtraDataPaths(void) const;

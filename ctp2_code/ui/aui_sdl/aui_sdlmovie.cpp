@@ -2053,8 +2053,9 @@ static MBCHAR const * HDMovie(MBCHAR const * filename, MBCHAR * path, size_t siz
 		name[i] = (MBCHAR)tolower((unsigned char)basename[i]);
 	name[length] = '\0';
 
-	snprintf(path, size, "%s%sredux_hires%s%dx%svideos%s%s.mkv",
-	         g_civPaths->GetDataPath(), FILE_SEP, FILE_SEP, scale, FILE_SEP, FILE_SEP, name);
+	MBCHAR hiRes[_MAX_PATH];
+	snprintf(path, size, "%s%svideos%s%s.mkv",
+	         g_civPaths->GetHiResPath(hiRes, sizeof(hiRes), scale), FILE_SEP, FILE_SEP, name);
 	bool const exists = c3files_PathIsValid(path) != 0;
 	if (autotest_Active())
 		autotest_Log("movie %s: %s", name, exists ? "HD" : "-");

@@ -938,9 +938,10 @@ namespace
 			char * dot = strrchr(name, '.');
 			if (dot) strcpy(dot, ".hd");
 
+			MBCHAR hiRes[_MAX_PATH];
 			MBCHAR path[_MAX_PATH];
-			snprintf(path, sizeof(path), "%s%sredux_hires%s%dx%stiles%s%s", g_civPaths->GetDataPath(),
-			         FILE_SEP, FILE_SEP, scale, FILE_SEP, FILE_SEP, name);
+			snprintf(path, sizeof(path), "%s%stiles%s%s", g_civPaths->GetHiResPath(hiRes, sizeof(hiRes), scale),
+			         FILE_SEP, FILE_SEP, name);
 			FILE * file = fopen(path, "rb");
 			if (!file) return;
 			fseek(file, 0, SEEK_END);

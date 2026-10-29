@@ -98,13 +98,14 @@ static bool LoadHD(MBCHAR const * filename, aui_Image * image)
 
 	MBCHAR name[256];
 	MBCHAR path[_MAX_PATH + 1];
+	MBCHAR hiRes[_MAX_PATH];
+	g_civPaths->GetHiResPath(hiRes, sizeof(hiRes), scale);
 	bool   exists = false;
 	for (int attempt = packageVersion ? 0 : 1; attempt < 2 && !exists; ++attempt)
 	{
 		strcpy(name, basename);
 		strcpy(name + length - 4, attempt == 0 ? "_rim.tga" : ".tga");
-		snprintf(path, sizeof(path), "%s%sredux_hires%s%dx%s%s",
-		         g_civPaths->GetDataPath(), FILE_SEP, FILE_SEP, scale, FILE_SEP, name);
+		snprintf(path, sizeof(path), "%s%s%s", hiRes, FILE_SEP, name);
 #ifdef WIN32
 		exists = _access(path, 0) == 0;
 #else

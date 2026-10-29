@@ -414,6 +414,14 @@ MBCHAR *CivPaths::GetSavePath(C3SAVEDIR dir, MBCHAR *path)
 	return NULL;
 }
 
+MBCHAR *CivPaths::GetHiResPath(MBCHAR * path, size_t size, sint32 scale) const
+{
+	// the data path is relative to the base directory (civpaths.txt), not to
+	// the working directory: started from x64 the base is ".."
+	snprintf(path, size, "%s%s%s%sredux_hires%s%dx", m_hdPath, FILE_SEP, m_dataPath, FILE_SEP, FILE_SEP, scale);
+	return path;
+}
+
 MBCHAR *CivPaths::MakeAssetPath
 (
     MBCHAR *        fullPath,
