@@ -54,20 +54,23 @@ $ctpDir = Join-Path $root 'ctp2_code\ctp'
 $build  = Join-Path $ctpDir 'x64'
 if (-not (Test-Path (Join-Path $build 'ctp2.exe'))) { throw "No build in $build - run tools/win-build.ps1 first" }
 
-# --- prepare two program folders next to x64 (paths in civpaths.txt are relative)
+# --- prepare program folders next to x64 (paths in civpaths.txt are relative).
+# Each instance is laid out like the working copy the player starts from:
+# the program in <name>\x64 with the base "..", so <name> holds the profile
+# and the saves. Returns the program folder, where the game writes its
+# autotest_* files.
 function Prepare-Instance([string]$name) {
-    $dir = Join-Path $ctpDir $name
+    $inst = Join-Path $ctpDir $name
+    $dir  = Join-Path $inst 'x64'
     New-Item -ItemType Directory -Force $dir | Out-Null
     Copy-Item (Join-Path $build 'ctp2.exe'), (Join-Path $build '*.dll'), (Join-Path $build 'civpaths.txt'), `
               (Join-Path $build 'anet.inf'), (Join-Path $build 'appstr.txt') $dir -Force
     Copy-Item (Join-Path $build 'dll') $dir -Recurse -Force
     # release network DLL (the logging variant only if the folder had one)
     Copy-Item (Join-Path $build 'anet2.dll') $dir -Force
-    # Own base directory: with the "..'" of the build every instance would
-    # read and write ctp2_code\ctp\userprofile.txt and share the saves.
-    # Base "." means the data is one level further up.
+    # Own base directory: the base ".." of the build is now <name>, one level
+    # deeper than ctp2_code\ctp, so the data is one level further up
     $paths = Get-Content (Join-Path $build 'civpaths.txt')
-    $paths[0] = '.'
     $paths = $paths | ForEach-Object { if ($_ -like '..\..\*') { '..\' + $_ } else { $_ } }
     Set-Content -Path (Join-Path $dir 'civpaths.txt') -Value $paths -Encoding ascii
     Remove-Item (Join-Path $dir 'dp.ini'), (Join-Path $dir 'autotest_*.txt'), (Join-Path $dir 'autotest_*.png') -ErrorAction SilentlyContinue
@@ -83,7 +86,7 @@ function Prepare-Instance([string]$name) {
     $shared = Join-Path $ctpDir 'userprofile.txt'
     $profile = @(if (Test-Path $shared) { Get-Content $shared -Encoding latin1 | Where-Object { $_ -notmatch "^($($settings.Keys -join '|'))=" } })
     $profile += $settings.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }
-    Set-Content -Path (Join-Path $dir 'userprofile.txt') -Encoding latin1 -Value $profile
+    Set-Content -Path (Join-Path $inst 'userprofile.txt') -Encoding latin1 -Value $profile
     return $dir
 }
 
@@ -114,8 +117,9 @@ if ($Single) {
     if ($Tour) {
         # screenshots of all windows at the resolution the layouts were made for
         $tourArg = ' autotour'
-        (Get-Content (Join-Path $dir 'userprofile.txt') -Encoding latin1) -replace 'ScreenResWidth=\d+', 'ScreenResWidth=1024' `
-            -replace 'ScreenResHeight=\d+', 'ScreenResHeight=768' | Set-Content (Join-Path $dir 'userprofile.txt') -Encoding latin1
+        $prof = Join-Path (Split-Path $dir) 'userprofile.txt'
+        (Get-Content $prof -Encoding latin1) -replace 'ScreenResWidth=\d+', 'ScreenResWidth=1024' `
+            -replace 'ScreenResHeight=\d+', 'ScreenResHeight=768' | Set-Content $prof -Encoding latin1
         Remove-Item (Join-Path $dir 'autotest_ui_*.png') -ErrorAction SilentlyContinue
     }
     Write-Host "Single player: $dir, rounds: $Turns"

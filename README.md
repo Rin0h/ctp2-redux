@@ -195,7 +195,9 @@ the same terrain on both at the end.
 
 **What you get:** a summary in the console, and the folders
 `ctp2_code/ctp/autotest_host`, `autotest_client` and `autotest_single`
-(copies of the build, git-ignored) with:
+(git-ignored). Each is laid out like the working copy you play from – the
+program in `x64`, profile and saves one level up – so path mistakes show
+in the tests too. Their `x64` folders contain:
 
 - `autotest_log.txt`: steps, rounds, a stats line per player and round, a
   detail line (build queue, production, science, tax, government,
