@@ -665,7 +665,9 @@ function Show-Page([int]$n) {
 $oem = [Text.Encoding]::GetEncoding([Globalization.CultureInfo]::CurrentCulture.TextInfo.OEMCodePage)
 
 function Set-Progress([double]$fraction) {
-    $progress.Value = [int]([math]::Max(0, [math]::Min(1, $fraction)) * 1000)
+    # 0.0 and 1.0: with 0 and 1 PowerShell takes Math.Min(int, int) and
+    # rounds the fraction to 0 or 1, the bar was only empty or full
+    $progress.Value = [int](1000 * [math]::Max(0.0, [math]::Min(1.0, $fraction)))
 }
 
 function Read-Log {
