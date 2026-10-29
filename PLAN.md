@@ -9,6 +9,8 @@ Arbeitsbranch: `redux` (master bleibt Spiegel von upstream).
 2. Multiplayer funktioniert wieder: LAN und Internet per direkter IP, ohne die
    abgeschalteten Activision-Lobbyserver.
 3. Grafiken und Videos hochskaliert (lokal per KI erzeugt, nie im Repo).
+4. Vision der Entwickler wiederherstellen: Geplantes, aber nie Fertiggestelltes
+   oder nie Gezeigtes vervollständigen (siehe Abschnitt unten).
 
 ## Rechtlicher Rahmen (LICENSE.md, Activision-EULA 2003)
 
@@ -558,6 +560,34 @@ erst Hauptmenü, Einzelspieler-Menü, Neues Spiel und seine Fenster als
 `autotest_ui_00*.png`, dann im Spiel die Spielfenster), damit jedes Fenster
 ohne Klicken geprüft werden kann. Danach Skalierung (intern kleiner rendern,
 scharf ganzzahlig hochskalieren).
+
+## Vision der Entwickler wiederherstellen (Wunsch des Besitzers 2026-10-29)
+
+Funktionen, die die ursprünglichen Entwickler geplant und teils gebaut, aber
+nicht fertig gemacht oder nie sichtbar gemacht haben. Steht prominent im
+README (viertes Ziel). Regeln:
+
+- Nur mit Beleg in Code oder Spieldaten (Layouts, Texte, toter Code), nichts
+  frei erfunden; Optik wie die übrigen Originalfenster.
+- Ist eine Ergänzung, keine Regeländerung; vor dem Einbau dem Besitzer
+  vorschlagen (Befund + Vorschlag), README-Eintrag „Vision der Entwickler
+  wiederhergestellt“.
+
+Erledigt:
+
+1. **Diplomatieberater** (2026-10-29): `IntelligenceWindow` (intelligence.ldl)
+   ist im Spiel nicht erreichbar (`DiplomacyWindow::Intelligence` an keinem
+   Knopf), sein Hintergrund `uptg02.tga` ist ein Platzhalter (türkis, zwei
+   rote Linien). Geplant war eine angedockte Berater-Leiste mit
+   `Diplomat::GetDiplomacyAdvice` (allgemein / zur gewählten Nation); die
+   Ratschläge (MOTIVATION_*_ADVICE) werden jede Runde für alle Spieler
+   berechnet. Jetzt Leiste `DiplomacyAdvice` links am Diplomatiemanager
+   (upfg400.tga wie Handels-/Militärberater), folgt der Listenauswahl; die
+   Motivation gibt ihr Argument (bedrohte Stadt) an den Text. Nicht gebaut:
+   `IntelTreatyDetail` (nur Layout, nie Code).
+
+Kandidaten: beim Durchsehen weiterer Fenster und Layouts auf tote Blöcke,
+ungenutzte Texte und nie verbundene Knöpfe achten.
 
 ## Offene Fragen an den Besitzer
 
