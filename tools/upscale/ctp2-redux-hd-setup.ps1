@@ -1,11 +1,11 @@
 ﻿# ctp2-redux: setup window for the HD files of your own Call to Power II
 # installation, in German or English. Guides through game folder, scaling
 # and the steps (1 interface images, 2 videos, 3 map later) and runs
-# ctp2-redux-hochskalieren.ps1 with a progress bar. Each step can be done on
+# ctp2-redux-upscale.ps1 with a progress bar. Each step can be done on
 # its own and cancelled; the next run goes on where it stopped. It can also
 # remove the HD files again.
 #
-#   ctp2-redux-hochskalieren.bat               (double-click, in the game folder)
+#   ctp2-redux-hd-setup.bat               (double-click, in the game folder)
 #   powershell -File ctp2-redux-hd-setup.ps1 [-Install <folder>] [-Lang de|en]
 #
 # For tests: -Screenshots <folder> draws every page into a PNG there (off
@@ -36,7 +36,7 @@ function Set-DpiScale($f) {
     if ($factor -gt 1.01) { $f.Scale((New-Object Drawing.SizeF $factor, $factor)) }
 }
 
-$engine = Join-Path $PSScriptRoot 'ctp2-redux-hochskalieren.ps1'
+$engine = Join-Path $PSScriptRoot 'ctp2-redux-upscale.ps1'
 
 # --- texts ------------------------------------------------------------------------
 $texts = @{
@@ -120,7 +120,7 @@ $texts = @{
         Cancelled      = 'Abgebrochen.'
         CancelledText  = 'Die Berechnung wurde abgebrochen. Bereits fertige Dateien bleiben erhalten; starte den Assistenten erneut, um weiterzumachen.'
         CloseAsk       = 'Die Berechnung läuft noch. Abbrechen und schließen?'
-        EngineMissing  = 'ctp2-redux-hochskalieren.ps1 fehlt neben diesem Assistenten.'
+        EngineMissing  = 'ctp2-redux-upscale.ps1 fehlt neben diesem Assistenten.'
         Heads          = @(
             @('Willkommen', 'HD-Grafik und -Videos für Call to Power II (ctp2-redux)'),
             @('Spielordner', 'Wo ist das Spiel installiert?'),
@@ -209,7 +209,7 @@ $texts = @{
         Cancelled      = 'Cancelled.'
         CancelledText  = 'The work was cancelled. Finished files are kept; start the assistant again to go on.'
         CloseAsk       = 'The work is still running. Cancel it and close?'
-        EngineMissing  = 'ctp2-redux-hochskalieren.ps1 is missing next to this assistant.'
+        EngineMissing  = 'ctp2-redux-upscale.ps1 is missing next to this assistant.'
         Heads          = @(
             @('Welcome', 'HD graphics and videos for Call to Power II (ctp2-redux)'),
             @('Game folder', 'Where is the game installed?'),

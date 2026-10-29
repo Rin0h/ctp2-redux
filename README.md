@@ -73,7 +73,7 @@ them.*
 
 ### HD graphics and videos
 
-`tools/upscale/ctp2-redux-hochskalieren.bat` opens a setup (German or
+`tools/upscale/ctp2-redux-hd-setup.bat` opens a setup (German or
 English) that leads through game folder, scaling factor (2x, 3x or 4x; the
 map gets HD pictures at 2x and 3x) and four
 steps, each of which can be done on its own, cancelled and continued later –
@@ -139,7 +139,7 @@ yourself (the first build takes a while, FFmpeg is built too):
 5. Run `pwsh tools/win-build.ps1` in the repository root.
 6. Start `ctp2_code/ctp/x64/ctp2.exe`. For a window instead of full screen,
    put `WindowedMode=Yes` into `ctp2_code/ctp/userprofile.txt`.
-7. Optional: run `tools/upscale/ctp2-redux-hochskalieren.bat` for the HD
+7. Optional: run `tools/upscale/ctp2-redux-hd-setup.bat` for the HD
    graphics.
 
 Save games of the GOG/CD version from `ctp2_program/ctp/save` can be copied
@@ -162,6 +162,12 @@ Files would need administrator rights), sets `CDKDIR` (bison/flex in
 `-Platform Win32` are possible. It also builds `ffmpeg.exe` for the
 upscaling setup. To get a PDB of the release build, set `LINK=/DEBUG`
 before building.
+
+`pwsh tools/make-release.ps1` packs the release zip
+(`_local/release/ctp2-redux-<date>.zip`) to unpack into an installed game:
+the program in `ctp2_program/ctp/x64`, the data files of the repository
+without the ones that are byte for byte original game files, the HD setup,
+`README.txt` and the licences.
 
 The solution can also be opened in Visual Studio; use a `-SDL`
 configuration and set `ctp2` as start project. The DirectX configurations
@@ -333,7 +339,7 @@ Fassung: links das Original mit vergrößerten Pixeln, rechts ctp2-redux in
   klassisches Outlook) oder zeigt die Datei zum selbst Verschicken.
 
 **HD-Grafik und Videos**
-- `tools/upscale/ctp2-redux-hochskalieren.bat` öffnet einen
+- `tools/upscale/ctp2-redux-hd-setup.bat` öffnet einen
   Einrichtungsassistenten (Deutsch oder Englisch) mit Spielordner, Faktor
   (2x, 3x oder 4x; die Karte bekommt bei 2x und 3x HD-Bilder) und vier Schritten, die sich einzeln erledigen, abbrechen und
   später fortsetzen lassen – ein langsamer PC kann sich die Arbeit auf
@@ -382,7 +388,7 @@ selbst (der erste Build dauert eine Weile, FFmpeg wird mitgebaut):
 5. `pwsh tools/win-build.ps1` im Hauptordner ausführen.
 6. `ctp2_code/ctp/x64/ctp2.exe` starten. Für ein Fenster statt Vollbild
    `WindowedMode=Yes` in `ctp2_code/ctp/userprofile.txt` eintragen.
-7. Optional: `tools/upscale/ctp2-redux-hochskalieren.bat` für die HD-Grafik.
+7. Optional: `tools/upscale/ctp2-redux-hd-setup.bat` für die HD-Grafik.
 
 Spielstände der GOG-/CD-Fassung aus `ctp2_program/ctp/save` lassen sich
 nach `ctp2_code/ctp/save` kopieren.

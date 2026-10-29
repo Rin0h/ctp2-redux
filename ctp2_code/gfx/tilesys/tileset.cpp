@@ -924,7 +924,7 @@ namespace
 namespace
 {
 	// ctp2-redux: the upscaled terrain made by the upscaling script (Ctp2Tiles
-	// in tools/upscale/ctp2-redux-hochskalieren.ps1), in
+	// in tools/upscale/ctp2-redux-upscale.ps1), in
 	// redux_hires/<scale>x/tiles/<tile set>.hd: a header ("CTPHDT1", scale,
 	// count) and records of type (1 base tile, 2 transition stream, 3 hat,
 	// 4 river, 5 improvement), key and data in the in-memory format

@@ -1,9 +1,9 @@
 # ctp2-redux: upscales the graphics of your own Call to Power II
 # installation for the HD display (sharp scaling 2x to 4x).
 #
-#   ctp2-redux-hochskalieren.bat               (double-click: setup window,
+#   ctp2-redux-hd-setup.bat               (double-click: setup window,
 #                                               ctp2-redux-hd-setup.ps1)
-#   powershell -File ctp2-redux-hochskalieren.ps1 [-Install <folder>] [-Scale 3] [-Force]
+#   powershell -File ctp2-redux-upscale.ps1 [-Install <folder>] [-Scale 3] [-Force]
 #                                               [-NoImages] [-NoVideos] [-NoTerrain] [-NoSprites] [-Status]
 #                                               [-Language de|en]
 #

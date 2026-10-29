@@ -303,7 +303,7 @@ genauso behandelt wie die englische.
 
 Plan und Entscheidungen (2026-10-28):
 - Ablauf für den Spieler: Release herunterladen, ins GOG-Verzeichnis
-  entpacken (überschreiben), `ctp2-redux-hochskalieren.bat` starten, fertig.
+  entpacken (überschreiben), `ctp2-redux-hd-setup.bat` starten, fertig.
   Ergebnis landet nur in `ctp2_data\redux_hires` (Original unberührt,
   Rückgängig = Ordner löschen; fehlt er, laufen die Originalgrafiken).
 - Zwei Bausteine: **A** Skalierung im Spiel (Code, ohne Dateien) – A1
@@ -342,7 +342,7 @@ Plan und Entscheidungen (2026-10-28):
     skaliert mit animevideov3, legt sie in `ctp2_data\redux_hires`; Bild-
     Lader nimmt die HD-Fassung (Fläche mit Faktor).
   - Stand 2026-10-28: M1, M2, M3 erledigt. M3: `tools/upscale/ctp2-redux-
-    hochskalieren.bat/.ps1` (Windows PowerShell 5.1, Pixelarbeit als C# per
+    hd-setup.bat`, `ctp2-redux-upscale.ps1` (Windows PowerShell 5.1, Pixelarbeit als C# per
     Add-Type, Magenta vorher aus Nachbarn aufgefüllt und danach exakt wieder
     gesetzt, Ausgabe 16-Bit-TGA 555); 2388 Bilder in 27 s auf RTX 5090,
     656 MB bei 3x. `LoadHD` in c3imageformats.cpp, Bildgrößen-Abfragen auf
@@ -432,6 +432,16 @@ Plan und Entscheidungen (2026-10-28):
 - Release-Zip: nur Programm, DLLs und eigene Text-/Layoutdateien; keine
   Original-Grafikpakete (Upstream-`ctp2_data` enthält welche → Zip gezielt
   zusammenstellen).
+  Umgesetzt 2026-10-29: `tools/make-release.ps1`. Abgleich der
+  Repo-Binärdateien mit der GOG-Fassung (Inhalt der zfs-Pakete eingeschlossen):
+  3 byteweise Originale (weggelassen), 55 Apolyton-Bearbeitungen von
+  Originalen (29 Sprites, 24 Bilder, beide Kachelsätze mit neuen Kacheln) und
+  1565 Apolyton-Neuzugänge. Entscheidung des Besitzers: wie die Apolyton
+  Edition mitliefern, nur die 3 Originale weg. Programm in
+  `ctp2_program\ctp\x64` (Basis `..` = ctp2_program\ctp: Musik, Spielstände,
+  Profil der Installation); Dateinamen englisch (README.txt,
+  ctp2-redux-hd-setup.bat, Licenses). Getestet auf einer Kopie der
+  GOG-Installation: läuft mit dem GOG-Profil, HD-Tour wie im Repo.
 
 KI-Hochskalierung für die Entwicklung läuft lokal in D:\AI (vorhandene
 Tools). Modelle und Lizenzen vor Nutzung prüfen (Real-ESRGAN: BSD-3), damit
