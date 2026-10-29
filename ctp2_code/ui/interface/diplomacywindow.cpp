@@ -65,6 +65,8 @@
 
 #include "SlicObject.h"
 #include "stringutils.h"
+#include "ctp2_hypertextbox.h"
+#include "SlicContext.h"
 
 #include "Gold.h"
 
@@ -84,6 +86,7 @@
 extern C3UI                   *g_c3ui;
 
 static const MBCHAR           *s_dipWindowBlock = "DiplomacyWindow";
+static const MBCHAR           *s_dipAdviceBlock = "DiplomacyAdvice";
 static DiplomacyWindow        *s_dipWindow;
 
 static const MBCHAR           *k_DIP_WINDOW_ATTRACT_BUTTON = "ControlPanelWindow.ControlPanel.ShortcutPad.DiplomacyButton";
@@ -102,6 +105,7 @@ const char *DiplomacyWindow::sm_toneIcons[DIPLOMATIC_TONE_MAX] = {
 
 DiplomacyWindow::DiplomacyWindow(AUI_ERRCODE *err)
 {
+	m_adviceWindow = NULL;
 	m_window = (ctp2_Window *)aui_Ldl::BuildHierarchyFromRoot(s_dipWindowBlock);
 	Assert(m_window);
 	if(!m_window) {
@@ -112,6 +116,19 @@ DiplomacyWindow::DiplomacyWindow(AUI_ERRCODE *err)
 	m_goldRequestWindow = NULL;
 	m_pollutionRequestWindow = NULL;
 	m_percentRequestWindow = NULL;
+
+	// the diplomatic advisor left of the window, like the trade and military
+	// advisors; when the centred window leaves no room for it, both move right
+	m_adviceWindow = (ctp2_Window *)aui_Ldl::BuildHierarchyFromRoot(s_dipAdviceBlock);
+	Assert(m_adviceWindow);
+	if (m_adviceWindow)
+	{
+		if (m_window->X() < m_adviceWindow->Width())
+			m_window->Move(m_adviceWindow->Width(), m_window->Y());
+		m_adviceWindow->Move(m_window->X() - m_adviceWindow->Width(), m_window->Y());
+		m_window->AddDockedWindow(m_adviceWindow);
+		m_adviceWindow->SetDock(m_window);
+	}
 
 	m_create_mode = DW_CREATE_MODE_NONE;
 	m_sendToCiv = -1;
@@ -155,6 +172,11 @@ DiplomacyWindow::~DiplomacyWindow()
 	if(m_window) {
 		aui_Ldl::DeleteHierarchyFromRoot("DiplomacyWindow");
 		m_window = NULL;
+	}
+
+	if(m_adviceWindow) {
+		aui_Ldl::DeleteHierarchyFromRoot(s_dipAdviceBlock);
+		m_adviceWindow = NULL;
 	}
 
 	if(m_goldRequestWindow) {
@@ -233,6 +255,11 @@ AUI_ERRCODE DiplomacyWindow::Display()
 			err = s_dipWindow->m_window->Show();
 		}
 
+		if(s_dipWindow->m_adviceWindow) {
+			g_c3ui->AddWindow(s_dipWindow->m_adviceWindow);
+			s_dipWindow->m_adviceWindow->Show();
+		}
+
 		s_dipWindow->ShowInitialSections();
 
 		s_dipWindow->Update();
@@ -257,6 +284,11 @@ AUI_ERRCODE DiplomacyWindow::Hide()
 	Assert(s_dipWindow->m_window);
 	if(!s_dipWindow->m_window)
 		return AUI_ERRCODE_INVALIDPARAM;
+
+	if(s_dipWindow->m_adviceWindow) {
+		s_dipWindow->m_adviceWindow->Hide();
+		g_c3ui->RemoveWindow(s_dipWindow->m_adviceWindow->Id());
+	}
 
 	s_dipWindow->m_window->Hide();
 	return g_c3ui->RemoveWindow(s_dipWindow->m_window->Id());
@@ -1985,4 +2017,27 @@ void DiplomacyWindow::EnableButtons(BOOL enable, sint32 player)
 		sm_embargoButton->Enable(enable);
 	}
 
+	UpdateAdviceText(enable ? player : -1);
+}
+
+void DiplomacyWindow::UpdateAdviceText(sint32 player)
+{
+	ctp2_HyperTextBox *advice = (ctp2_HyperTextBox *)aui_Ldl::GetObject(s_dipAdviceBlock, "Advice");
+	if(!advice) return;
+
+	sint32 visP = g_selected_item->GetVisiblePlayer();
+	if(!g_player[visP]) return;
+
+	SlicContext sc;
+	StringId adviceId = Diplomat::GetDiplomat(visP).GetDiplomacyAdvice(sc, player);
+
+	MBCHAR strbuf[k_MAX_NAME_LEN];
+	if(adviceId >= 0)
+		stringutils_Interpret(g_theStringDB->GetNameStr(adviceId), sc, strbuf, k_MAX_NAME_LEN);
+	else
+		strbuf[0] = 0;
+	if(!strbuf[0])
+		strncpy(strbuf, g_theStringDB->GetNameStr("str_ldl_DiplomaticAdvisorNone"), k_MAX_NAME_LEN - 1);
+	strbuf[k_MAX_NAME_LEN - 1] = 0;
+	advice->SetHyperText(strbuf);
 }

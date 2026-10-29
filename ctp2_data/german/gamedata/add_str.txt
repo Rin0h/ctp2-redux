@@ -363,3 +363,8 @@ str_ldl_EditQueueReallyDelete "Bauliste %s dauerhaft löschen?"
 str_ldl_MusicHotKey		"Strg+m"
 str_ldl_ZoomOut		"Herauszoomen"
 str_ldl_ZoomIn		"Hineinzoomen"
+
+# ctp2-redux: diplomatic advisor (diplomacy window)
+str_ldl_DiplomaticAdvisor	"DIPLOMATIEBERATER"
+str_ldl_DiplomaticAdvisorNone	"Im Moment habe ich keinen diplomatischen Rat für Euch."
+STATUSBAR_DIPMAN_ADVICE_DISPLAY	"Rat des diplomatischen Beraters, allgemein oder zur gewählten Nation."

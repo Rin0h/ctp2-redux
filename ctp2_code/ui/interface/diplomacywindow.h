@@ -43,6 +43,7 @@ enum DW_CREATE_MODE {
 class DiplomacyWindow {
   private:
 	ctp2_Window *m_window;
+	ctp2_Window *m_adviceWindow;   // ctp2-redux: the diplomatic advisor, docked left
 	ctp2_Window *m_goldRequestWindow;
 	ctp2_Window *m_pollutionRequestWindow;
 	ctp2_Window *m_percentRequestWindow;
@@ -187,6 +188,8 @@ class DiplomacyWindow {
 	void SetCreateMode(DW_CREATE_MODE mode);
 
 	static void EnableButtons(BOOL enable, sint32 player = 0);
+	// ctp2-redux: advice of the diplomatic advisor, about a nation or (-1) in general
+	static void UpdateAdviceText(sint32 player);
 };
 
 #endif

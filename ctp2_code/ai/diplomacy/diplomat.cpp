@@ -2772,6 +2772,7 @@ StringId Diplomat::GetDiplomacyAdvice(SlicContext & sc, const PLAYER_INDEX & for
 		if (m_motivations.size() > 0)
 		{
 			Motivation motivation = m_motivations.front();
+			Diplomat::AddDiplomacyArgToSlicContext(sc, motivation.arg);
 			return motivation.adviceStrId;
 		}
 	}
@@ -2791,6 +2792,7 @@ StringId Diplomat::GetDiplomacyAdvice(SlicContext & sc, const PLAYER_INDEX & for
 		}
 		else if (motivation_iter != m_motivations.end())
 		{
+			Diplomat::AddDiplomacyArgToSlicContext(sc, motivation_iter->arg);
 			return m_lastMotivation[foreignerId]->adviceStrId;
 		}
 		else

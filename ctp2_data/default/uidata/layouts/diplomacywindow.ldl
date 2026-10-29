@@ -425,6 +425,45 @@ DiplomacyWindow:CTP2_DIALOG_WINDOW {
 	}
 }
 
+################################################################################
+# ctp2-redux: the diplomatic advisor, docked to the left of the diplomacy
+# window, as the unfinished intelligence window of the original game planned it
+################################################################################
+DiplomacyAdvice:CTP2_WINDOW {
+	int widthpix 224
+	int heightpix 350
+
+	# Tooltip
+	string	statustext	"STATUSBAR_DIPMAN_ADVICE_DISPLAY"
+
+	Title:CTP2_STATIC_BASE:CTP_GREY_TITLE_FONT {
+		int xpix 33
+		int ypix 48
+		int widthpix 161
+		int heightpix 16
+		int fontsize 10
+		string text "str_ldl_DiplomaticAdvisor"
+	}
+
+	Advice:CTP2_HYPER_TEXT_BOX {
+		int xpix 34
+		int ypix 83
+		int widthpix 142
+		int heightpix 220
+		string pattern "uptg20e.tga"
+		int bevelwidth 0
+	}
+
+	Background {
+		string	objecttype	"ctp2_static"
+		string	pattern	"UPfg400.tga"
+		int	xpix	0
+		int	ypix	0
+		int	widthpix	224
+		int	heightpix	350
+	}
+}
+
 DipWinThreatItem:CTP2_LIST_ITEM {
 	int	widthpix	230
 	int	heightpix	16

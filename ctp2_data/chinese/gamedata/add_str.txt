@@ -365,3 +365,7 @@ CONTEXT_TILE_INFO "µØÍ¼Çé±¨"
 
 str_ldl_EditQueueReallyDelete "Permanently delete Queue %s?"
 
+# ctp2-redux: diplomatic advisor (diplomacy window)
+str_ldl_DiplomaticAdvisor	"DIPLOMATIC ADVISOR"
+str_ldl_DiplomaticAdvisorNone	"I have no diplomatic advice for you at the moment."
+STATUSBAR_DIPMAN_ADVICE_DISPLAY	"Advice of the diplomatic advisor, in general or about the selected nation."
