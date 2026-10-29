@@ -1081,20 +1081,47 @@ function Invoke-Esrgan([string]$from, [string]$to, [string]$format, [string]$par
             $batches += $dir
         }
     }
+    # Real-ESRGAN sometimes hangs at the end of a batch (seen with one picture
+    # left of 2000): without a new result for some minutes it is stopped, and
+    # only the pictures without a result go again, on the graphics card once
+    # more, then on a second one if there is one (Real-ESRGAN has no
+    # processor mode: -g -1 is "invalid gpu device")
+    $attempts = @(@{ Extra = @(); Minutes = 3 }, @{ Extra = @(); Minutes = 3 }, @{ Extra = @('-g', '1'); Minutes = 3 })
     foreach ($batch in $batches) {
-        $expected = @(Get-ChildItem -Path $batch -File).Count + @(Get-ChildItem -Path $to -File).Count
-        # its progress goes to stderr; a log keeps PowerShell from taking it as an error
-        $quoted = @('-i', "`"$batch`"", '-o', "`"$to`"", '-n', $model, '-s', "$factor", '-f', $format)
         $ok = $false
-        foreach ($extra in @(@(), @('-g', '-1'))) {
-            if ($extra.Count) { Say (L 'Mit der Grafikkarte ging es nicht, versuche es mit dem Prozessor (langsam) ...' "The graphics card did not work, trying the processor (slow) ...") }
-            $process = Start-Process -FilePath $esrgan.FullName -ArgumentList ($quoted + $extra) -NoNewWindow -PassThru `
+        $rest = Join-Path $batch '_rest'
+        for ($a = 0; $a -le $attempts.Count; $a++) {
+            $missing = @(Get-ChildItem -Path $batch -File | Where-Object { -not (Test-Path (Join-Path $to "$($_.BaseName).$format")) })
+            if ($missing.Count -eq 0) { $ok = $true; break }
+            if ($a -eq $attempts.Count) { break }
+            $source = $batch
+            if ($a -gt 0) {
+                if ($attempts[$a].Extra.Count) { Say (L 'Mit der Grafikkarte ging es nicht, versuche es mit einer zweiten ...' "The graphics card did not work, trying a second one ...") }
+                else { Say (L "Real-ESRGAN kam nicht weiter, rechne die fehlenden Bilder ($($missing.Count)) noch einmal ..." "Real-ESRGAN got stuck, upscaling the missing pictures ($($missing.Count)) again ...") }
+                Remove-Item -Recurse -Force $rest -ErrorAction SilentlyContinue
+                New-Item -ItemType Directory -Force $rest | Out-Null
+                $missing | Copy-Item -Destination $rest
+                $source = $rest
+            }
+            # its progress goes to stderr; a log keeps PowerShell from taking it as an error
+            $quoted = @('-i', "`"$source`"", '-o', "`"$to`"", '-n', $model, '-s', "$factor", '-f', $format)
+            $process = Start-Process -FilePath $esrgan.FullName -ArgumentList ($quoted + $attempts[$a].Extra) -NoNewWindow -PassThru `
                 -RedirectStandardError (Join-Path $work 'esrgan.log') -RedirectStandardOutput (Join-Path $work 'esrgan-out.log')
-            while (-not $process.WaitForExit(1000)) { Progress $part (@(Get-ChildItem -Path $to -File).Count) $count }
-            $done = @(Get-ChildItem -Path $to -File).Count
-            Progress $part $done $count
-            if ($done -ge $expected) { $ok = $true; break }
+            $last = -1
+            $since = Get-Date
+            while (-not $process.WaitForExit(1000)) {
+                $done = @(Get-ChildItem -Path $to -File).Count
+                Progress $part $done $count
+                if ($done -ne $last) { $last = $done; $since = Get-Date }
+                elseif (((Get-Date) - $since).TotalMinutes -ge $attempts[$a].Minutes) {
+                    & taskkill.exe /T /F /PID $process.Id 2>&1 | Out-Null
+                    $process.WaitForExit(10000) | Out-Null
+                    break
+                }
+            }
+            Progress $part (@(Get-ChildItem -Path $to -File).Count) $count
         }
+        Remove-Item -Recurse -Force $rest -ErrorAction SilentlyContinue
         if (-not $ok) { return $false }
     }
     return $true
