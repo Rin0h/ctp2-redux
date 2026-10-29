@@ -117,9 +117,10 @@ German one with its own videos.
 
 ### German version
 
-- Texts the Apolyton Edition left in English are translated.
-- The German videos are used in a German game (they differ from the
-  English ones).
+When the game runs in German:
+- texts the Apolyton Edition left in English in its German version are
+  translated;
+- the German videos are used (they differ from the English ones).
 
 ## Getting started
 
@@ -371,9 +372,11 @@ Fassung: links das Original mit vergrößerten Pixeln, rechts ctp2-redux in
   Militärberater, und folgt der in der Liste gewählten Nation.
 
 **Deutsche Fassung**
-- Texte, die die Apolyton Edition auf Englisch gelassen hat, sind übersetzt.
-- Im deutschen Spiel laufen die deutschen Videos (sie unterscheiden sich
-  von den englischen).
+Wenn das Spiel auf Deutsch läuft:
+- Texte, die die Apolyton Edition in ihrer deutschen Fassung auf Englisch
+  gelassen hat, sind übersetzt;
+- es laufen die deutschen Videos (sie unterscheiden sich von den
+  englischen).
 
 ### Loslegen
 
