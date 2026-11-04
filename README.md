@@ -140,6 +140,10 @@ etc. in `userprofile.txt`.
 3. Play with that shortcut. The GOG shortcut and GOG Galaxy start the
    original exe, which cannot read the new data.
 
+Found a bug? Please
+[report it](https://github.com/Rin0h/ctp2-redux/issues/new?template=bug_report.yml)
+(English or German).
+
 **To build it yourself** (the first build takes a while, FFmpeg is built
 too):
 
@@ -415,6 +419,10 @@ herunterladen:
    Spielordner an; die HD-Dateien zu erzeugen ist freiwillig.
 3. Mit dieser Verknüpfung spielen. Die GOG-Verknüpfung und GOG Galaxy
    starten die originale exe, die die neuen Daten nicht lesen kann.
+
+Einen Fehler gefunden? Bitte
+[hier melden](https://github.com/Rin0h/ctp2-redux/issues/new?template=bug_report.yml)
+(Deutsch oder Englisch).
 
 **Selbst bauen** (der erste Build dauert eine Weile, FFmpeg wird
 mitgebaut):

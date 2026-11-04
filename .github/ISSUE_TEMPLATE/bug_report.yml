@@ -1,0 +1,75 @@
+name: Bug report
+description: Something in ctp2-redux does not work (crash, freeze, wrong picture, multiplayer, HD setup ...)
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! English or German, both are fine (Deutsch geht auch).
+        Please don't attach original game files (graphics, videos, music) or upscaled ones.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead? A screenshot helps a lot.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: How can it be reproduced?
+      description: The steps that lead to the bug. A save game (from ctp2_program\ctp\save) is very welcome.
+      placeholder: |
+        1. Start a new game with ...
+        2. Open the city window ...
+        3. ...
+
+  - type: dropdown
+    id: copy
+    attributes:
+      label: Your copy of the game
+      options:
+        - GOG
+        - Steam
+        - CD
+        - other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: ctp2-redux version
+      description: The name of the zip you installed, or the commit if you built it yourself.
+      placeholder: ctp2-redux-2026-10-29.zip
+    validations:
+      required: true
+
+  - type: input
+    id: system
+    attributes:
+      label: Windows, screen and scaling
+      description: Windows version, screen resolution, full screen or window, scaling factor (Options -> Graphics).
+      placeholder: Windows 11, 3840x2160, full screen, 3x
+
+  - type: dropdown
+    id: hd
+    attributes:
+      label: HD files made with ctp2-redux-hd-setup?
+      options:
+        - "no"
+        - "yes"
+        - don't know
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log files
+      description: |
+        Drag the files into this box if they exist (paths from the game folder):
+        - `ctp2_program\ctp\x64\crash.txt` (after a crash)
+        - `ctp2_program\ctp\x64\autotest_log.txt`
+        - `ctp2_program\ctp\userprofile.txt`
+        - for the HD setup: the newest `ctp2-redux-hd-*.log` in `%TEMP%` (type %TEMP% into the address bar of the Explorer)

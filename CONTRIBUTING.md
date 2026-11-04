@@ -13,6 +13,11 @@ keep the credit of the Apolyton project and Activision as well. The licence
 of the source code still applies to every fork: personal and
 non-commercial use only ([LICENSE.md](LICENSE.md)).
 
+**Found a bug?** Please report it under
+[Issues](https://github.com/Rin0h/ctp2-redux/issues/new?template=bug_report.yml),
+in English or German. The form asks for the version, your system and the
+log files (`crash.txt` and `autotest_log.txt` next to the program).
+
 The notes below are how this fork is made; they may help you with yours.
 
 ## Ground rules of this fork
