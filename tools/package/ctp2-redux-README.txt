@@ -46,8 +46,13 @@ HD graphics and videos (optional)
   steps (interface, videos, terrain, units/cities), each of which can be
   done on its own, cancelled and continued later. The first time it
   downloads Real-ESRGAN from its GitHub page. The results only go to
-  ctp2_data\redux_hires; deleting that folder undoes everything. A graphics
-  card with Vulkan makes it a lot faster.
+  ctp2_data\redux_hires; deleting that folder undoes everything. Real-ESRGAN
+  needs a graphics card with Vulkan (graphics built into the processor
+  work too, only slower).
+  Every upscaled picture is checked against its original; where
+  Real-ESRGAN gives noise even the second time, the game keeps the
+  original. The setup lists such parts at the end: run the step again and
+  they are made again.
 
 Licence
   Call to Power II is not free software. Activision released the source
@@ -105,7 +110,12 @@ HD-Grafik und -Videos (freiwillig)
   die sich einzeln machen, abbrechen und später fortsetzen lassen. Er lädt
   beim ersten Mal Real-ESRGAN von dessen GitHub-Seite. Die Ergebnisse
   landen nur in ctp2_data\redux_hires; diesen Ordner löschen macht alles
-  rückgängig. Eine Grafikkarte mit Vulkan macht es deutlich schneller.
+  rückgängig. Real-ESRGAN braucht eine Grafikkarte mit Vulkan (die Grafik
+  im Prozessor geht auch, nur langsamer).
+  Jedes hochgerechnete Bild wird mit dem Original verglichen; wo
+  Real-ESRGAN auch beim zweiten Mal Rauschen liefert, behält das Spiel das
+  Original. Das Setup nennt solche Teile am Ende: den Schritt noch einmal
+  starten, dann werden sie neu gerechnet.
 
 Lizenz
   Call to Power II ist keine freie Software. Activision hat den Quellcode

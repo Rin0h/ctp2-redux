@@ -94,6 +94,12 @@ monitor resolution and takes these pictures. Nothing is shipped, deleting
 `redux_hires` undoes it. Works with every language version, including the
 German one with its own videos.
 
+Real-ESRGAN gives noise instead of a picture now and then, more often on
+some graphics cards. Every upscaled picture is therefore compared with its
+original (brightness, structure); a noisy one is made again, and if it is
+still noise the game keeps the original there. The setup lists such parts
+at the end; running the step again makes just them again.
+
 ### Classic look
 
 - **Classic interface** (on by default): the screens and windows of the
@@ -377,6 +383,12 @@ Fassung: links das Original mit vergrößerten Pixeln, rechts ctp2-redux in
   geladen) nach `ctp2_data/redux_hires/<Faktor>x`. Wir verteilen nichts,
   `redux_hires` löschen macht es rückgängig. Funktioniert mit jeder
   Sprachfassung, auch mit der deutschen und ihren eigenen Videos.
+- Real-ESRGAN liefert ab und zu Rauschen statt eines Bildes, auf manchen
+  Grafikkarten öfter. Jedes hochgerechnete Bild wird deshalb mit dem
+  Original verglichen (Helligkeit, Struktur); ein verrauschtes wird neu
+  gerechnet, und bleibt es verrauscht, behält das Spiel dort das Original.
+  Das Setup nennt solche Teile am Ende; den Schritt noch einmal starten
+  rechnet genau sie neu.
 
 **Klassische Optik**
 - **Klassische Oberfläche** (Standard an): die Bildschirme und Fenster des

@@ -10,6 +10,13 @@
 # -Status only counts what is done (lines "##STATUS bilder|videos <done> <total>")
 # for the setup window, which runs the work in steps.
 #
+# Every upscaled picture is checked against its original (Real-ESRGAN gives
+# noise on some graphics cards). A noisy one goes again; if it is still
+# noise the game keeps the original there ("##ORIGINAL <step> <count>" for
+# the setup window), and a new run of the step makes only those again.
+# For tests, -TestNoise <regex> turns the results whose name matches into
+# noise.
+#
 # Reads the images of the game (packages pic565.zfs/pat565.zfs and loose
 # .tga files in graphics\pictures and graphics\patterns), enlarges them with
 # Real-ESRGAN (model realesr-animevideov3, downloaded once from the official
@@ -37,7 +44,8 @@ param(
     [string]$SpriteModel = 'realesrgan-x4plus',
     [string]$TerrainModel = 'realesrgan-x4plus',   # terrain: photo model (2026-10-28 comparison)
     [switch]$Status,
-    [string]$Language = ''
+    [string]$Language = '',
+    [string]$TestNoise = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -554,6 +562,38 @@ public static class Ctp2Assets
         File.WriteAllBytes(tgaPath, tga);
         return true;
     }
+
+    // the video frames (origDir\*.bmp) whose upscaled picture, made small
+    // again by ffmpeg (smallDir\*.bmp), came out as noise
+    public static List<string> NoisyFrames(string origDir, string smallDir)
+    {
+        List<string> noisy = new List<string>();
+        BlackKey = false;
+        foreach (string path in Directory.GetFiles(origDir, "*.bmp"))
+        {
+            string small = Path.Combine(smallDir, Path.GetFileName(path));
+            if (!File.Exists(small)) continue;
+            int w, h, sw, sh;
+            byte[] orig = LoadPng(path, out w, out h);
+            byte[] up = LoadPng(small, out sw, out sh);
+            if (w == sw && h == sh && IsNoise(up, orig, w, h, 1)) noisy.Add(Path.GetFileNameWithoutExtension(path));
+        }
+        return noisy;
+    }
+
+    // for tests: a picture of the same size full of noise (.bmp or .png)
+    public static void NoisePng(string source, string target)
+    {
+        int w, h;
+        LoadPng(source, out w, out h);
+        byte[] noise = new byte[w * h * 3];
+        new Random(w * 7919 + h).NextBytes(noise);
+        if (!target.EndsWith(".bmp", StringComparison.OrdinalIgnoreCase)) { SavePng(noise, w, h, target); return; }
+        string png = target + ".png";
+        SavePng(noise, w, h, png);
+        using (Bitmap b = new Bitmap(png)) b.Save(target, ImageFormat.Bmp);
+        File.Delete(png);
+    }
 }
 
 // The terrain of the map (gtset565.til): base tiles, transitions, hats,
@@ -698,9 +738,14 @@ public static class Ctp2Tiles
         for (int i = 0; i < rgb.Length; i += 3) { rgb[i] = 255; rgb[i + 1] = 0; rgb[i + 2] = 255; }
     }
 
+    // the parts as exported (unknown pixels magenta), to check the upscaled
+    // ones against
+    static Dictionary<string, byte[]> origs = new Dictionary<string, byte[]>();
+
     static void SaveFilled(byte[] rgb, int w, int h, string path)
     {
         Ctp2Assets.BlackKey = false;
+        origs[Path.GetFileNameWithoutExtension(path)] = rgb;
         Ctp2Assets.SavePng(Ctp2Assets.FillTransparent(rgb, w, h), w, h, path);
     }
 
@@ -759,6 +804,22 @@ public static class Ctp2Tiles
     }
 
     static List<byte[]> records = new List<byte[]>();
+    static HashSet<string> collected = new HashSet<string>();
+    // the parts that came out as noise (without them the game shows the original)
+    public static List<string> Failed = new List<string>();
+
+    // the upscaled part, or NULL when it is missing or noise
+    static byte[] Taken(string dir, string name, int w, int h, int s)
+    {
+        if (collected.Contains(name)) return null;
+        byte[] up = Upscaled(dir, name, w, h);
+        if (up == null) return null;
+        byte[] orig;
+        Ctp2Assets.BlackKey = false;
+        if (origs.TryGetValue(name, out orig) && Ctp2Assets.IsNoise(up, orig, w / s, h / s, s)) { Failed.Add(name); return null; }
+        collected.Add(name);
+        return up;
+    }
 
     static void Record(int type, int k, int a, int b, List<ushort> words)
     {
@@ -829,13 +890,16 @@ public static class Ctp2Tiles
         }
     }
 
-    public static int Import(string dir, int s, string target)
+    // takes the upscaled parts of dir that are not in yet; returns how many
+    // came in (the noisy ones are in Failed)
+    public static int Collect(string dir, int s)
     {
-        records.Clear();
+        Failed.Clear();
+        int before = records.Count;
         int ws = W * s, hs = H * s;
         foreach (int num in baseNums)
         {
-            byte[] up = Upscaled(dir, "t_base_" + num, ws, hs);
+            byte[] up = Taken(dir, "t_base_" + num, ws, hs, s);
             if (up == null) continue;
             ushort[] tile = bases[num];
             // the source pixel of every diamond position
@@ -862,7 +926,7 @@ public static class Ctp2Tiles
         {
             int k = transKeys[t][2];
             if (layout[k] == null) continue;
-            byte[] up = Upscaled(dir, "t_tr_" + t, ws, hs);
+            byte[] up = Taken(dir, "t_tr_" + t, ws, hs, s);
             if (up == null) continue;
             List<ushort> words = new List<ushort>();
             for (int y = 0; y < hs; y++)
@@ -877,9 +941,9 @@ public static class Ctp2Tiles
         {
             Overlay o = e.Value;
             int h = o.End + 1;
-            byte[] up = Upscaled(dir, "t_" + e.Key, ws, h * s);
-            byte[] mask = Upscaled(dir, "t_" + e.Key + Ctp2Assets.MaskSuffix, ws, h * s);
+            byte[] up = Taken(dir, "t_" + e.Key, ws, h * s, s);
             if (up == null) continue;
+            byte[] mask = Upscaled(dir, "t_" + e.Key + Ctp2Assets.MaskSuffix, ws, h * s);
             byte[] kind = new byte[ws * h * s];
             ushort[] color = new ushort[ws * h * s];
             for (int y = 0; y < h * s; y++)
@@ -899,7 +963,12 @@ public static class Ctp2Tiles
             int type = parts[0] == "hat" ? 3 : parts[0] == "riv" ? 4 : 5;
             Record(type, 0, int.Parse(parts[1]), 0, words);
         }
+        return records.Count - before;
+    }
 
+    // the collected parts as one file; returns their number
+    public static int Write(int s, string target)
+    {
         using (FileStream f = File.Create(target))
         {
             byte[] head = new byte[16];
@@ -940,12 +1009,15 @@ public static class Ctp2Sprites
     static bool IsShadow(Frame f, int i) { return f.Bgra[i * 4 + 3] == 0 && f.Bgra[i * 4] == 255 && f.Bgra[i * 4 + 1] == 0 && f.Bgra[i * 4 + 2] == 255; }
 
     // the color image (transparent and shadow filled from the neighbours) and
-    // the coverage mask for the upscaler; returns the number of frames
-    public static int Export(string tgaDir, string pngDir)
+    // the coverage mask for the upscaler; only the frames named in 'only'
+    // unless it is NULL; returns the number of frames
+    public static int Export(string tgaDir, string pngDir, string[] only)
     {
+        HashSet<string> wanted = only == null ? null : new HashSet<string>(only, StringComparer.OrdinalIgnoreCase);
         int n = 0;
         foreach (string path in Directory.GetFiles(tgaDir, "*.tga"))
         {
+            if (wanted != null && !wanted.Contains(Path.GetFileNameWithoutExtension(path))) continue;
             Frame f = ReadTga(path);
             byte[] rgb = new byte[f.W * f.H * 3];
             byte[] mask = new byte[f.W * f.H * 3];
@@ -1019,29 +1091,42 @@ public static class Ctp2Sprites
     static HashSet<string> collected = new HashSet<string>();
     // the frames whose upscaled picture does not match the original (noise)
     public static List<string> Failed = new List<string>();
+    // the frames too large for the 16 bit offsets of the game (they stay
+    // enlarged; no fault of the upscaler)
+    public static int TooLarge = 0;
 
-    // the mean difference of the upscaled picture, made small again, to the
-    // visible pixels of the original
-    static double Difference(Frame f, byte[] up, int s)
+    // the frames of an existing file, so a new run only adds the missing
+    // ones; returns their number
+    public static int Load(string target)
     {
-        double sum = 0; int n = 0;
-        int w = f.W * s;
-        for (int y = 0; y < f.H; y++)
-            for (int x = 0; x < f.W; x++)
-            {
-                int i = y * f.W + x;
-                if (f.Bgra[i * 4 + 3] == 0) continue;
-                for (int c = 0; c < 3; c++)
-                {
-                    int v = 0;
-                    for (int dy = 0; dy < s; dy++)
-                        for (int dx = 0; dx < s; dx++)
-                            v += up[((y * s + dy) * w + x * s + dx) * 3 + c];
-                    sum += Math.Abs(v / (s * s) - f.Bgra[i * 4 + 2 - c]);
-                }
-                n += 3;
-            }
-        return n > 0 ? sum / n : 0;
+        byte[] d = File.ReadAllBytes(target);
+        if (d.Length < 16 || System.Text.Encoding.ASCII.GetString(d, 0, 7) != "CTPHDS1") return 0;
+        int count = BitConverter.ToInt32(d, 12);
+        for (int i = 0; i < count; i++)
+        {
+            int entry = 16 + 16 * i;
+            ulong hash = BitConverter.ToUInt64(d, entry);
+            long offset = BitConverter.ToUInt32(d, entry + 8);
+            int words = (int)BitConverter.ToUInt32(d, entry + 12);
+            List<ushort> w = new List<ushort>(words);
+            for (int k = 0; k < words; k++) w.Add(BitConverter.ToUInt16(d, (int)(offset + 2 * k)));
+            hashes.Add(hash);
+            frames.Add(w);
+            collected.Add(hash.ToString("x16"));
+        }
+        return count;
+    }
+
+    // the original frame with its transparent pixels magenta (Ctp2Assets.IsNoise)
+    static byte[] Original(Frame f)
+    {
+        byte[] rgb = new byte[f.W * f.H * 3];
+        for (int i = 0; i < f.W * f.H; i++)
+        {
+            if (f.Bgra[i * 4 + 3] == 0) { rgb[i * 3] = 255; rgb[i * 3 + 1] = 0; rgb[i * 3 + 2] = 255; }
+            else { rgb[i * 3] = f.Bgra[i * 4 + 2]; rgb[i * 3 + 1] = f.Bgra[i * 4 + 1]; rgb[i * 3 + 2] = f.Bgra[i * 4]; }
+        }
+        return rgb;
     }
 
     // takes the upscaled frames of upDir; returns how many came in
@@ -1060,7 +1145,8 @@ public static class Ctp2Sprites
             byte[] up = Ctp2Assets.LoadPng(upPath, out uw, out uh);
             byte[] mask = Ctp2Assets.LoadPng(maskPath, out mw, out mh);
             if (uw != w || uh != h || mw != w || mh != h) continue;
-            if (Difference(f, up, s) > 20) { Failed.Add(name); continue; }
+            Ctp2Assets.BlackKey = false;
+            if (Ctp2Assets.IsNoise(up, Original(f), f.W, f.H, s)) { Failed.Add(name); continue; }
 
             byte[] kind = new byte[w * h], alpha = new byte[w * h];
             ushort[] color = new ushort[w * h];
@@ -1074,7 +1160,7 @@ public static class Ctp2Sprites
                     else if (IsShadow(f, src)) kind[i] = 3;
                 }
             List<ushort> words = Encode(kind, alpha, color, w, h);
-            if (words == null) continue;
+            if (words == null) { TooLarge++; collected.Add(name); continue; }
             hashes.Add(Convert.ToUInt64(name, 16));
             frames.Add(words);
             collected.Add(name);
@@ -1176,11 +1262,54 @@ function Invoke-Esrgan([string]$from, [string]$to, [string]$format, [string]$par
                 }
             }
             Progress $part (@(Get-ChildItem -Path $to -File).Count) $count
+            Write-Gpus
         }
         Remove-Item -Recurse -Force $rest -ErrorAction SilentlyContinue
         if (-not $ok) { return $false }
     }
+    Add-TestNoise $to $format
     return $true
+}
+
+# the graphics cards Real-ESRGAN sees (first lines of its log), once, so a
+# report shows on which card the pictures were made
+$script:gpusWritten = $false
+function Write-Gpus {
+    if ($script:gpusWritten) { return }
+    $script:gpusWritten = $true
+    $log = Join-Path $work 'esrgan.log'
+    if (-not (Test-Path $log)) { return }
+    $gpus = @(Select-String -Path $log -Pattern '^\[(\d+) (.+?)\]\s+queueC' | ForEach-Object { "[$($_.Matches[0].Groups[1].Value)] $($_.Matches[0].Groups[2].Value)" } | Select-Object -Unique)
+    if ($gpus.Count) { Say ((L 'Grafikkarten (Vulkan): ' 'Graphics cards (Vulkan): ') + ($gpus -join ', ')) }
+}
+
+# for tests (-TestNoise <regex>): the results whose name matches turn into
+# noise, as Real-ESRGAN gives them on some graphics cards
+function Add-TestNoise([string]$dir, [string]$format) {
+    if (-not $TestNoise) { return }
+    # (video frames get it where they are checked, see Test-VideoFrames: the
+    # ffmpeg of the game writes no WebP)
+    if ($format -ne 'png') { return }
+    foreach ($f in Get-ChildItem -Path $dir -File -Filter "*.$format" | Where-Object { $_.BaseName -match $TestNoise -and -not $_.BaseName.EndsWith([Ctp2Assets]::MaskSuffix) }) {
+        [Ctp2Assets]::NoisePng($f.FullName, $f.FullName)
+    }
+}
+
+# the second try takes the other model: realesrgan-x4plus gives noise for
+# some pictures every time (40 dark unit frames at 2x on an RTX 5090, with
+# any tile size and with TTA), realesr-animevideov3 made all of them
+function Get-OtherModel([string]$model) {
+    if ($model -like 'realesrgan-x4*') { return @{ Model = 'realesr-animevideov3'; Factor = $Scale } }
+    return @{ Model = 'realesrgan-x4plus'; Factor = 4 }
+}
+
+# what stays original because Real-ESRGAN gave noise the second time too;
+# summed up at the end, and for the setup window
+$script:originals = [ordered]@{}
+function Write-Original([string]$part, [int]$count, [string]$text) {
+    if ($count -le 0) { return }
+    $script:originals[$part] = $text
+    Write-Host "##ORIGINAL $part $count"
 }
 
 # --- collect the images (later sources override earlier ones, like the game) --
@@ -1291,10 +1420,19 @@ if (-not $NoImages) {
                     Get-ChildItem -Path $inDir -Recurse -File -Filter $file | Select-Object -First 1 | Copy-Item -Destination $retryIn
                 }
             }
-            Invoke-Esrgan $retryIn $retryOut 'png' 'bilder' -batchSize 100 | Out-Null
+            $other = Get-OtherModel $Model
+            if (Invoke-Esrgan $retryIn $retryOut 'png' 'bilder' $other.Model $other.Factor -batchSize 100) {
+                if ($other.Factor -ne $Scale) { [Ctp2Tiles]::Resize($retryOut, $Scale, $other.Factor) }
+            }
             $still = Import-Images $noisy $retryOut $false
-            # still noise: no HD version, the game shows the original picture
-            foreach ($name in $still) { Say (L "  bleibt Original: $name" "  stays original: $name") }
+            # still noise: no HD version, the game shows the original picture;
+            # an HD file from an earlier run goes too (it may be the noise of
+            # that run)
+            foreach ($name in $still) {
+                Remove-Item (Join-Path $target "$name.tga") -ErrorAction SilentlyContinue
+                Say (L "  bleibt Original: $name" "  stays original: $name")
+            }
+            Write-Original 'bilder' $still.Count (L "Oberflaeche: $($still.Count) Bilder" "Interface: $($still.Count) images")
         }
         Say (L "Bilder: $ok von $($todo.Count) fertig." "Images: $ok of $($todo.Count) done.")
         if ($ok -eq $todo.Count) { MarkLanguage 'bilder' }
@@ -1306,13 +1444,16 @@ if (-not $NoImages) {
 # is drawn in the pixels of the frame (TileSet::ScaleUp)
 $tileSource  = Join-Path $data 'default\graphics\tiles\gtset565.til'
 $terrainFile = Join-Path $target 'tiles\gtset565.hd'
+# the parts that stayed original (noise); while it is there the step is open
+$terrainMarker = Join-Path $target 'tiles\_original.txt'
+$terrainDone = (Test-Path $terrainFile) -and -not (Test-Path $terrainMarker) -and -not $Force
 if ($Status) {
-    $done = if ((Test-Path $terrainFile) -and -not $Force) { 1 } else { 0 }
+    $done = if ($terrainDone) { 1 } else { 0 }
     Write-Host "##STATUS gelaende $done 1"
 } elseif (-not $NoTerrain) {
     if (-not (Test-Path $tileSource)) {
         Say (L 'Gelaende: gtset565.til nicht gefunden.' 'Terrain: gtset565.til not found.')
-    } elseif ((Test-Path $terrainFile) -and -not $Force) {
+    } elseif ($terrainDone) {
         Say (L 'Gelaende: schon hochskaliert.' 'Terrain: upscaled already.')
     } else {
         $tilesIn  = Join-Path $work 'gelaende_ein'
@@ -1326,7 +1467,33 @@ if ($Status) {
         $terrainFactor = if ($TerrainModel -like 'realesrgan-x4*') { 4 } else { $Scale }
         if (Invoke-Esrgan $tilesIn $tilesOut 'png' 'gelaende' $TerrainModel $terrainFactor) {
             if ($terrainFactor -ne $Scale) { [Ctp2Tiles]::Resize($tilesOut, $Scale, $terrainFactor) }
-            $made = [Ctp2Tiles]::Import($tilesOut, $Scale, $terrainFile)
+            [Ctp2Tiles]::Collect($tilesOut, $Scale) | Out-Null
+            # parts with noise once more on their own, else they stay original
+            $failed = @([Ctp2Tiles]::Failed)
+            if ($failed.Count -gt 0) {
+                Say (L "Gelaende: $($failed.Count) Teile fehlerhaft (Rauschen), rechne sie neu ..." "Terrain: $($failed.Count) parts faulty (noise), upscaling them again ...")
+                $retryIn  = Join-Path $work 'gelaende_nochmal_ein'
+                $retryOut = Join-Path $work 'gelaende_nochmal_aus'
+                foreach ($d in @($retryIn, $retryOut)) { New-Item -ItemType Directory -Force $d | Out-Null }
+                foreach ($name in $failed) {
+                    foreach ($file in @("$name.png", "$name$([Ctp2Assets]::MaskSuffix).png")) {
+                        Get-ChildItem -Path $tilesIn -Recurse -File -Filter $file | Select-Object -First 1 | Copy-Item -Destination $retryIn
+                    }
+                }
+                $other = Get-OtherModel $TerrainModel
+                if (Invoke-Esrgan $retryIn $retryOut 'png' 'gelaende' $other.Model $other.Factor -batchSize 100) {
+                    if ($other.Factor -ne $Scale) { [Ctp2Tiles]::Resize($retryOut, $Scale, $other.Factor) }
+                    [Ctp2Tiles]::Collect($retryOut, $Scale) | Out-Null
+                    $failed = @([Ctp2Tiles]::Failed)
+                }
+            }
+            $made = [Ctp2Tiles]::Write($Scale, $terrainFile)
+            if ($failed.Count -gt 0) {
+                Set-Content -Path $terrainMarker -Value $failed
+                Write-Original 'gelaende' $failed.Count (L "Gelaende: $($failed.Count) Teile" "Terrain: $($failed.Count) parts")
+            } else {
+                Remove-Item $terrainMarker -ErrorAction SilentlyContinue
+            }
             Say (L "Gelaende: $made Teile fertig." "Terrain: $made parts done.")
         } else {
             Say (L 'Gelaende: Hochskalieren fehlgeschlagen.' 'Terrain: upscaling failed.')
@@ -1342,11 +1509,14 @@ $gameExe = $null
 foreach ($sub in @('x64\', '')) {
     if ($program -and (Test-Path (Join-Path $program ($sub + 'ctp2.exe')))) { $gameExe = Join-Path $program ($sub + 'ctp2.exe'); break }
 }
+# the frames that stayed original (noise); a new run makes only these
+$spriteMarker = Join-Path $target 'sprites\_original.txt'
+$spritesDone = (Test-Path $spriteFile) -and -not (Test-Path $spriteMarker) -and -not $Force
 if ($Status) {
-    $done = if ((Test-Path $spriteFile) -and -not $Force) { 1 } else { 0 }
+    $done = if ($spritesDone) { 1 } else { 0 }
     Write-Host "##STATUS sprites $done 1"
 } elseif (-not $NoSprites) {
-    if ((Test-Path $spriteFile) -and -not $Force) {
+    if ($spritesDone) {
         Say (L 'Einheiten und Staedte: schon hochskaliert.' 'Units and cities: upscaled already.')
     } elseif (-not $gameExe) {
         Say (L 'Einheiten und Staedte: ctp2.exe nicht gefunden.' 'Units and cities: ctp2.exe not found.')
@@ -1355,12 +1525,18 @@ if ($Status) {
         $spriteIn  = Join-Path $work 'sprites_ein'
         $spriteOut = Join-Path $work 'sprites_aus'
         foreach ($d in @($spriteTga, $spriteIn, $spriteOut, (Split-Path $spriteFile))) { New-Item -ItemType Directory -Force $d | Out-Null }
+        $only = $null
+        if ((Test-Path $spriteFile) -and (Test-Path $spriteMarker) -and -not $Force) {
+            $only = @(Get-Content $spriteMarker | Where-Object { $_.Trim() })
+            $kept = [Ctp2Sprites]::Load($spriteFile)
+            Say (L "Einheiten und Staedte: $kept Einzelbilder sind fertig, rechne die $($only.Count) im Original gebliebenen neu ..." "Units and cities: $kept frames are done, upscaling the $($only.Count) that stayed original again ...")
+        }
         Say (L 'Einheiten und Staedte: das Spiel gibt die Bilder aus ...' 'Units and cities: the game writes out the frames ...')
         $process = Start-Process -FilePath $gameExe -ArgumentList "spriteexport:$spriteTga" -WorkingDirectory (Split-Path $gameExe) -Wait -PassThru
         if (-not (Test-Path (Join-Path $spriteTga '_export.txt'))) {
             Say (L 'Einheiten und Staedte: die Ausgabe des Spiels ist fehlgeschlagen.' 'Units and cities: the export of the game failed.')
         } else {
-            $count = [Ctp2Sprites]::Export($spriteTga, $spriteIn)
+            $count = [Ctp2Sprites]::Export($spriteTga, $spriteIn, $only)
             Say (L "Einheiten und Staedte: $count Einzelbilder" "Units and cities: $count frames")
             $spriteFactor = if ($SpriteModel -like 'realesrgan-x4*') { 4 } else { $Scale }
             if (Invoke-Esrgan $spriteIn $spriteOut 'png' 'sprites' $SpriteModel $spriteFactor) {
@@ -1376,13 +1552,21 @@ if ($Status) {
                     foreach ($name in $failed) {
                         Get-ChildItem -Path $spriteIn -Recurse -File -Filter "$name*.png" | Copy-Item -Destination $retryIn
                     }
-                    if (Invoke-Esrgan $retryIn $retryOut 'png' 'sprites' $SpriteModel $spriteFactor) {
-                        if ($spriteFactor -ne $Scale) { [Ctp2Tiles]::Resize($retryOut, $Scale, $spriteFactor) }
+                    $other = Get-OtherModel $SpriteModel
+                    if (Invoke-Esrgan $retryIn $retryOut 'png' 'sprites' $other.Model $other.Factor -batchSize 100) {
+                        if ($other.Factor -ne $Scale) { [Ctp2Tiles]::Resize($retryOut, $Scale, $other.Factor) }
                         [Ctp2Sprites]::Collect($spriteTga, $retryOut, $Scale) | Out-Null
+                        $failed = @([Ctp2Sprites]::Failed)
                     }
                 }
                 $made = [Ctp2Sprites]::Write($Scale, $spriteFile)
-                Say (L "Einheiten und Staedte: $made von $count Einzelbildern fertig (zu grosse bleiben vergroessert)." "Units and cities: $made of $count frames done (too large ones stay enlarged).")
+                if ($failed.Count -gt 0) {
+                    Set-Content -Path $spriteMarker -Value $failed
+                    Write-Original 'sprites' $failed.Count (L "Einheiten und Staedte: $($failed.Count) Einzelbilder" "Units and cities: $($failed.Count) frames")
+                } else {
+                    Remove-Item $spriteMarker -ErrorAction SilentlyContinue
+                }
+                Say (L "Einheiten und Staedte: $made Einzelbilder in HD fertig; $($failed.Count) bleiben im Original (Rauschen), $([Ctp2Sprites]::TooLarge) sind zu gross fuer das Spiel und bleiben vergroessert." "Units and cities: $made frames done in HD; $($failed.Count) stay original (noise), $([Ctp2Sprites]::TooLarge) are too large for the game and stay enlarged.")
             } else {
                 Say (L 'Einheiten und Staedte: Hochskalieren fehlgeschlagen.' 'Units and cities: upscaling failed.')
             }
@@ -1413,9 +1597,28 @@ foreach ($dir in @('default', $gameLanguage)) {
     }
 }
 $videoDir = Join-Path $target 'videos'
-$videoTodo = @($videos.Keys | Where-Object { -not $NoVideos } | Where-Object { $redoVideos -or -not (Test-Path (Join-Path $videoDir "$_.mkv")) })
+# the videos with frames that stayed original (noise); they count as open
+$videoMarker = Join-Path $videoDir '_original.txt'
+$videoOriginal = @{}
+if (Test-Path $videoMarker) { foreach ($l in Get-Content $videoMarker) { if ($l.Trim()) { $videoOriginal[$l.Trim()] = $true } } }
+function Test-VideoDone([string]$name) { return -not $redoVideos -and -not $videoOriginal[$name] -and (Test-Path (Join-Path $videoDir "$name.mkv")) }
+$videoTodo = @($videos.Keys | Where-Object { -not $NoVideos } | Where-Object { -not (Test-VideoDone $_) })
+
+# the upscaled frames (upDir\*.webp) made small again by ffmpeg and compared
+# with the originals (origDir\*.bmp); returns the names of the noisy ones
+function Test-VideoFrames([string]$origDir, [string]$upDir) {
+    $small = Join-Path $work 'video_klein'
+    Remove-Item -Recurse -Force $small -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory -Force $small | Out-Null
+    Invoke-Ffmpeg @('-i', (Join-Path $upDir '%05d.webp'), '-vf', "scale=iw/$($Scale):ih/$($Scale):flags=area", (Join-Path $small '%05d.bmp')) | Out-Null
+    if ($TestNoise) {
+        foreach ($f in Get-ChildItem -Path $small -Filter '*.bmp' | Where-Object { $_.BaseName -match $TestNoise }) { [Ctp2Assets]::NoisePng($f.FullName, $f.FullName) }
+    }
+    return [Ctp2Assets]::NoisyFrames($origDir, $small)
+}
+
 if ($Status) {
-    $done = @($videos.Keys | Where-Object { -not $redoVideos -and (Test-Path (Join-Path $videoDir "$_.mkv")) }).Count
+    $done = @($videos.Keys | Where-Object { Test-VideoDone $_ }).Count
     Write-Host "##STATUS videos $done $($videos.Count)"
     Remove-Item -Recurse -Force $work
     exit 0
@@ -1454,10 +1657,43 @@ if ($NoVideos) {
         }
         if (-not (Invoke-Esrgan $frames $upFrames 'webp' 'videobilder')) { Say (L "    uebersprungen: Hochskalieren fehlgeschlagen" "    skipped: upscaling failed"); continue }
 
+        # frames with noise once more on their own; still noise: the original
+        # frame, enlarged smoothly, so the video keeps running
+        $sequence = Join-Path $upFrames '%05d.webp'
+        $noisy = @(Test-VideoFrames $frames $upFrames)
+        if ($noisy.Count -gt 0) {
+            Say (L "    $($noisy.Count) Bilder fehlerhaft (Rauschen), rechne sie neu ..." "    $($noisy.Count) frames faulty (noise), upscaling them again ...")
+            $retryIn  = Join-Path $work 'video_nochmal_ein'
+            $retryOut = Join-Path $work 'video_nochmal_aus'
+            foreach ($d in @($retryIn, $retryOut)) {
+                Remove-Item -Recurse -Force $d -ErrorAction SilentlyContinue
+                New-Item -ItemType Directory -Force $d | Out-Null
+            }
+            foreach ($frame in $noisy) { Copy-Item (Join-Path $frames "$frame.bmp") $retryIn }
+            if (Invoke-Esrgan $retryIn $retryOut 'webp' 'videobilder' -batchSize 100) {
+                Copy-Item (Join-Path $retryOut '*.webp') $upFrames -Force
+                $noisy = @(Test-VideoFrames $frames $upFrames)
+            }
+            if ($noisy.Count -gt 0) {
+                # the ffmpeg of the game writes no WebP: the frames of this video
+                # go as BMP (only here, they take much room)
+                $bmpFrames = Join-Path $work 'video_bmp'
+                Remove-Item -Recurse -Force $bmpFrames -ErrorAction SilentlyContinue
+                New-Item -ItemType Directory -Force $bmpFrames | Out-Null
+                Invoke-Ffmpeg @('-i', $sequence, (Join-Path $bmpFrames '%05d.bmp')) | Out-Null
+                foreach ($frame in $noisy) {
+                    Invoke-Ffmpeg @('-i', (Join-Path $frames "$frame.bmp"), '-vf', "scale=iw*$($Scale):ih*$($Scale):flags=lanczos", (Join-Path $bmpFrames "$frame.bmp")) | Out-Null
+                }
+                $sequence = Join-Path $bmpFrames '%05d.bmp'
+                Say (L "    $($noisy.Count) Bilder bleiben im Original" "    $($noisy.Count) frames stay original")
+            }
+        }
+        if ($noisy.Count -gt 0) { $videoOriginal[$name] = $true } else { $videoOriginal.Remove($name) }
+
         # H.264 by Windows (Media Foundation), MPEG-4 where that is missing; the sound stays
         # written under a temporary name, so a cancelled run leaves no half video
         $out = Join-Path $videoDir "$name.tmp.mkv"
-        $encodeFrom = @('-framerate', $rate, '-i', (Join-Path $upFrames '%05d.webp'), '-i', $source, '-map', '0:v', '-map', '1:a?', '-c:a', 'copy')
+        $encodeFrom = @('-framerate', $rate, '-i', $sequence, '-i', $source, '-map', '0:v', '-map', '1:a?', '-c:a', 'copy')
         $code = Invoke-Ffmpeg ($encodeFrom + @('-c:v', 'h264_mf', '-b:v', $bitrate, '-pix_fmt', 'nv12', $out))
         if ($code -ne 0) { $code = Invoke-Ffmpeg ($encodeFrom + @('-c:v', 'mpeg4', '-q:v', '2', $out)) }
         if ($code -eq 0) { Move-Item -Force $out (Join-Path $videoDir "$name.mkv"); $videoOk++ } else { Remove-Item $out -ErrorAction SilentlyContinue; Say (L "    fehlgeschlagen (siehe ffmpeg)" "    failed (see ffmpeg)") }
@@ -1465,8 +1701,22 @@ if ($NoVideos) {
     Progress 'videos' $videoTodo.Count $videoTodo.Count
     Say (L "Videos: $videoOk von $($videoTodo.Count) fertig." "Videos: $videoOk of $($videoTodo.Count) done.")
     if ($videoOk -eq $videoTodo.Count) { MarkLanguage 'videos' }
+    $marked = @($videoOriginal.Keys | Sort-Object)
+    if ($marked.Count -gt 0) {
+        Set-Content -Path $videoMarker -Value $marked
+        Write-Original 'videos' $marked.Count (L "Videos: $($marked -join ', ') (einzelne Bilder)" "Videos: $($marked -join ', ') (single frames)")
+    } else {
+        Remove-Item $videoMarker -ErrorAction SilentlyContinue
+    }
 }
 Remove-Item -Recurse -Force $work
+
+if ($script:originals.Count -gt 0) {
+    Say ''
+    Say (L 'Nicht alles liess sich sauber hochrechnen (Real-ESRGAN lieferte auch beim zweiten Mal Rauschen). Diese Teile zeigt das Spiel im Original:' 'Not everything could be upscaled cleanly (Real-ESRGAN gave noise the second time too). The game shows these parts in the original:')
+    foreach ($text in $script:originals.Values) { Say "  - $text" }
+    Say (L 'Starte den Schritt einfach noch einmal (ohne "neu erzeugen"): Dann werden diese Teile neu gerechnet. Das laesst sich wiederholen, bis alles klappt.' 'Just run the step again (without "create again"): these parts are made again. You can repeat that until everything works.')
+}
 
 Say ''
 Say (L "Fertig. HD-Dateien in $target." "Done. HD files in $target.")

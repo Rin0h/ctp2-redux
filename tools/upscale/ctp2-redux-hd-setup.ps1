@@ -109,6 +109,9 @@ $texts = @{
         DoneOk         = 'Die gewählten Schritte sind fertig.'
         DoneWhere      = "Die HD-Dateien für {0}-fache Vergrößerung liegen in:`n{1}`n`nDas Spiel nimmt sie, solange seine Vergrößerung {0}-fach ist (Optionen → Grafik → Vergrößerung)."
         DoneOpen       = "`n`nNoch offen: {0}. Starte den Assistenten einfach später noch einmal."
+        DoneOriginal   = ("`n`nNicht alles ließ sich sauber hochrechnen (Real-ESRGAN lieferte auch beim zweiten Mal Rauschen). " +
+                          "Diese Teile zeigt das Spiel im Original: {0}.`nStarte den Assistenten einfach noch einmal mit diesem Schritt " +
+                          "(ohne »Bereits erzeugte Dateien neu erzeugen«): Dann werden diese Teile neu gerechnet. Das kannst du wiederholen, bis alles klappt.")
         DoneAll        = "`n`nRückgängig machen: diesen Assistenten noch einmal starten und »HD-Dateien entfernen« wählen."
         DoneFail       = 'Das hat leider nicht geklappt.'
         DoneFailText   = "Fehler: {0}`n`nDas Protokoll liegt in:`n{1}"
@@ -200,6 +203,9 @@ $texts = @{
         DoneOk         = 'The chosen steps are done.'
         DoneWhere      = "The HD files for {0}x magnification are in:`n{1}`n`nThe game takes them as long as its magnification is {0}x (Options → Graphics → Magnification)."
         DoneOpen       = "`n`nStill open: {0}. Just start the assistant again later."
+        DoneOriginal   = ("`n`nNot everything could be upscaled cleanly (Real-ESRGAN gave noise the second time too). " +
+                          "The game shows these parts in the original: {0}.`nJust start the assistant again with this step " +
+                          "(without ""Create already finished files again""): these parts are made again. You can repeat that until everything works.")
         DoneAll        = "`n`nTo undo it: start this assistant again and choose ""Remove the HD files""."
         DoneFail       = 'That did not work, sorry.'
         DoneFailText   = "Error: {0}`n`nThe log is in:`n{1}"
@@ -519,6 +525,7 @@ $script:process    = $null
 $script:logFile    = $null
 $script:logPos     = 0
 $script:result     = $null
+$script:originalParts = [ordered]@{}
 $script:videoIndex = 0
 $script:videoTotal = 0
 # what is done per scaling: @{ bilder = @(done, total); videos = @(done, total) }
@@ -711,6 +718,9 @@ function Read-Log {
                 $inner = if ($part -eq 'videobilder') { $f } else { 0 }
                 Set-Progress ($segments[3][0] + $segments[3][1] * ($script:videoIndex + $inner) / [math]::Max(1, $script:videoTotal))
             }
+        } elseif ($l -match '^##ORIGINAL (\w+) (\d+)') {
+            # what stayed original (noise), for the last page
+            $script:originalParts[$Matches[1]] = [int]$Matches[2]
         } elseif ($l.Trim()) {
             $logBox.AppendText($l.TrimEnd() + "`r`n")
             if ($l -match '^(FEHLER|ERROR): (.*)') { $script:result = $Matches[2] }
@@ -747,6 +757,7 @@ function Start-Run {
     Remove-Item $script:logFile -ErrorAction SilentlyContinue
     $script:logPos     = 0
     $script:result     = $null
+    $script:originalParts = [ordered]@{}
     $script:videoIndex = 0
     $script:videoTotal = 0
     $logBox.Clear()
@@ -786,7 +797,13 @@ function Complete-Run([bool]$ok) {
         $text = $T.DoneWhere -f $s, (Join-Path $script:info.Data "redux_hires\$($s)x")
         $script:status.Remove($s)
         $open = @(Get-OpenSteps $s)
-        $text += if ($open.Count) { $T.DoneOpen -f ($open -join ', ') } else { $T.DoneAll }
+        if ($script:originalParts.Count) {
+            $steps = @{ bilder = $T.Step1; videos = $T.Step2; gelaende = $T.Step3; sprites = $T.Step4 }
+            $parts = @($script:originalParts.Keys | ForEach-Object { "$($steps[$_]) ($($script:originalParts[$_]))" })
+            $text += $T.DoneOriginal -f ($parts -join ', ')
+        } else {
+            $text += if ($open.Count) { $T.DoneOpen -f ($open -join ', ') } else { $T.DoneAll }
+        }
         $doneText.Text = $text
     } else {
         $headText.Text = $T.DoneFail
