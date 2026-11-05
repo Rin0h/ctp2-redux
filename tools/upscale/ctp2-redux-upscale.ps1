@@ -158,6 +158,9 @@ $work    = Join-Path $hires '_arbeit'
 $inDir   = Join-Path $work 'ein'
 $outDir  = Join-Path $work 'aus'
 $origDir = Join-Path $work 'original'
+# left over from a cancelled run (what is done is in $target, not here); its
+# batch folders would stop the next run
+if (-not $Status) { Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue }
 foreach ($d in @($target, $tools, $inDir, $outDir, $origDir)) {
     if ($Status -and $d -eq $target) { continue }
     New-Item -ItemType Directory -Force $d | Out-Null
@@ -449,15 +452,67 @@ public static class Ctp2Assets
         return key;
     }
 
+    // Real-ESRGAN sometimes gives noise instead of a picture (seen on a
+    // player's graphics card: the window patterns turned into colored
+    // stripes). The upscaled image, made small again, is compared with the
+    // visible pixels of the original. Measured on all 2412 interface images
+    // at 2x: a real result keeps their brightness (mean difference at most 33
+    // of 255) and their structure (correlation at least 0.84); noise keeps
+    // neither (difference around 80, correlation between -0.3 and 0.3). A
+    // nearly even picture has no structure to compare; it must stay even at
+    // the new size (spread of the brightness grew by at most 9 there, by
+    // more than 700 with stripes).
+    static double Luma(byte[] p, int i) { return 0.3 * p[i] + 0.6 * p[i + 1] + 0.1 * p[i + 2]; }
+    public static bool IsNoise(byte[] up, byte[] orig, int ow, int oh, int s)
+    {
+        int w = ow * s;
+        double diff = 0, sa = 0, sb = 0, saa = 0, sbb = 0, sab = 0, su = 0, suu = 0;
+        int n = 0;
+        for (int y = 0; y < oh; y++)
+            for (int x = 0; x < ow; x++)
+            {
+                int i = (y * ow + x) * 3;
+                if (IsKey(orig[i], orig[i + 1], orig[i + 2])) continue;
+                double b = 0;
+                for (int dy = 0; dy < s; dy++)
+                    for (int dx = 0; dx < s; dx++)
+                    {
+                        double l = Luma(up, ((y * s + dy) * w + x * s + dx) * 3);
+                        su += l; suu += l * l; b += l;
+                    }
+                b /= s * s;
+                for (int c = 0; c < 3; c++)
+                {
+                    int v = 0;
+                    for (int dy = 0; dy < s; dy++)
+                        for (int dx = 0; dx < s; dx++)
+                            v += up[((y * s + dy) * w + x * s + dx) * 3 + c];
+                    diff += Math.Abs(v / (s * s) - orig[i + c]);
+                }
+                double a = Luma(orig, i);
+                sa += a; sb += b; saa += a * a; sbb += b * b; sab += a * b;
+                n++;
+            }
+        if (n == 0) return false;
+        if (diff / (3.0 * n) > 40) return true;
+        double va = saa / n - (sa / n) * (sa / n), vb = sbb / n - (sb / n) * (sb / n);
+        if (va >= 64)
+            return vb < 1e-9 || (sab / n - (sa / n) * (sb / n)) / Math.Sqrt(va * vb) < 0.5;
+        int m = n * s * s;
+        return suu / m - (su / m) * (su / m) > va + 200;
+    }
+
     // the upscaled image with the transparent areas of the original as a
-    // 16 bit Targa (555) for the game
-    public static void Import(string upscaled, string original, int scale, string tgaPath)
+    // 16 bit Targa (555) for the game; false (and nothing written) when the
+    // upscaled image is noise
+    public static bool Import(string upscaled, string original, int scale, string tgaPath)
     {
         int w, h, ow, oh;
         byte[] up = LoadPng(upscaled, out w, out h);
         byte[] orig = LoadPng(original, out ow, out oh);
         int tw = ow * scale, th = oh * scale;
         if (w != tw || h != th) throw new Exception("unerwartete Groesse " + w + "x" + h);
+        if (IsNoise(up, orig, ow, oh, scale)) return false;
 
         // the transparent areas: the upscaled mask cut at one half, else
         // the mask of the original sampled smoothly
@@ -497,6 +552,7 @@ public static class Ctp2Assets
                 BitConverter.GetBytes((ushort)p).CopyTo(tga, 18 + ((th - 1 - y) * tw + x) * 2);
             }
         File.WriteAllBytes(tgaPath, tga);
+        return true;
     }
 }
 
@@ -1068,16 +1124,16 @@ Say (L "Sprache: $gameLanguage, Ziel: $target" "Language: $gameLanguage, target:
 # process of its own: one process over many thousand pictures starts to give
 # noise after a while (seen with 60000 sprite pictures on an RTX 5090)
 $EsrganBatch = 2000
-function Invoke-Esrgan([string]$from, [string]$to, [string]$format, [string]$part, [string]$model = $Model, [int]$factor = $Scale) {
+function Invoke-Esrgan([string]$from, [string]$to, [string]$format, [string]$part, [string]$model = $Model, [int]$factor = $Scale, [int]$batchSize = $EsrganBatch) {
     $files = @(Get-ChildItem -Path $from -File)
     $count = $files.Count
     $batches = @($from)
-    if ($count -gt $EsrganBatch) {
+    if ($count -gt $batchSize) {
         $batches = @()
-        for ($i = 0; $i -lt $count; $i += $EsrganBatch) {
-            $dir = Join-Path $from ('_teil' + ($i / $EsrganBatch))
+        for ($i = 0; $i -lt $count; $i += $batchSize) {
+            $dir = Join-Path $from ('_teil' + ($i / $batchSize))
             New-Item -ItemType Directory -Force $dir | Out-Null
-            $files[$i..([math]::Min($i + $EsrganBatch, $count) - 1)] | Move-Item -Destination $dir
+            $files[$i..([math]::Min($i + $batchSize, $count) - 1)] | Move-Item -Destination $dir
             $batches += $dir
         }
     }
@@ -1198,21 +1254,47 @@ if (-not $NoImages) {
     } else {
         Say (L "Hochzuskalieren: $($todo.Count) Bilder" "To upscale: $($todo.Count) images")
         Say (L "Skaliere mit Real-ESRGAN ($Model, $Scale-fach) ... das kann je nach Grafikkarte einige Minuten dauern." "Upscaling with Real-ESRGAN ($Model, $($Scale)x) ... depending on the graphics card this takes some minutes.")
-        Invoke-Esrgan $inDir $outDir 'png' 'bilder' | Out-Null
+        # smaller batches than for the sprites: the noise of Real-ESRGAN came
+        # here already within one batch of 2000 on a player's graphics card
+        Invoke-Esrgan $inDir $outDir 'png' 'bilder' -batchSize 500 | Out-Null
 
-        # --- import -----------------------------------------------------------------
-        $n = 0
-        foreach ($name in $todo) {
-            if (($n++ % 100) -eq 0) { Progress 'einlesen' $n $todo.Count }
-            $up = Join-Path $outDir "$name.png"
-            if (-not (Test-Path $up)) { Say (L "  fehlt: $name" "  missing: $name"); continue }
-            try {
-                [Ctp2Assets]::BlackKey = [bool]$sources[$name].black
-                [Ctp2Assets]::Import($up, (Join-Path $origDir "$name.png"), $Scale, (Join-Path $target "$name.tga"))
-                $ok++
-            } catch {
-                Say (L "  fehlgeschlagen: $name ($($_.Exception.Message))" "  failed: $name ($($_.Exception.Message))")
+        # --- import (a picture that came out as noise is not taken) ---------------
+        function Import-Images([string[]]$names, [string]$from, [bool]$report) {
+            $noisy = @()
+            $n = 0
+            foreach ($name in $names) {
+                if ($report -and ($n++ % 100) -eq 0) { Progress 'einlesen' $n $names.Count }
+                $up = Join-Path $from "$name.png"
+                if (-not (Test-Path $up)) { Say (L "  fehlt: $name" "  missing: $name"); continue }
+                try {
+                    [Ctp2Assets]::BlackKey = [bool]$sources[$name].black
+                    if ([Ctp2Assets]::Import($up, (Join-Path $origDir "$name.png"), $Scale, (Join-Path $target "$name.tga"))) { $script:ok++ }
+                    else { $noisy += $name }
+                } catch {
+                    Say (L "  fehlgeschlagen: $name ($($_.Exception.Message))" "  failed: $name ($($_.Exception.Message))")
+                }
             }
+            return , $noisy
+        }
+        $noisy = Import-Images $todo $outDir $true
+        if ($noisy.Count -gt 0) {
+            # once more on their own, in small batches
+            Say (L "Bilder: $($noisy.Count) fehlerhaft (Rauschen), rechne sie neu ..." "Images: $($noisy.Count) faulty (noise), upscaling them again ...")
+            $retryIn  = Join-Path $work 'bilder_nochmal_ein'
+            $retryOut = Join-Path $work 'bilder_nochmal_aus'
+            foreach ($d in @($retryIn, $retryOut)) {
+                Remove-Item -Recurse -Force $d -ErrorAction SilentlyContinue
+                New-Item -ItemType Directory -Force $d | Out-Null
+            }
+            foreach ($name in $noisy) {
+                foreach ($file in @("$name.png", "$name$([Ctp2Assets]::MaskSuffix).png")) {
+                    Get-ChildItem -Path $inDir -Recurse -File -Filter $file | Select-Object -First 1 | Copy-Item -Destination $retryIn
+                }
+            }
+            Invoke-Esrgan $retryIn $retryOut 'png' 'bilder' -batchSize 100 | Out-Null
+            $still = Import-Images $noisy $retryOut $false
+            # still noise: no HD version, the game shows the original picture
+            foreach ($name in $still) { Say (L "  bleibt Original: $name" "  stays original: $name") }
         }
         Say (L "Bilder: $ok von $($todo.Count) fertig." "Images: $ok of $($todo.Count) done.")
         if ($ok -eq $todo.Count) { MarkLanguage 'bilder' }
