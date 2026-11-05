@@ -22,6 +22,7 @@
 #include "MessageBoxDialog.h"
 #include <algorithm>              // std::min, std::max
 #include "StrDB.h"              // g_theStringDB
+#include "display.h"            // display_ScaleFor
 
 extern C3UI            * g_c3ui;
 extern sint32            g_isGridOn;
@@ -141,14 +142,19 @@ static void graphicsscreen_showScale()
 {
 	if (!s_displayScaleValue) return;
 
-	sint32 const scale = g_theProfileDB->GetDisplayScale();
+	// with the size the game will work at, so it is clear that the factor
+	// sets the resolution (issue #1: "scaling" sounded like the Windows one)
+	sint32 const wanted = g_theProfileDB->GetDisplayScale();
+	sint32 width  = g_theProfileDB->GetScreenResWidth();
+	sint32 height = g_theProfileDB->GetScreenResHeight();
+	sint32 const scale = display_ScaleFor(wanted, g_theProfileDB->IsWindowedMode(), width, height);
 	MBCHAR text[256];
-	if (scale < 0)
+	if (scale <= 0)
 		strcpy(text, g_theStringDB->GetNameStr("str_ldl_Display_Scale_Off"));
-	else if (scale == 0)
-		strcpy(text, g_theStringDB->GetNameStr("str_ldl_Display_Scale_Auto"));
+	else if (wanted == 0)
+		sprintf(text, g_theStringDB->GetNameStr("str_ldl_Display_Scale_Auto"), scale, width, height);
 	else
-		sprintf(text, g_theStringDB->GetNameStr("str_ldl_Display_Scale_Fixed"), scale);
+		sprintf(text, g_theStringDB->GetNameStr("str_ldl_Display_Scale_Fixed"), scale, width, height);
 
 	s_displayScaleValue->SetText(text);
 }

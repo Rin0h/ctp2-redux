@@ -275,17 +275,15 @@ static sint32 const k_SCALE_MAX        = 4;
 static sint32 const k_SCALE_MIN_WIDTH  = 1024;
 static sint32 const k_SCALE_MIN_HEIGHT = 768;
 
-static void display_ApplyScale()
+sint32 display_ScaleFor(sint32 wanted, bool windowed, sint32 & width, sint32 & height)
 {
-	sint32 const wanted = g_theProfileDB->GetDisplayScale();
-	g_displayScale = 0;
-	if (wanted < 0) return;
+	if (wanted < 0) return 0;
 
 	SDL_DisplayMode desktop;
-	if (SDL_GetDesktopDisplayMode(0, &desktop) != 0) return;
+	if (SDL_GetDesktopDisplayMode(0, &desktop) != 0) return 0;
 
 	sint32 scale = std::min<sint32>(wanted, k_SCALE_MAX);
-	if (g_theProfileDB->IsWindowedMode())
+	if (windowed)
 	{
 		// the window: the chosen resolution, enlarged as far as it fits
 		// (a bit of room for the title bar and the task bar)
@@ -293,8 +291,8 @@ static void display_ApplyScale()
 		{
 			scale = 1;
 			while (scale < k_SCALE_MAX
-			    && g_ScreenWidth  * (scale + 1) <= desktop.w
-			    && g_ScreenHeight * (scale + 1) <= desktop.h * 9 / 10)
+			    && width  * (scale + 1) <= desktop.w
+			    && height * (scale + 1) <= desktop.h * 9 / 10)
 				++scale;
 		}
 	}
@@ -309,11 +307,23 @@ static void display_ApplyScale()
 			    && desktop.h / (scale + 1) >= k_SCALE_MIN_HEIGHT)
 				++scale;
 		}
-		g_ScreenWidth  = desktop.w / scale;
-		g_ScreenHeight = desktop.h / scale;
+		width  = desktop.w / scale;
+		height = desktop.h / scale;
 	}
 
-	g_displayScale = scale;
+	return scale;
+}
+
+static void display_ApplyScale()
+{
+	sint32 width  = g_ScreenWidth;
+	sint32 height = g_ScreenHeight;
+	g_displayScale = display_ScaleFor(g_theProfileDB->GetDisplayScale(), g_theProfileDB->IsWindowedMode(), width, height);
+	if (g_displayScale > 0)
+	{
+		g_ScreenWidth  = width;
+		g_ScreenHeight = height;
+	}
 }
 #endif
 

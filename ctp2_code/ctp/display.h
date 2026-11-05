@@ -78,4 +78,11 @@ int					display_Initialize(HINSTANCE hInstance, int iCmdShow);
 
 void display_Cleanup();
 
+#if !defined(__AUI_USE_DIRECTX__)
+// ctp2-redux: the factor a DisplayScale value (-1 off, 0 automatic, 1 to 4)
+// gives, 0 when the picture is stretched; width and height come in as the
+// chosen resolution and go out as the size the game works at
+sint32 display_ScaleFor(sint32 wanted, bool windowed, sint32 & width, sint32 & height);
+#endif
+
 #endif

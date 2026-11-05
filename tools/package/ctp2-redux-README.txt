@@ -4,7 +4,7 @@ ctp2-redux – Call to Power II for today's PCs
 
 What is it?
   A continuation of the Apolyton Edition of Call to Power II: 64-bit,
-  sharp scaling for big screens, multiplayer over a direct connection
+  sharp magnification for big screens, multiplayer over a direct connection
   (IPv6 too) and HD graphics and videos that the HD setup makes on your
   own PC from your own copy of the game.
   Project page: https://github.com/Rin0h/ctp2-redux
@@ -62,7 +62,7 @@ ctp2-redux – Call to Power II für heutige PCs
 
 Was ist das?
   Eine Weiterentwicklung der Apolyton Edition von Call to Power II:
-  64 Bit, scharfe Skalierung für große Bildschirme, Multiplayer über
+  64 Bit, scharfe Vergrößerung für große Bildschirme, Multiplayer über
   Direktverbindung (auch IPv6) und HD-Grafik und -Videos, die der
   HD-Assistent auf deinem eigenen PC aus deinem eigenen Spiel erzeugt.
   Projektseite: https://github.com/Rin0h/ctp2-redux

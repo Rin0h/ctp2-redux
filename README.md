@@ -50,9 +50,10 @@ them.*
 
 - 64-bit build with the Visual Studio 2022 Build Tools, no administrator
   rights needed.
-- **Sharp scaling** for high resolutions (Options → Graphics): the game
-  runs at the screen size divided by a whole factor (automatic: 4K →
-  1920x1080 doubled) and is enlarged pixel by pixel instead of blurred.
+- **Sharp magnification** for high resolutions (Options → Graphics →
+  Magnification): the game runs at the screen size divided by a whole
+  factor (automatic: 4K → 1920x1080 doubled) and is enlarged pixel by pixel
+  instead of blurred; the option shows the resolution the game works at.
   DPI aware with Windows display scaling.
 - Videos play through FFmpeg.
 
@@ -74,7 +75,7 @@ them.*
 ### HD graphics and videos
 
 `tools/upscale/ctp2-redux-hd-setup.bat` opens a setup (German or
-English) that leads through game folder, scaling factor (2x, 3x or 4x; the
+English) that leads through game folder, magnification (2x, 3x or 4x; the
 map gets HD pictures at 2x and 3x) and four
 steps, each of which can be done on its own, cancelled and continued later –
 so a slower PC can spread the work over several evenings:
@@ -346,10 +347,11 @@ Fassung: links das Original mit vergrößerten Pixeln, rechts ctp2-redux in
 
 **Heutiges Windows**
 - 64-Bit-Build mit den Visual Studio 2022 Build Tools, ohne Adminrechte.
-- **Scharfe Skalierung** (Optionen → Grafik): Das Spiel rechnet in
-  Bildschirmgröße geteilt durch einen ganzen Faktor (automatisch: 4K →
-  1920x1080 verdoppelt) und wird Pixel für Pixel vergrößert statt
-  weichgezeichnet. Beachtet die Windows-Anzeigeskalierung.
+- **Scharfe Vergrößerung** (Optionen → Grafik → Vergrößerung): Das Spiel
+  rechnet in Bildschirmgröße geteilt durch einen ganzen Faktor
+  (automatisch: 4K → 1920x1080 verdoppelt) und wird Pixel für Pixel
+  vergrößert statt weichgezeichnet; die Option zeigt die Auflösung, mit
+  der das Spiel rechnet. Beachtet die Windows-Anzeigeskalierung.
 
 **Multiplayer**
 - **Direktverbindung**: Hosten oder Beitreten per IP-Adresse, ohne

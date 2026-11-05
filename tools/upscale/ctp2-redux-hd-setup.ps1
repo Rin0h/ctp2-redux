@@ -51,7 +51,7 @@ $texts = @{
                           'der Spielgrafik: Oberflächenbilder, Mauszeiger, Videos, das Gelände und die Einheiten und Städte der Karte werden mit künstlicher ' +
                           'Intelligenz (Real-ESRGAN) auf deinem Rechner hochgerechnet.')
         Welcome2       = ('Deine Originaldateien bleiben unverändert. Die HD-Dateien landen im Ordner ' +
-                          'ctp2_data\redux_hires; das Spiel nimmt sie automatisch, wenn die Skalierung passt.')
+                          'ctp2_data\redux_hires; das Spiel nimmt sie automatisch, wenn die Vergrößerung passt.')
         Welcome3       = 'Die Arbeit ist in Schritte geteilt, die du dir einteilen kannst.'
         Shortcuts      = ('✔ Verknüpfung »{0}« auf dem Desktop und im Spielordner angelegt. ' +
                           'Die HD-Dateien sind freiwillig: ohne sie dieses Fenster einfach schließen.')
@@ -64,15 +64,15 @@ $texts = @{
         FolderOk       = '✔ Spieldaten gefunden (Sprache: {0}).'
         FolderHasHD    = 'Es gibt dort schon HD-Dateien.'
         FolderBad      = '✖ Hier ist kein Call to Power II (ctp2_data\default\graphics\pictures\pic565.zfs fehlt).'
-        ScaleOption    = '{0}-fach – Spielfläche {1} x {2}, Bilder und Schrift {0}-mal so groß'
+        ScaleOption    = 'Spiel in {1} x {2}, {0}-fach vergrößert (jedes Pixel wird {0} x {0} Bildschirmpixel)'
         Recommended    = ' (empfohlen)'
         ScaleIntro     = 'Dein Bildschirm: {0} x {1}, empfohlen: {2}-fach. Im Spiel eingestellt: {3}.'
         ScaleNone      = 'nicht eingestellt (automatisch)'
         ScaleAuto      = 'automatisch ({0}-fach)'
         ScaleOff       = 'aus'
         ScaleFixed     = '{0}-fach'
-        SetProfile     = 'Im Spiel dieselbe Skalierung einstellen (sonst: Optionen → Grafik → Skalierung)'
-        ScaleNote      = ('Das Spiel nimmt die HD-Dateien nur, wenn seine Skalierung zur gewählten passt. ' +
+        SetProfile     = 'Im Spiel dieselbe Vergrößerung einstellen (sonst: Optionen → Grafik → Vergrößerung)'
+        ScaleNote      = ('Das Spiel nimmt die HD-Dateien nur, wenn seine Vergrößerung zur gewählten passt. ' +
                           'Bei kleineren Bildschirmen (unter 2048x1536) lohnt sich HD nicht.')
         StepsIntro     = ('Die Arbeit ist in Schritte geteilt. Du kannst sie einzeln nacheinander erledigen, ' +
                           'jederzeit abbrechen und später weitermachen – fertige Dateien bleiben erhalten.')
@@ -96,10 +96,10 @@ $texts = @{
         StatePart      = 'teilweise erledigt: {0} von {1} {2}'
         Images         = 'Bilder'
         Videos         = 'Videos'
-        AllDone        = 'Alle verfügbaren Schritte sind für diese Skalierung erledigt.'
+        AllDone        = 'Alle verfügbaren Schritte sind für diese Vergrößerung erledigt.'
         EsrganDownload = 'Beim ersten Mal wird Real-ESRGAN (ca. 45 MB, BSD-Lizenz) von github.com geladen.'
         FreeSpace      = 'Freier Speicher auf {0}: {1} GB'
-        GpuNote        = 'Eine Grafikkarte mit Vulkan beschleunigt die Berechnung stark; ohne geht es (sehr langsam) mit dem Prozessor.'
+        GpuNote        = 'Real-ESRGAN rechnet auf der Grafikkarte (Vulkan); auch die Grafik im Prozessor geht, nur langsamer.'
         Starting       = 'Starte …'
         RunPrepare     = 'Bilder werden vorbereitet ({0} von {1}) …'
         RunImages      = 'Bilder werden hochgerechnet: {0} %'
@@ -107,7 +107,7 @@ $texts = @{
         RunVideo       = 'Video {0} von {1}: Bild {2} von {3}'
         StartGame      = 'Call to Power II jetzt starten'
         DoneOk         = 'Die gewählten Schritte sind fertig.'
-        DoneWhere      = "Die HD-Dateien für {0}-fache Skalierung liegen in:`n{1}`n`nDas Spiel nimmt sie, solange seine Skalierung {0}-fach ist (Optionen → Grafik → Skalierung)."
+        DoneWhere      = "Die HD-Dateien für {0}-fache Vergrößerung liegen in:`n{1}`n`nDas Spiel nimmt sie, solange seine Vergrößerung {0}-fach ist (Optionen → Grafik → Vergrößerung)."
         DoneOpen       = "`n`nNoch offen: {0}. Starte den Assistenten einfach später noch einmal."
         DoneAll        = "`n`nRückgängig machen: diesen Assistenten noch einmal starten und »HD-Dateien entfernen« wählen."
         DoneFail       = 'Das hat leider nicht geklappt.'
@@ -117,7 +117,7 @@ $texts = @{
         NoHDText       = 'In diesem Spielordner gibt es keine HD-Dateien; das Spiel nutzt die Originalgrafik.'
         RemoveAsk      = "Alle HD-Dateien in`n{0}`nlöschen?"
         Removed        = 'Die HD-Dateien sind entfernt.'
-        RemovedText    = 'Das Spiel nutzt wieder die Originalgrafik. Die Skalierung im Spiel bleibt, wie sie ist (Optionen → Grafik).'
+        RemovedText    = 'Das Spiel nutzt wieder die Originalgrafik. Die Vergrößerung im Spiel bleibt, wie sie ist (Optionen → Grafik).'
         CancelAsk      = 'Die Berechnung abbrechen? Bereits fertige Dateien bleiben erhalten, beim nächsten Mal geht es dort weiter.'
         Cancelled      = 'Abgebrochen.'
         CancelledText  = 'Die Berechnung wurde abgebrochen. Bereits fertige Dateien bleiben erhalten; starte den Assistenten erneut, um weiterzumachen.'
@@ -126,7 +126,7 @@ $texts = @{
         Heads          = @(
             @('Willkommen', 'HD-Grafik und -Videos für Call to Power II (ctp2-redux)'),
             @('Spielordner', 'Wo ist das Spiel installiert?'),
-            @('Skalierung', 'Wie stark soll das Spiel vergrößert werden?'),
+            @('Vergrößerung', 'Mit welcher Auflösung soll das Spiel laufen?'),
             @('Schritte', 'Welche Schritte sollen jetzt erledigt werden?'),
             @('Erzeugen', 'Die HD-Dateien werden jetzt auf deinem Rechner berechnet.'),
             @('Fertig', ''))
@@ -142,7 +142,7 @@ $texts = @{
                           'installation: interface images, mouse cursors, videos, and the terrain, units and cities of the map are upscaled on your computer ' +
                           'with artificial intelligence (Real-ESRGAN).')
         Welcome2       = ('Your original files stay untouched. The HD files go to the folder ctp2_data\redux_hires; ' +
-                          'the game takes them automatically when the scaling matches.')
+                          'the game takes them automatically when the magnification matches.')
         Welcome3       = 'The work is split into steps that you can plan as you like.'
         Shortcuts      = ('✔ Shortcut "{0}" created on the desktop and in the game folder. ' +
                           'The HD files are optional: without them just close this window.')
@@ -155,15 +155,15 @@ $texts = @{
         FolderOk       = '✔ Game data found (language: {0}).'
         FolderHasHD    = 'There are HD files already.'
         FolderBad      = '✖ No Call to Power II here (ctp2_data\default\graphics\pictures\pic565.zfs is missing).'
-        ScaleOption    = '{0}x – playing area {1} x {2}, images and text {0} times as large'
+        ScaleOption    = 'Game at {1} x {2}, magnified {0}x (every pixel becomes {0} x {0} screen pixels)'
         Recommended    = ' (recommended)'
         ScaleIntro     = 'Your screen: {0} x {1}, recommended: {2}x. Set in the game: {3}.'
         ScaleNone      = 'not set (automatic)'
         ScaleAuto      = 'automatic ({0}x)'
         ScaleOff       = 'off'
         ScaleFixed     = '{0}x'
-        SetProfile     = 'Set the same scaling in the game (otherwise: Options → Graphics → Scaling)'
-        ScaleNote      = ('The game only takes the HD files when its scaling matches the chosen one. ' +
+        SetProfile     = 'Set the same magnification in the game (otherwise: Options → Graphics → Magnification)'
+        ScaleNote      = ('The game only takes the HD files when its magnification matches the chosen one. ' +
                           'For smaller screens (below 2048x1536) HD is not worth it.')
         StepsIntro     = ('The work is split into steps. You can do them one after the other, cancel at any ' +
                           'time and go on later – finished files are kept.')
@@ -187,10 +187,10 @@ $texts = @{
         StatePart      = 'partly done: {0} of {1} {2}'
         Images         = 'images'
         Videos         = 'videos'
-        AllDone        = 'All available steps are done for this scaling.'
+        AllDone        = 'All available steps are done for this magnification.'
         EsrganDownload = 'The first time, Real-ESRGAN (about 45 MB, BSD licence) is downloaded from github.com.'
         FreeSpace      = 'Free space on {0}: {1} GB'
-        GpuNote        = 'A graphics card with Vulkan speeds the work up a lot; without one it runs (very slowly) on the processor.'
+        GpuNote        = 'Real-ESRGAN runs on the graphics card (Vulkan); graphics built into the processor work too, only slower.'
         Starting       = 'Starting …'
         RunPrepare     = 'Preparing images ({0} of {1}) …'
         RunImages      = 'Upscaling images: {0} %'
@@ -198,7 +198,7 @@ $texts = @{
         RunVideo       = 'Video {0} of {1}: frame {2} of {3}'
         StartGame      = 'Start Call to Power II now'
         DoneOk         = 'The chosen steps are done.'
-        DoneWhere      = "The HD files for {0}x scaling are in:`n{1}`n`nThe game takes them as long as its scaling is {0}x (Options → Graphics → Scaling)."
+        DoneWhere      = "The HD files for {0}x magnification are in:`n{1}`n`nThe game takes them as long as its magnification is {0}x (Options → Graphics → Magnification)."
         DoneOpen       = "`n`nStill open: {0}. Just start the assistant again later."
         DoneAll        = "`n`nTo undo it: start this assistant again and choose ""Remove the HD files""."
         DoneFail       = 'That did not work, sorry.'
@@ -208,7 +208,7 @@ $texts = @{
         NoHDText       = 'There are no HD files in this game folder; the game uses the original graphics.'
         RemoveAsk      = "Delete all HD files in`n{0}?"
         Removed        = 'The HD files are removed.'
-        RemovedText    = 'The game uses the original graphics again. The scaling in the game stays as it is (Options → Graphics).'
+        RemovedText    = 'The game uses the original graphics again. The magnification in the game stays as it is (Options → Graphics).'
         CancelAsk      = 'Cancel the work? Finished files are kept, the next run goes on from there.'
         Cancelled      = 'Cancelled.'
         CancelledText  = 'The work was cancelled. Finished files are kept; start the assistant again to go on.'
@@ -217,7 +217,7 @@ $texts = @{
         Heads          = @(
             @('Welcome', 'HD graphics and videos for Call to Power II (ctp2-redux)'),
             @('Game folder', 'Where is the game installed?'),
-            @('Scaling', 'How much should the game be enlarged?'),
+            @('Magnification', 'At which resolution should the game run?'),
             @('Steps', 'Which steps should be done now?'),
             @('Creating', 'The HD files are being made on your computer now.'),
             @('Done', ''))
