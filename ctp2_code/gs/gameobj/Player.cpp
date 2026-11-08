@@ -6463,7 +6463,7 @@ bool Player::SetGovernmentType(sint32 type)
 		return false;
 
 	Assert(type >= 0 && type < g_theGovernmentDB->NumRecords());
-	if(type < 0 || type > g_theGovernmentDB->NumRecords())
+	if(type < 0 || type >= g_theGovernmentDB->NumRecords())   // ctp2-redux: was >
 		return false;
 
 	sint32 sci_id = g_theGovernmentDB->Get(type)->GetEnableAdvanceIndex();
@@ -6510,6 +6510,11 @@ bool Player::ActuallySetGovernment(sint32 type)
 	if(m_government_type == type) {
 		return true;
 	}
+
+	// ctp2-redux: the type comes from the network and scripts too
+	Assert(type >= 0 && type < g_theGovernmentDB->NumRecords());
+	if(type < 0 || type >= g_theGovernmentDB->NumRecords())
+		return false;
 
 	SlicObject *so;
     if (g_civApp->IsGameLoaded() && (type != 0) && !ScenarioEditor::IsShown()) {

@@ -5,6 +5,7 @@
 #include "installationpool.h"
 #include "player.h"
 #include "World.h"
+#include "TerrainImprovementRecord.h"   // g_theTerrainImprovementDB
 
 extern Player **g_player;
 extern World *g_theWorld;
@@ -35,6 +36,17 @@ void NetInstallation::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 
 	Installation inst;
 	PULLLONGTYPE(inst, Installation);
+
+	// ctp2-redux: owner, type and position are checked before the object
+	// changes
+	{
+		sint32 p = pos;
+		net_Need(p, 1 + 1 + 2 + 2, size);
+		NET_PLAYER(buf[p]);
+		NET_INDEX(buf[p + 1], g_theTerrainImprovementDB->NumRecords());
+		MapPoint at(static_cast<sint16>(getshort(&buf[p + 2])), static_cast<sint16>(getshort(&buf[p + 4])));
+		NET_POS(at);
+	}
 
 	g_network.CheckReceivedObject((uint32)inst);
 

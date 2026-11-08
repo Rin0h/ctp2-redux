@@ -9,6 +9,7 @@
 #include "director.h"
 #include "World.h"
 #include "Cell.h"
+#include "ResourceRecord.h"     // g_theResourceDB
 
 #include "TradeDynArr.h"
 
@@ -84,6 +85,23 @@ void NetTradeRoute::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	net_Need(0, 6, size);   // ctp2-redux: read directly
 	TradeRoute route(getlong(&buf[2]));
 
+	// ctp2-redux: players, route type, resource and way points are checked
+	// before the route changes (fixed layout, see Packetize)
+	{
+		net_Need(6, 52, size);
+		NET_PLAYER(buf[7]);                                  // owner
+		NET_PLAYER(buf[8]);                                  // paying for
+		NET_CHECK(buf[13] <= ROUTE_TYPE_SLAVE);              // route type
+		if(buf[13] == ROUTE_TYPE_RESOURCE)
+			NET_INDEX(getlong(&buf[14]), g_theResourceDB->NumRecords());
+		sint32 const wayPoints = static_cast<uint16>(getshort(&buf[56]));
+		net_Need(58, 4 * wayPoints, size);
+		for(sint32 w = 0; w < wayPoints; w++) {
+			MapPoint at(static_cast<sint16>(getshort(&buf[58 + 4 * w])),
+			            static_cast<sint16>(getshort(&buf[60 + 4 * w])));
+			NET_POS(at);
+		}
+	}
 	g_network.CheckReceivedObject((uint32)route);
 
 	if(!g_theTradePool->IsValid(route)) {

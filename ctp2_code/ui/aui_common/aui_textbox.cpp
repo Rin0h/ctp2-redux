@@ -196,7 +196,7 @@ AUI_ERRCODE aui_TextBox::CalculateItems(const MBCHAR * text)
 
 			MBCHAR * tempCopy = new MBCHAR[length + 1];
 			std::copy(cur, cur + length, tempCopy);
-			tempCopy[length] = '0';
+			tempCopy[length] = '\0';   // ctp2-redux: was '0', the copy had no end (lobby chat)
 
 			if (++m_numItems > k_AUI_TEXTBOX_MAXITEMS)
 			{

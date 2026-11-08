@@ -95,6 +95,12 @@ SpriteGroupList::~SpriteGroupList()
 
 SPRITELISTERR SpriteGroupList::LoadSprite(uint32 index, GROUPTYPE type, LOADTYPE loadType,GAME_ACTION action)
 {
+	// ctp2-redux: the sprite index comes from the databases and from unseen
+	// cells from the network; checked like in GetSprite and ReleaseSprite
+	Assert(index < k_MAX_SPRITES);
+	if (index >= k_MAX_SPRITES)
+		return SPRITELISTERR_NOTFOUND;
+
 	char			inFile[_MAX_PATH];
 	SpriteGroup		*newSpriteGroup=m_spriteList[index];
 

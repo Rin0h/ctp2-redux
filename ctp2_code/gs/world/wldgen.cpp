@@ -2502,7 +2502,8 @@ TileInfo *World::GetTileInfoStoragePtr(const MapPoint &pos)
 	}
 
 	sint32 const    width = m_size.x;
-	return &m_tileInfoStorage[pos.x + pos.y * width];
+	// ctp2-redux: held in the map like GetCell (positions from packets)
+	return &m_tileInfoStorage[InMapX(pos.x) + InMapY(pos.y) * width];
 }
 
 void World::GenerateGoodyHuts()

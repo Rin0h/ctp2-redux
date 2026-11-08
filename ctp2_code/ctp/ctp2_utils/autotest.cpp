@@ -60,6 +60,10 @@
 #include "net_packet.h"         // Packetizer, k_PACKET_*
 #include "net_message.h"        // NET_MSG_PLAYER_JOINED
 #include "AgreementMatrix.h"    // AgreementMatrix::s_agreements
+#include "net_action.h"          // NetAction, NET_ACTION_*
+#include "net_info.h"            // NetInfo, NET_INFO_CODE_*
+#include "GovernmentRecord.h"    // g_theGovernmentDB
+#include "TradeRoute.h"          // ROUTE_TYPE_RESOURCE
 #include <random>
 #include <vector>
 #ifdef __AUI_USE_SDL__
@@ -365,11 +369,102 @@ namespace
 		packets.push_back(Bytes().U8('Z').U8('b').Fill(200, 'J').b);           // ... and a piece too many
 		packets.push_back(Bytes().U8('^').U32(0x7fffffff).Fill(20, 'K').b);    // 2 GB unpacked
 
+		// well-formed packets with positions off the map and indices behind
+		// their lists (World.h, Vision.h, net_util.h NET_POS/NET_INDEX)
+		Unit unit = g_player[me]->m_all_units->Num() > 0 ? g_player[me]->m_all_units->Access(0) : Unit();
+		packets.push_back(Bytes(k_PACKET_UNIT_MOVE_ID).U32(unit.m_id).U16(30000).U16(-7).b);            // moved off the map
+		packets.push_back(Bytes(k_PACKET_UNIT_ORDER_ID).U8(me).U32(0).U8(200).U16(0)
+		                  .U16(0).U16(0).U16(0).U32(0).b);                                             // order type 200
+
+		packets.push_back(Bytes(k_PACKET_CELL_UNIT_ORDER_ID).U16(-1).U16(30000).U8(200).Fill(800, 0).b); // 200 units, off the map
+		packets.push_back(Bytes(k_PACKET_CELL_ID).U16(-2).U16(5).Fill(20, 0).b);                       // cell off the map
+		packets.push_back(Bytes(k_PACKET_UNSEEN_CELL_ID).U8(me).U32(0).U8(200).Fill(20, 0).b);           // terrain 200
+		packets.push_back(Bytes(k_PACKET_UNSEEN_CELL_ID).U8(me).U32(0).U8(0).U16(30000).U16(30000).Fill(20, 0).b); // off the map
+		packets.push_back(Bytes(k_PACKET_TERRAIN_ID).U32(0x7ff12345).U8(me).U8(250).U16(1).U16(1)
+		                  .U16(0).U8(0).U32(0).b);                                                     // improvement type 250
+		packets.push_back(Bytes(k_PACKET_INSTALLATION_ID).U32(0x7ff12346).U8(me).U8(0).U16(-3)
+		                  .U16(40000).U32(0).b);                                                       // installation off the map
+		packets.push_back(Bytes(k_PACKET_TRADE_ROUTE_ID).U32(0x7ff12347).U8(1).U8(me).U8(me).U32(0)
+		                  .U8(ROUTE_TYPE_RESOURCE).U32(9999).Fill(38, 0).U16(0).b);                    // resource 9999
+
 		for (size_t i = 0; i < packets.size(); i++)
 			g_network.QueuePacketToAll(new ForgedPacket(packets[i]));
-		// a chunk claiming 32767 bytes in 4, compressed like real chunks
+
+		// info packets with values that index arrays (net_info.cpp CheckInfoArguments)
+		uint32 const offMap = (30000u << 16) | 0xffffu;
+		NetInfo * infos[] = {
+			new NetInfo(NET_INFO_CODE_ADVANCE, me, 100000, 0),
+			new NetInfo(NET_INFO_CODE_RESEARCH, me, 0xffffffff),
+			new NetInfo(NET_INFO_CODE_SET_GOVERNMENT, me, g_theGovernmentDB->NumRecords()),
+			new NetInfo(NET_INFO_CODE_ACTUALLY_SET_GOVERNMENT, me, 5000),
+			new NetInfo(NET_INFO_CODE_WONDER_BUILT, 70, 0),
+			new NetInfo(NET_INFO_CODE_BEGIN_TURN, 200),
+			new NetInfo(NET_INFO_CODE_PLAYER_INDEX, 500, 0),
+			new NetInfo(NET_INFO_CODE_CELL_OWNER, offMap, 0),
+			new NetInfo(NET_INFO_CODE_ADD_UNSEEN, me, offMap),
+			new NetInfo(NET_INFO_CODE_SET_DIP_STATE, me, 1, 99),
+			new NetInfo(NET_INFO_CODE_BREAK_ALLIANCE, me, 300),
+			new NetInfo(NET_INFO_CODE_WONDER_STARTED, me, 9999),
+			new NetInfo(NET_INFO_CODE_ACCOMPLISHED_FEAT, 9999, me, 0),
+			new NetInfo(NET_INFO_CODE_SET_SETUP_AREA, me, 32000, 0xfffffffb, 1),
+			new NetInfo(NET_INFO_CODE_REMOVE_HUT, 0xfffffffd, 40000),
+			new NetInfo(NET_INFO_CODE_CHANGE_BUILD, 0, 0, k_GAME_OBJ_TYPE_UNIT, 99999),
+		};
+		int const numInfos = static_cast<int>(sizeof(infos) / sizeof(infos[0]));
+		for (int i = 0; i < numInfos; i++)
+			g_network.QueuePacketToAll(infos[i]);		// a chunk claiming 32767 bytes in 4, compressed like real chunks
 		g_network.QueuePacketToAll(new ForgedPacket(Bytes().U8('>').U8('C').U8(0xff).U8(0x7f).b, true));
-		autotest_Log("forged: sent %d broken packets", (int)packets.size() + 1);
+		autotest_Log("forged: sent %d broken packets", (int)packets.size() + 1 + numInfos);
+	}
+
+	// Packets that need a real army (the order and army checks come after the
+	// army lookup); sent in the first round from 3 on in which any player has
+	// one (settlers may all be cities by round 3). True once sent.
+	bool SendForgedArmyPackets(int me)
+	{
+		Army army;
+		for (int p = 0; p < k_MAX_PLAYERS && !army.IsValid(); p++)
+			if (g_player[p] && g_player[p]->m_all_armies->Num() > 0)
+				army = g_player[p]->m_all_armies->Access(0);
+		if (!army.IsValid())
+			return false;
+
+		std::vector<std::vector<uint8> > packets;
+		packets.push_back(Bytes(k_PACKET_UNIT_ORDER_ID).U8(me).U32(army.m_id).U8(0).U16(0)
+		                  .U16(0).U16(0).U16(4).U8(0x12).U8(0x34).U32(0).b);                           // steps without a path
+		packets.push_back(Bytes(k_PACKET_UNIT_ORDER_ID).U8(me).U32(army.m_id).U8(0).U16(0)
+		                  .U16(0).U16(0).U16(0x8002).U16(0).U16(0).U16(0).U16(0).U32(0).U32(50)
+		                  .U8(0xff).U32(0).b);                                                         // no direction, step 50 of 2
+		packets.push_back(Bytes(k_PACKET_ARMY_ID).U32(army.m_id).U8(0).U8(me)
+		                  .U16(30000).U16(5).U16(0).U16(0).b);                                         // army off the map
+		for (size_t i = 0; i < packets.size(); i++)
+			g_network.QueuePacketToAll(new ForgedPacket(packets[i]));
+		autotest_Log("forged: sent %d broken army packets", (int)packets.size());
+		return true;
+	}
+
+	// The client's part (round 3 too): actions to the host whose arguments
+	// index arrays or are no players (net_action.cpp CheckActionArguments)
+	void SendForgedActions(int me)
+	{
+		NetAction * actions[] = {
+			new NetAction(NET_ACTION_SET_SPECIALISTS, 0, 1000, 1),
+			new NetAction(NET_ACTION_BREAK_ALLIANCE, me, 200),
+			new NetAction(NET_ACTION_DECLARE_WAR, 200),
+			new NetAction(NET_ACTION_RESEARCH, 100000),
+			new NetAction(NET_ACTION_SET_GOVERNMENT, g_theGovernmentDB->NumRecords()),
+			new NetAction(NET_ACTION_BUILD, 99999, 0),
+			new NetAction(NET_ACTION_TERRAIN_IMPROVEMENT, 0, -5, 30000, -1, 0),
+			new NetAction(NET_ACTION_SELL_UNITS, -100, 32000),
+			new NetAction(NET_ACTION_ADVANCE_CHEAT, 0x7fffffff),
+			new NetAction(NET_ACTION_CREATE_TRADE_ROUTE, 0, ROUTE_TYPE_RESOURCE, 9999, 0, 0, 0, 0),
+			new NetAction(NET_ACTION_SET_DIP_STATE, 1, 77),
+			new NetAction(NET_ACTION_CREATE_DIP_REQUEST, me, 200, 0, 0),
+		};
+		int const num = static_cast<int>(sizeof(actions) / sizeof(actions[0]));
+		for (int i = 0; i < num; i++)
+			g_network.SendAction(actions[i]);
+		autotest_Log("forged: sent %d broken actions", num);
 	}
 }
 
@@ -546,8 +641,16 @@ void autotest_Process(bool gameLoaded)
 		autotest_Log("round %d", round);
 		LogGameInfo();   // once
 		LogStats(round);
-		if (round == 3 && autotest_IsHost() && getenv("CTP2_TEST_FORGED"))
-			SendForgedPackets(me);
+		if (round == 3 && getenv("CTP2_TEST_FORGED"))
+		{
+			if (autotest_IsHost())
+				SendForgedPackets(me);
+			else if (!single)
+				SendForgedActions(me);
+		}
+		static bool s_armyForged = false;
+		if (round >= 3 && !s_armyForged && autotest_IsHost() && getenv("CTP2_TEST_FORGED"))
+			s_armyForged = SendForgedArmyPackets(me);
 	}
 
 	// The client ends its turn of the last round and quits a moment later;

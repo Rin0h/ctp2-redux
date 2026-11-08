@@ -44,6 +44,7 @@
 #include "ObjPool.h"
 #include "TerrImprove.h"
 #include "TerrImprovePool.h"
+#include "TerrainRecord.h"      // g_theTerrainDB
 #include "tiledmap.h"
 #include "TileInfo.h"
 #include "TradeDynArr.h"
@@ -84,11 +85,17 @@ void NetCellData::Unpacketize(uint16 id, uint8* buf, uint16 size)
 	PULLSHORT(m_y);
 
 	MapPoint mp(m_x, m_y);
+	NET_POS(mp);
 
 	DPRINTF(k_DBG_NET, ("Handling cell at %d/%d\n", m_x, m_y));
 	m_cell = g_theWorld->AccessCell(mp);
 	PULLLONG(m_cell->m_env);
-	PULLBYTE(m_cell->m_terrain_type);
+	{
+		uint8 terrain;
+		PULLBYTE(terrain);
+		NET_INDEX(terrain, g_theTerrainDB->NumRecords());
+		m_cell->m_terrain_type = terrain;
+	}
 	sint16 old_move_cost = m_cell->m_move_cost;
 	PULLSHORT(m_cell->m_move_cost);
 
@@ -284,6 +291,7 @@ void NetCellList::Unpacketize(uint16 id, uint8* buf, uint16 size)
 
 			uint8 terrainPlusFlags;
 			PULLBYTE(terrainPlusFlags);
+			NET_INDEX(terrainPlusFlags & 0x3f, g_theTerrainDB->NumRecords());
 			cell->m_terrain_type = terrainPlusFlags & 0x3f;
 
 			uint8 owner;
@@ -385,6 +393,7 @@ void NetCellUnitOrder::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 
 	PULLSHORT(m_x);
 	PULLSHORT(m_y);
+	NET_POS(MapPoint(m_x, m_y));
 	CellUnitList *units = g_theWorld->GetCell(m_x, m_y)->UnitArmy();
 	Assert(units && (units->Num() > 1));
 	if (units && (units->Num() > 1))
@@ -392,6 +401,8 @@ void NetCellUnitOrder::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 		uint8 n;
 		PULLBYTE(n);
 		Assert(n == (uint8)units->Num());
+		// ctp2-redux: was only an Assert; the list has k_MAX_ARMY_SIZE places
+		NET_CHECK(n <= units->Num());
 		for (uint8 i = 0; i < n; i++)
 		{
 			Unit u;

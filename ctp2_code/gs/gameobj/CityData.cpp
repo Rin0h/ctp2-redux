@@ -8790,13 +8790,16 @@ sint32 CityData::LaborerCount() const
 
 sint32 CityData::SpecialistCount(POP_TYPE type) const
 {
+	if(type < 0 || type >= POP_MAX)   // ctp2-redux: the type comes from the network too
+		return 0;
+
 	return m_numSpecialists[type];
 }
 
 void CityData::ChangeSpecialists(POP_TYPE type, sint32 delta)
 {
 	Assert(type != POP_WORKER);
-	if(type == POP_WORKER)
+	if(type == POP_WORKER || type < 0 || type >= POP_MAX)   // ctp2-redux: range
 		return;
 
 	if(delta > 0)

@@ -385,24 +385,33 @@ public:
 
 	void			Load(void);
 
-	Pixel16			*GetRiverData(uint16 riverNum) const { return m_riverData[riverNum]; }
+	// ctp2-redux: tile numbers come from map files and unseen cells from the
+	// network; one outside the set gives no tile (the callers handle NULL)
+	// instead of a pointer from behind the array
+	Pixel16			*GetRiverData(uint16 riverNum) const { return (m_riverData && riverNum < m_numRiverTransforms) ? m_riverData[riverNum] : NULL; }
 
 	sint16			*GetTransformData(uint16 transformNum) const { return m_transforms[transformNum]; }
 	sint16			GetTransform(uint16 transformNum, uint16 index) { return m_transforms[transformNum][index]; }
 	uint16			GetNumTransforms(void) const { return m_numTransforms; }
 
-	BaseTile		*GetBaseTile(uint16 baseTileNum) const { return m_baseTiles[baseTileNum]; }
-	Pixel16			*GetTransitionData(uint16 from, uint16 to, uint16 which) const { return m_transitions[from][to][which]; }
+	BaseTile		*GetBaseTile(uint16 baseTileNum) const { return baseTileNum < k_MAX_BASE_TILES ? m_baseTiles[baseTileNum] : NULL; }
+	Pixel16			*GetTransitionData(uint16 from, uint16 to, uint16 which) const { return (from < TERRAIN_MAX && to < TERRAIN_MAX && which < k_TRANSITIONS_PER_TILE) ? m_transitions[from][to][which] : NULL; }
 
 	uint16			GetNumRiverTransforms(void) const { return m_numRiverTransforms; }
 	sint16			GetRiverTransform(uint16 transformNum, uint16 index) { return m_riverTransforms[transformNum][index];}
 
-	Pixel16			*GetImprovementData(uint16 improveNum) const { return m_improvementData[improveNum]; }
-	Pixel16			*GetRoadData(uint16 roadNum) const { return m_improvementData[roadNum]; } // Now the same as GetImprovementData
+	Pixel16			*GetImprovementData(uint16 improveNum) const { return improveNum < k_MAX_IMPROVEMENTS ? m_improvementData[improveNum] : NULL; }
+	Pixel16			*GetRoadData(uint16 roadNum) const { return GetImprovementData(roadNum); } // Now the same as GetImprovementData
 
 	uint16			GetNumMegaTiles(void) const { return m_numMegaTiles; }
-	uint16			GetMegaTileLength(sint32 megaTileNum) const { return m_megaTileLengths[megaTileNum]; }
-	MegaTileStep	GetMegaTileStep(sint32 megaTileNum, sint32 stepNum) const { return m_megaTileData[megaTileNum][stepNum]; }
+	uint16			GetMegaTileLength(sint32 megaTileNum) const { return (megaTileNum >= 0 && megaTileNum < k_MAX_MEGATILES) ? m_megaTileLengths[megaTileNum] : 0; }
+	MegaTileStep	GetMegaTileStep(sint32 megaTileNum, sint32 stepNum) const
+	{
+		if (megaTileNum >= 0 && megaTileNum < k_MAX_MEGATILES && stepNum >= 0 && stepNum < k_MAX_MEGATILE_STEPS)
+			return m_megaTileData[megaTileNum][stepNum];
+		MegaTileStep none = {};
+		return none;
+	}
 
 	Pixel16			*GetMapIconData(sint32 icon) { return m_mapIcons[icon]; }
 	POINT			GetMapIconDimensions(MAPICON icon) { return m_mapIconDimensions[icon]; }

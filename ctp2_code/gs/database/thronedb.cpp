@@ -110,7 +110,9 @@ sint32 ThroneDB::ParseThroneDatabase(const MBCHAR *filename)
 	sint32 nThrones = 0;
 	sint32 index = 0;
 
-	Token *throneToken = new Token(filename, TOKEN_THRONE_MAX - TOKEN_MAX, s_ThroneDB_token_data, C3DIR_GAMEDATA);
+	// ctp2-redux: the table has TOKEN_THRONE_MAX - TOKEN_MAX - 1 entries (the
+	// enum starts at TOKEN_MAX + 1); one more read behind it
+	Token *throneToken = new Token(filename, sizeof(s_ThroneDB_token_data) / sizeof(s_ThroneDB_token_data[0]), s_ThroneDB_token_data, C3DIR_GAMEDATA);
 
 	Assert(throneToken);
 

@@ -184,6 +184,7 @@ void tileutils_EncodeCopyRun(Pixel32 **inBuf, int *pos, int width, Pixel16 **out
 
 		runLen++;
 
+		if (*pos >= width) break;   // ctp2-redux: the line is done; its next pixel is behind the image in the last line
 		RGB32Info(**inBuf, &pix16, &alpha);
 		pix32 = (**inBuf) & k_32_BIT_RGB_MASK;
 	}
@@ -213,6 +214,7 @@ void tileutils_EncodeColorizeRun(Pixel32 **inBuf, int *pos, int width, Pixel16 *
 
 		runLen++;
 
+		if (*pos >= width) break;   // ctp2-redux: the line is done; its next pixel is behind the image in the last line
 		RGB32Info(**inBuf, &pix16, &alpha);
 		pix32 = (**inBuf) & k_32_BIT_RGB_MASK;
 	}
@@ -242,6 +244,7 @@ void tileutils_EncodeShadowRun(Pixel32 **inBuf, int *pos, int width, Pixel16 **o
 
 		runLen++;
 
+		if (*pos >= width) break;   // ctp2-redux: the line is done; its next pixel is behind the image in the last line
 		RGB32Info(**inBuf, &pix16, &alpha);
 		pix32 = (**inBuf) & k_32_BIT_RGB_MASK;
 	}
@@ -270,6 +273,7 @@ char tileutils_EncodeSkipRun(Pixel32 **inBuf, int *pos, int width, Pixel16 **out
 
 		runLen++;
 
+		if (*pos >= width) break;   // ctp2-redux: the line is done; its next pixel is behind the image in the last line
 		RGB32Info(**inBuf, &pix16, &alpha);
 		pix32 = (**inBuf) & k_32_BIT_RGB_MASK;
 	}
@@ -412,6 +416,7 @@ void tileutils_EncodeCopyRun16(Pixel16 **inBuf, int *pos, int width, Pixel16 **o
 
 		runLen++;
 
+		if (*pos >= width) break;   // ctp2-redux: the line is done; its next pixel is behind the image in the last line
 		pix16 = (**inBuf);
 		if (sourceDataIs565)
 			pix16 = ((pix16 & 0xFFC0) >> 1) | (pix16 & 0x001F);
@@ -443,6 +448,7 @@ void tileutils_EncodeColorizeRun16(Pixel16 **inBuf, int *pos, int width, Pixel16
 
 		runLen++;
 
+		if (*pos >= width) break;   // ctp2-redux: the line is done; its next pixel is behind the image in the last line
 		pix16 = (**inBuf);
 		if (sourceDataIs565)
 			pix16 = ((pix16 & 0xFFC0) >> 1) | (pix16 & 0x001F);
@@ -473,6 +479,7 @@ void tileutils_EncodeShadowRun16(Pixel16 **inBuf, int *pos, int width, Pixel16 *
 
 		runLen++;
 
+		if (*pos >= width) break;   // ctp2-redux: the line is done; its next pixel is behind the image in the last line
 		pix16 = (**inBuf);
 		if (sourceDataIs565)
 			pix16 = ((pix16 & 0xFFC0) >> 1) | (pix16 & 0x001F);
@@ -501,6 +508,7 @@ char tileutils_EncodeSkipRun16(Pixel16 **inBuf, int *pos, int width, Pixel16 **o
 
 		runLen++;
 
+		if (*pos >= width) break;   // ctp2-redux: the line is done; its next pixel is behind the image in the last line
 		pix16 = (**inBuf);
 		if (sourceDataIs565)
 			pix16 = ((pix16 & 0xFFC0) >> 1) | (pix16 & 0x001F);

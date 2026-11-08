@@ -268,11 +268,62 @@ falsche Teil-/Kompressions-/Sammelpakete). Ergebnis: ASan nur die 11 alten
 Lesefehler (ThroneDB-Tokenizer, Kartensymbole, Chat-Textfeld), kein
 Schreibfehler, Spiel synchron. Ohne Fälschungen wird kein Paket verworfen.
 
-Noch offen (bekannt, nicht abgesichert): Kartenkoordinaten aus Paketen
-(29 Stellen, teils mit Platzhalterwerten; `World::GetCell` prüft nur per
-Assert) und Datenbank-Indizes aus Paketen (Einheiten-/Gebäudetypen usw.
-außerhalb von `UnpacketizeUnit`). Vorschlag: zentrale Prüfung in
-`World::GetCell/AccessCell` bzw. in den DB-`Get`-Funktionen.
+Zweiter Schritt (2026-11-08): Kartenkoordinaten und Datenbank-Indizes aus
+Paketen.
+- Zentral, für alle Aufrufer: `World::GetCell/AccessCell` und
+  `GetTileInfoStoragePtr` lassen Positionen außerhalb der Karte umlaufen wie
+  der bisherige Überhang `k_MAP_WRAPAROUND` (y ohne y-Umlauf am Rand
+  gehalten; innerhalb der Karte ein Vergleich, Ergebnis unverändert).
+  `Vision::Convert` ebenso. `TileSet`-Zugriffe (Basiskacheln, Übergänge,
+  Flüsse, Ausbauten, Megakacheln) geben außerhalb ihrer Felder NULL/0 (die
+  Aufrufer behandeln das schon), `SpriteGroupList::LoadSprite` prüft den
+  Index wie `GetSprite`. `Advances` prüft den Fortschritt in
+  `SetHasAdvance` (schrieb hinter das Feld), `GiveAdvance`, `TakeAdvance`,
+  `InitialAdvance`, `CanResearch`, `SetResearching`; `CityData`
+  Spezialisten (schrieb hinter das Feld); `Player::SetGovernmentType`
+  (`>` statt `>=`) und `ActuallySetGovernment`.
+- `net_util.h`: `NET_INDEX(x, anzahl)`, `NET_POS(p)`,
+  `NET_POS_OR_NONE(p)` (erlaubt (-1,-1)).
+- `NetAction` (Client an Host): `CheckActionArguments` prüft an einer Stelle
+  vor der Ausführung Spieler, DB-Indizes (Einheit, Gebäude, Wunder,
+  Endspielobjekt, Fortschritt, Regierung, Geländeausbau, Gelände, Rohstoff,
+  Bauliste), Positionen und Aufzählungswerte; Aktionen nimmt nur der Host
+  an. `NetInfo` (Host an Clients): `CheckInfoArguments` ebenso (nur Felder,
+  die der jeweilige Code überträgt; gegen `m_args` abgeglichen).
+- Objektpakete prüfen vor dem Ändern des Objekts: `UnpacketizeUnit`
+  (Besitzer, Typ, Position), `NetUnitMove`, `NetOrder` (Besitzer, Befehl,
+  Ereignis, Ziel, Pfad; Schritte ohne Pfadkopf liefen über einen
+  NULL-Zeiger, Pfadzähler auf das Pfadende begrenzt), `NetArmy`,
+  `NetInstallation`, `NetTerrainImprovement`, `NetTradeRoute` (Spieler,
+  Routentyp, Rohstoff, Wegpunkte), `NetCellData`/`NetCellList` (Gelände),
+  `NetCellUnitOrder` (schrieb bis 255 Einheiten in 12 Plätze, nur Assert),
+  `NetUnseenCell` (Spieler, Gelände, Position, Stadtbesitzer, Einheitentyp,
+  Ausbauten, Stadtname gekürzt).
+
+Test erweitert: der Host schickt zusätzlich gut geformte Pakete mit
+Positionen außerhalb der Karte und Indizes hinter den Listen (Bewegung,
+Befehle mit Typ 200 / Schritten ohne Pfad / Richtung 15, Armee, Feld,
+Einheitenliste mit 200 Einträgen, unsichtbares Feld, Geländeausbau, Anlage,
+Handelsroute, 16 Info-Codes), der Client schickt dem Host 12 gefälschte
+Aktionen (Spezialist 1000, Spieler 200, Fortschritt 100000, Regierung
+= Anzahl, Einheitentyp 99999, Positionen, Rohstoff 9999, Zustand 77).
+Die Pakete, die eine echte Armee brauchen, schickt der Host in der ersten
+Runde ab 3, in der es eine gibt. Ergebnis: Client verwirft 90 von 101,
+Host 12 von 12 (der Rest wird mit gekürzten Texten angenommen); ASan ohne
+jede Meldung; Spiel synchron. Ohne Fälschungen 20 und 60 Runden ohne ein
+verworfenes Paket; Tour 43 Fenster.
+
+Die 11 alten ASan-Lesefehler sind ebenfalls behoben:
+- `aui_TextBox::CalculateItems` (Lobby-Chat, also doch aus dem Netzwerk):
+  Endzeichen `'0'` statt `'\0'`, jede Chatzeile wurde über ihr Ende gelesen.
+- `ThroneDB`: Tokentabelle mit 5 Einträgen, übergeben wurden 6.
+- `tileutils_Encode*Run(16)`: lasen nach dem letzten Pixel einer Zeile das
+  nächste, in der letzten Zeile hinter dem Bild (Kartensymbole).
+
+Bleibt (bewusst): ungültige Objekt-IDs (Einheit, Stadt, Armee) aus Paketen
+führen an manchen Stellen zu einem NULL-Zugriff (Absturz, kein
+Speicherschreiben); ein Host kann den Spielstand seiner Clients ohnehin
+beliebig setzen.
 
 ## Phase 2b – Gleichzeitige Züge (nach Phase 2, Wunsch des Besitzers)
 

@@ -39,6 +39,8 @@
 #include "World.h"              // g_theWorld
 #include "player.h"             // g_player
 #include "tiledmap.h"           // g_tiledMap
+#include "TerrainImprovementRecord.h"   // g_theTerrainImprovementDB
+#include "TerrainRecord.h"      // g_theTerrainDB
 
 //----------------------------------------------------------------------------
 //
@@ -118,6 +120,17 @@ void NetTerrainImprovement::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	TerrainImprovement imp;
 	PULLLONGTYPE(imp, TerrainImprovement);
 
+	// ctp2-redux: owner, type, position and terrain are checked before the
+	// object changes (the terrain is 255 for "none")
+	{
+		sint32 p = 6;
+		net_Need(p, 1 + 1 + 2 + 2 + 2 + 1, size);
+		NET_PLAYER(buf[p]);
+		NET_INDEX(buf[p + 1], g_theTerrainImprovementDB->NumRecords());
+		MapPoint at(static_cast<sint16>(getshort(&buf[p + 2])), static_cast<sint16>(getshort(&buf[p + 4])));
+		NET_POS(at);
+		NET_CHECK(buf[p + 8] < g_theTerrainDB->NumRecords() || buf[p + 8] == 0xff);
+	}
 	g_network.CheckReceivedObject((uint32)imp);
 
 	if(!g_theTerrainImprovementPool->IsValid(imp)) {

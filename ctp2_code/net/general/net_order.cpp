@@ -133,6 +133,10 @@ void NetOrder::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	PULLLONGTYPE(m_army, Army);
 	PULLBYTETYPE(m_order, UNIT_ORDER_TYPE);
 	PULLSHORTTYPE(m_event, GAME_EVENT);
+	NET_PLAYER(m_owner);
+	NET_CHECK(m_order >= 0 && m_order < UNIT_ORDER_MAX);
+	// GEV_MAX stands for "no event" (ArmyData::AddOrders)
+	NET_CHECK(m_event >= 0 && m_event <= GEV_MAX);
 
 	if(!g_theArmyPool->IsValid(m_army)) {
 		DPRINTF(k_DBG_NET, ("Received order for invalid army %lx\n", m_army.m_id));
@@ -147,12 +151,15 @@ void NetOrder::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 
 	PULLSHORT(m_point.x);
 	PULLSHORT(m_point.y);
+	NET_POS_OR_NONE(m_point);
 
 	sint32 i;
 	uint16 n;
 	PULLSHORT(n);
 
 	Path *path = NULL;
+	// ctp2-redux: a broken path is deleted before the packet is thrown away
+	try {
 	if(n & 0x8000) {
 		path = new Path;
 		PULLSHORT(path->m_start.x);
@@ -161,18 +168,38 @@ void NetOrder::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 		PULLSHORT(path->m_current.y);
 		PULLLONG(path->m_next_dir);
 		PULLLONG(path->m_next);
+		NET_POS_OR_NONE(path->m_start);
+		NET_POS_OR_NONE(path->m_current);
 		n &= ~(0x8000);
 	}
 
+	// steps without a path head would be written through a NULL path
+	NET_CHECK(path || n == 0);
 	for(i = 0; i < n; i += 2) {
 		uint8 twodirs;
 		PULLBYTE(twodirs);
+		NET_CHECK((twodirs >> 4) < NOWHERE);
 		path->m_step.Insert((WORLD_DIRECTION)(twodirs >> 4));
 		if(i + 1 < n) {
+			NET_CHECK((twodirs & 0xf) < NOWHERE);
 			path->m_step.Insert((WORLD_DIRECTION)(twodirs & 0xf));
 		}
 	}
+	// the step counters index m_step without a check (Path::GetCurrentDir);
+	// one behind the end is held at the end, which IsEnd and IsEndDir read
+	// the same way (Path::DelUpToIndex leaves m_next_dir as it was)
+	if(path) {
+		NET_CHECK(path->m_next >= 0 && path->m_next_dir >= 0);
+		if(path->m_next > path->m_step.Num())
+			path->m_next = path->m_step.Num();
+		if(path->m_next_dir > path->m_step.Num())
+			path->m_next_dir = path->m_step.Num();
+	}
 	PULLLONG(m_argument);
+	} catch(NetPacketError const &) {
+		delete path;
+		throw;
+	}
 
 #ifdef _DEBUG
 	MapPoint armyPos;

@@ -81,7 +81,16 @@
 #include "c3ui.h"
 #include "aui_button.h"
 #include "gstypes.h"                    // TERRAIN_TYPES
-
+#include "UnitRecord.h"                 // g_theUnitDB
+#include "BuildingRecord.h"             // g_theBuildingDB
+#include "WonderRecord.h"               // g_theWonderDB
+#include "GovernmentRecord.h"           // g_theGovernmentDB
+#include "TerrainImprovementRecord.h"   // g_theTerrainImprovementDB
+#include "TerrainRecord.h"              // g_theTerrainDB
+#include "ResourceRecord.h"             // g_theResourceDB
+#include "EndGameObjectRecord.h"        // g_theEndGameObjectDB
+#include "BuildListSequenceRecord.h"    // g_theBuildListSequenceDB
+#include "Globals.h"                    // k_GAME_OBJ_TYPE_*
 extern C3UI *g_c3ui;
 
 void battleview_ExitButtonActionCallback( aui_Control *control, uint32 action, uint32 data, Cookie cookie );
@@ -308,6 +317,158 @@ void NetAction::Packetize(uint8* buf, uint16& size)
 	}
 }
 
+namespace
+{
+	// ctp2-redux: the arguments of an action from a client that the host
+	// uses as array or database indices, player numbers or map positions are
+	// checked here, in one place, before the action runs. Before, a forged
+	// action could index arrays behind their end (city specialists, players,
+	// advances). "or none" allows -1 where the game uses it for "nothing".
+	sint32 Arg(uint32 value) { return static_cast<sint32>(value); }
+
+	void ArgPlayer(uint32 value)              { NET_PLAYER(Arg(value)); }
+	void ArgPlayerOrNone(uint32 value)        { if(Arg(value) != -1) ArgPlayer(value); }
+	void ArgIndex(uint32 value, sint32 count) { NET_INDEX(Arg(value), count); }
+	void ArgIndexOrNone(uint32 value, sint32 count) { if(Arg(value) != -1) ArgIndex(value, count); }
+	void ArgPosition(uint32 x, uint32 y)      { NET_POS(MapPoint(static_cast<sint16>(Arg(x)), static_cast<sint16>(Arg(y)))); }
+	void ArgUpto(uint32 value, sint32 last)   { NET_CHECK(Arg(value) >= 0 && Arg(value) <= last); }
+
+	void ArgRouteResource(uint32 type, uint32 resource)
+	{
+		ArgUpto(type, ROUTE_TYPE_SLAVE);
+		if(Arg(type) == ROUTE_TYPE_RESOURCE)
+			ArgIndex(resource, g_theResourceDB->NumRecords());
+	}
+
+	void CheckActionArguments(NET_ACTION action, uint32 const * d)
+	{
+		switch(action)
+		{
+		case NET_ACTION_BUILD:
+		case NET_ACTION_CREATE_UNIT_CHEAT:
+		case NET_ACTION_CREATE_CITY_CHEAT:
+			ArgIndex(d[0], g_theUnitDB->NumRecords());
+			if(action != NET_ACTION_BUILD)
+				ArgPosition(d[1], d[2]);
+			break;
+		case NET_ACTION_BUILD_IMP:
+			ArgIndex(d[0], g_theBuildingDB->NumRecords());
+			break;
+		case NET_ACTION_SELL_BUILDING:
+			ArgIndex(d[1], g_theBuildingDB->NumRecords());
+			break;
+		case NET_ACTION_BUILD_WONDER:
+			ArgIndex(d[1], g_theWonderDB->NumRecords());
+			break;
+		case NET_ACTION_BUILD_END_GAME:
+			ArgIndex(d[1], g_theEndGameObjectDB->NumRecords());
+			break;
+		case NET_ACTION_CHANGE_BUILD:
+			if(Arg(d[1]) == k_GAME_OBJ_TYPE_UNIT)
+				ArgIndex(d[2], g_theUnitDB->NumRecords());
+			else if(Arg(d[1]) == k_GAME_OBJ_TYPE_IMPROVEMENT)
+				ArgIndex(d[2], g_theBuildingDB->NumRecords());
+			else if(Arg(d[1]) == k_GAME_OBJ_TYPE_WONDER)
+				ArgIndex(d[2], g_theWonderDB->NumRecords());
+			else if(Arg(d[1]) == k_GAME_OBJ_TYPE_ENDGAME_OBJECT)
+				ArgIndex(d[2], g_theEndGameObjectDB->NumRecords());
+			break;
+		case NET_ACTION_SET_MAYOR:
+			ArgIndex(d[1], g_theBuildListSequenceDB->NumRecords());
+			break;
+		case NET_ACTION_SET_SPECIALISTS:
+			ArgIndex(d[1], POP_MAX);
+			break;
+		case NET_ACTION_SET_READINESS:
+			ArgUpto(d[0], READINESS_LEVEL_WAR);
+			break;
+
+		case NET_ACTION_TERRAIN_IMPROVEMENT:
+		case NET_ACTION_CHEAT_CREATE_TERRAIN_IMPROVEMENT:
+			ArgIndex(d[0], g_theTerrainImprovementDB->NumRecords());
+			ArgPosition(d[1], d[2]);
+			ArgIndexOrNone(d[3], g_theTerrainDB->NumRecords());
+			break;
+		case NET_ACTION_CREATE_INSTALLATION:
+			ArgIndex(d[0], g_theTerrainImprovementDB->NumRecords());
+			ArgPosition(d[1], d[2]);
+			break;
+		case NET_ACTION_SELL_UNITS:
+		case NET_ACTION_SELL_IMPROVEMENTS:
+			ArgPosition(d[0], d[1]);
+			break;
+
+		case NET_ACTION_RESEARCH:
+		case NET_ACTION_ADVANCE_CHEAT:
+		case NET_ACTION_TAKE_ADVANCE_CHEAT:
+			ArgIndex(d[0], g_theAdvanceDB->NumRecords());
+			break;
+		case NET_ACTION_STEAL_TECHNOLOGY:
+			ArgIndexOrNone(d[2], g_theAdvanceDB->NumRecords());
+			break;
+		case NET_ACTION_SET_ADVANCE:
+		case NET_ACTION_SET_WANTED_ADVANCE:
+			ArgIndexOrNone(d[1], g_theAdvanceDB->NumRecords());
+			break;
+		case NET_ACTION_SET_GOVERNMENT:
+		case NET_ACTION_ACTUALLY_SET_GOVERNMENT:
+			ArgIndex(d[0], g_theGovernmentDB->NumRecords());
+			break;
+
+		case NET_ACTION_CREATE_TRADE_ROUTE:
+			ArgRouteResource(d[1], d[2]);
+			ArgPlayer(d[5]);                  // paying for (a city owner)
+			break;
+		case NET_ACTION_CREATE_TRADE_OFFER:
+			ArgRouteResource(d[1], d[2]);
+			ArgRouteResource(d[3], d[4]);
+			break;
+		case NET_ACTION_REQUEST_TRADE_ROUTE:
+			ArgIndex(d[0], g_theResourceDB->NumRecords());
+			break;
+		case NET_ACTION_SEND_TRADE_BID:
+		case NET_ACTION_ACCEPT_TRADE_BID:
+		case NET_ACTION_REJECT_TRADE_BID:
+			ArgPlayer(d[0]);
+			ArgIndex(d[2], g_theResourceDB->NumRecords());
+			break;
+		case NET_ACTION_ACCEPT_TRADE_OFFER:
+			ArgPlayer(d[1]);
+			break;
+
+		case NET_ACTION_CREATED_CIV:
+		case NET_ACTION_KILLED_PLAYER:
+		case NET_ACTION_DECLARE_WAR:
+			ArgPlayer(d[0]);
+			break;
+		case NET_ACTION_BREAK_ALLIANCE:
+		case NET_ACTION_BREAK_CEASE_FIRE:
+		case NET_ACTION_OFFER_REJECTED_MESSAGE:
+			ArgPlayer(d[0]);
+			ArgPlayer(d[1]);
+			break;
+		case NET_ACTION_SET_DIP_STATE:
+			ArgPlayer(d[0]);
+			ArgUpto(d[1], DIPLOMATIC_STATE_ALLIED);
+			break;
+		case NET_ACTION_CREATE_DIP_REQUEST:
+			ArgPlayer(d[0]);
+			ArgPlayer(d[1]);
+			ArgIndex(d[2], REQUEST_TYPE_MAX);
+			break;
+		case NET_ACTION_SET_THIRD_PARTY:
+			ArgPlayerOrNone(d[1]);
+			break;
+		case NET_ACTION_SET_RESPONSE:
+			ArgIndex(d[1], REQUEST_RESPONSE_TYPE_MAX);
+			break;
+
+		default:
+			break;
+		}
+	}
+}
+
 void NetAction::Unpacketize(uint16 id, uint8* buf, uint16 size)
 {
 	Assert(buf[0] == 'A' && buf[1] == 'A');
@@ -321,6 +482,9 @@ void NetAction::Unpacketize(uint16 id, uint8* buf, uint16 size)
 	for(uint32 i = 0; i < m_args[m_action]; i++) {
 		PULLLONG(m_data[i]);
 	}
+	// ctp2-redux: actions go from the clients to the host only
+	NET_CHECK(g_network.IsHost());
+	CheckActionArguments(m_action, m_data);
 
 	sint32 index = g_network.IdToIndex(id);
 

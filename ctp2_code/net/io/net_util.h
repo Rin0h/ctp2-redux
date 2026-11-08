@@ -98,6 +98,21 @@ inline sint32 net_PlayerIndex(sint32 index)
 }
 #define NET_PLAYER(x) net_PlayerIndex(static_cast<sint32>(x))
 
+// an index from a packet into a list of count entries (database records,
+// enum values)
+inline sint32 net_Index(sint32 index, sint32 count)
+{
+	if(index < 0 || index >= count)
+		throw NetPacketError();
+	return index;
+}
+#define NET_INDEX(x, count) net_Index(static_cast<sint32>(x), static_cast<sint32>(count))
+
+// a map position from a packet (needs MapPoint.h): on the map, or the
+// "no position" (-1,-1) where the game uses that
+#define NET_POS(p) NET_CHECK((p).IsValid())
+#define NET_POS_OR_NONE(p) NET_CHECK((p).IsValid() || ((p).x == -1 && (p).y == -1))
+
 // names from a packet: no real one is longer (the input fields allow 23 and
 // 50 characters), and the game copies names into buffers of 256 and less
 #define k_NET_MAX_NAME 64

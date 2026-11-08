@@ -145,7 +145,18 @@ public:
 
 	void Convert(MapPoint &pos) const
 	{
+		// ctp2-redux: a position outside the map (from a packet or a bug)
+		// runs around instead of indexing m_array from behind; inside the map
+		// the result is the same as before
+		if ((pos.x < 0 || pos.x >= m_width) && m_width > 0)
+		{
+			pos.x = static_cast<sint16>(((pos.x % m_width) + m_width) % m_width);
+		}
 		int l_ResultY   = pos.y + pos.x;
+		if ((l_ResultY < 0 || l_ResultY >= 2 * m_height) && m_height > 0)
+		{
+			l_ResultY = ((l_ResultY % m_height) + m_height) % m_height;
+		}
 		while (l_ResultY >= m_height)
 		{
 			l_ResultY  -= m_height;

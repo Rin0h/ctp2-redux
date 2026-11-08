@@ -265,6 +265,11 @@ void Advances::UpdateCitySprites(BOOL forceUpdate)
 
 void Advances::SetHasAdvance(AdvanceType advance, const bool init)
 {
+	// ctp2-redux: the index comes from the network, events and scripts too
+	Assert(0 <= advance && advance < m_size);
+	if (advance < 0 || advance >= m_size)
+		return;
+
 	if (   !g_player[m_owner]       // non-existing player
 	    || m_hasAdvance[advance]    // advance already known
 	    || !g_slicEngine->CallMod   // forbidden by game settings
@@ -345,6 +350,11 @@ void Advances::GiveAdvance(AdvanceType adv, CAUSE_SCI cause, BOOL fromClient)
 	DPRINTF(k_DBG_GAMESTATE, ("Advance: Player %d was given %s\n", m_owner,
 			g_theAdvanceDB->GetNameStr(adv)));
 
+	// ctp2-redux: the index comes from the network, events and scripts too
+	Assert(0 <= adv && adv < m_size);
+	if (adv < 0 || adv >= m_size)
+		return;
+
 	if (    m_hasAdvance[adv]           // already known
 	     || !g_slicEngine->CallMod      // forbidden by game settings
 	            (mod_CanPlayerHaveAdvance, TRUE, m_owner, adv)
@@ -413,6 +423,11 @@ void Advances::TakeAdvance(AdvanceType adv)
 	DPRINTF(k_DBG_GAMESTATE, ("Advance: %s was taken from Player %d", g_theAdvanceDB->GetNameStr(adv),
 		m_owner));
 
+	// ctp2-redux: the index comes from the network, events and scripts too
+	Assert(0 <= adv && adv < m_size);
+	if (adv < 0 || adv >= m_size)
+		return;
+
 	if(!m_hasAdvance[adv])
 		return;
 
@@ -438,6 +453,11 @@ void Advances::InitialAdvance(AdvanceType adv)
 	DPRINTF(k_DBG_GAMESTATE, ("Advance: Player %d was given %s as an initial advance\n", m_owner,
 			g_theAdvanceDB->GetNameStr(adv)));
 
+	// ctp2-redux: the index comes from the network, events and scripts too
+	Assert(0 <= adv && adv < m_size);
+	if (adv < 0 || adv >= m_size)
+		return;
+
 	if(!g_slicEngine->CallMod(mod_CanPlayerHaveAdvance, TRUE, m_owner, adv))
 		return;
 
@@ -460,6 +480,9 @@ uint8 * Advances::CanResearch() const
 
 BOOL Advances::CanResearch(sint32 advance) const
 {
+	if (advance < 0 || advance >= m_size)   // ctp2-redux
+		return FALSE;
+
 	return (BOOL)m_canResearch[advance];
 }
 
@@ -1348,6 +1371,11 @@ sint32 Advances::TurnsToNextAdvance(AdvanceType adv) const
 
 void Advances::SetResearching(AdvanceType adv)
 {
+	// ctp2-redux: the index comes from the network, events and scripts too
+	Assert(0 <= adv && adv < m_size);
+	if (adv < 0 || adv >= m_size)
+		return;
+
 	if(!g_slicEngine->CallMod(mod_CanPlayerHaveAdvance, TRUE, m_owner, adv))
 		return;
 

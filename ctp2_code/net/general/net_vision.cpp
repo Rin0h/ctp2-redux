@@ -46,6 +46,8 @@
 #include "UnitActor.h"
 #include "SpriteState.h"
 #include "UnitRecord.h"
+#include "TerrainRecord.h"          // g_theTerrainDB
+#include "TerrainImprovementRecord.h"   // g_theTerrainImprovementDB
 
 //----------------------------------------------------------------------------
 //
@@ -347,14 +349,20 @@ void NetUnseenCell::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	PULLID(packid);
 	Assert(packid == k_PACKET_UNSEEN_CELL_ID);
 	PULLBYTE(m_owner);
+	NET_PLAYER(m_owner);
 
 	m_ucell = new UnseenCell;
+	// ctp2-redux: the numbers in the cell are checked; a broken cell is
+	// deleted before the packet is thrown away
+	try {
 
 	PULLLONG(m_ucell->m_env);
 	PULLBYTETYPE(m_ucell->m_terrain_type, TERRAIN_TYPES);
+	NET_INDEX(m_ucell->m_terrain_type, g_theTerrainDB->NumRecords());
 
 	PULLSHORT(m_ucell->m_point.x);
 	PULLSHORT(m_ucell->m_point.y);
+	NET_POS(m_ucell->m_point);
 	PULLSHORT(m_ucell->m_move_cost);
 
 
@@ -394,9 +402,12 @@ void NetUnseenCell::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 
 
 		PULLSHORT(m_ucell->m_cityOwner);
+		NET_PLAYER(m_ucell->m_cityOwner);
 		PULLSHORT(m_ucell->m_citySpriteIndex);
 
 		PULLNEWSTRING(m_ucell->m_cityName);
+		if(m_ucell->m_cityName)
+			net_Cut(m_ucell->m_cityName, k_NET_MAX_NAME);
 
 
 
@@ -409,6 +420,7 @@ void NetUnseenCell::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 
 		uint16 dbIndex;
 		PULLSHORT(dbIndex);
+		NET_INDEX(dbIndex, g_theUnitDB->NumRecords());
 
 		double		visionRange = g_theUnitDB->Get(dbIndex, g_player[NET_PLAYER(m_owner)]->GetGovernmentType())->GetVisionRange();
 
@@ -437,6 +449,7 @@ void NetUnseenCell::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 		uint8 percent;
 		PULLBYTE(type);
 		PULLBYTE(percent);
+		NET_INDEX(type, g_theTerrainImprovementDB->NumRecords());
 		m_ucell->m_improvements->AddTail(
 			new UnseenImprovementInfo((TERRAIN_IMPROVEMENT)type,
 									  (sint32)percent));
@@ -448,6 +461,7 @@ void NetUnseenCell::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 		uint32 vis;
 		PULLBYTE(type);
 		PULLLONG(vis);
+		NET_INDEX(type, g_theTerrainImprovementDB->NumRecords());
 		m_ucell->m_installations->AddTail(new UnseenInstallationInfo((sint32)type, vis));
 	}
 
@@ -461,6 +475,11 @@ void NetUnseenCell::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	PULLSHORT(m_ucell->m_tileInfo->m_tileNum);
 	for(c = 0; c < k_NUM_TRANSITIONS; c++) {
 		PULLBYTE(m_ucell->m_tileInfo->m_transitions[c]);
+	}
+	} catch(NetPacketError const &) {
+		delete m_ucell;
+		m_ucell = NULL;
+		throw;
 	}
 
 	g_player[NET_PLAYER(m_owner)]->m_vision->AddUnseen(m_ucell);

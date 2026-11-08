@@ -190,30 +190,51 @@ public:
     sint32 GetXWidth() const { return m_size.x; }
     sint32 GetYHeight() const { return m_size.y; }
 
+    // ctp2-redux: a position outside the map (from a packet, a map file or a
+    // bug) no longer reads a cell pointer from behind the map in release
+    // builds; the Asserts still report it in debug builds. x always runs
+    // around (the map array has a wraparound margin of k_MAP_WRAPAROUND
+    // pointing at the cells of the other side, this gives the same cells and
+    // has no end), y runs around on a y-wrap map and is held at the edge
+    // otherwise. Inside the map it is one compare.
+    sint32 InMapX(sint32 x) const
+    {
+        if (static_cast<uint32>(x) < static_cast<uint32>(m_size.x) || m_size.x <= 0) return x;
+        x %= m_size.x;
+        return x < 0 ? x + m_size.x : x;
+    }
+    sint32 InMapY(sint32 y) const
+    {
+        if (static_cast<uint32>(y) < static_cast<uint32>(m_size.y) || m_size.y <= 0) return y;
+        if (!m_isYwrap) return y < 0 ? 0 : m_size.y - 1;
+        y %= m_size.y;
+        return y < 0 ? y + m_size.y : y;
+    }
+
     Cell * GetCell(const MapPoint &p) const {
         Assert(0 <= p.x);  Assert(p.x < m_size.x);
         Assert(0 <= p.y);  Assert(p.y < m_size.y);
 
-        return m_map[p.x][p.y];
+        return m_map[InMapX(p.x)][InMapY(p.y)];
     };
 
     Cell * GetCell(const size_t x, const size_t y)  const {
         Assert(x < static_cast<size_t>(m_size.x));
         Assert(y < static_cast<size_t>(m_size.y));
-        return m_map[x][y];
+        return m_map[InMapX(static_cast<sint32>(x))][InMapY(static_cast<sint32>(y))];
     };
 
     Cell * AccessCell(const MapPoint &p)  {
         Assert(0 <= p.x);  Assert(p.x < m_size.x);
         Assert(0 <= p.y);  Assert(p.y < m_size.y);
 
-        return m_map[p.x][p.y];
+        return m_map[InMapX(p.x)][InMapY(p.y)];
     };
 
     Cell * AccessCell(const size_t x, const size_t y)  {
         Assert(x < static_cast<size_t>(m_size.x));
         Assert(y < static_cast<size_t>(m_size.y));
-        return m_map[x][y];
+        return m_map[InMapX(static_cast<sint32>(x))][InMapY(static_cast<sint32>(y))];
     };
 
     void RandTilePoint(MapPoint &r);

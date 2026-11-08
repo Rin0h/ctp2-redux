@@ -209,21 +209,34 @@ void NetArmy::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 		m_data = new ArmyData(army);
 	}
 
+	// ctp2-redux: the packet is read and checked as a whole before the army
+	// changes (the unit list is capped at k_MAX_ARMY_SIZE by Insert)
 	uint8 c;
 	PULLBYTE(c);
+	net_Need(pos, 4 * c, size);
+	sint32 const unitsAt = pos;
+	pos += 4 * c;
+
+	uint8 owner;
+	MapPoint armyPos, reentryPos;
+	PULLBYTE(owner);
+	PULLSHORT(armyPos.x);
+	PULLSHORT(armyPos.y);
+	PULLSHORT(reentryPos.x);
+	PULLSHORT(reentryPos.y);
+	NET_PLAYER(owner);
+	NET_POS_OR_NONE(armyPos);
+	NET_POS_OR_NONE(reentryPos);
+
 	m_data->Clear();
 	for(i = 0; i < c; i++) {
-		Unit u;
-		PULLLONGTYPE(u, Unit);
+		Unit u(getlong(&buf[unitsAt + 4 * i]));
 		if(g_theUnitPool->IsValid(u))
 			m_data->Insert(u);
 	}
-
-	PULLBYTE(m_data->m_owner);
-	PULLSHORT(m_data->m_pos.x);
-	PULLSHORT(m_data->m_pos.y);
-	PULLSHORT(m_data->m_reentryPos.x);
-	PULLSHORT(m_data->m_reentryPos.y);
+	m_data->m_owner = owner;
+	m_data->m_pos = armyPos;
+	m_data->m_reentryPos = reentryPos;
 
 	if(!g_theArmyPool->IsValid(army)) {
 		g_theArmyPool->HackSetKey(((uint32)m_data->m_id & k_ID_KEY_MASK) + 1);

@@ -138,7 +138,13 @@ extern void network_VerifyGameData();
 
 #include "FeatTracker.h"	// Propagate feats
 #include "MaterialPool.h"	// Propagate PW
-
+#include "BuildingRecord.h"             // g_theBuildingDB
+#include "GovernmentRecord.h"           // g_theGovernmentDB
+#include "ResourceRecord.h"             // g_theResourceDB
+#include "EndGameObjectRecord.h"        // g_theEndGameObjectDB
+#include "BuildListSequenceRecord.h"    // g_theBuildListSequenceDB
+#include "UnitRecord.h"                 // g_theUnitDB
+#include "FeatRecord.h"                 // g_theFeatDB
 const uint32 NetInfo::m_args[NET_INFO_CODE_NULL] = {
 	// this array tells how many arguments each NET_INFO has
 
@@ -312,6 +318,151 @@ NetInfo::Packetize(uint8* buf, uint16& size)
 	}
 }
 
+namespace
+{
+	// ctp2-redux: the values of an info packet from the host that index
+	// arrays or databases, or are player numbers or map positions, are
+	// checked here, in one place, before the info is applied (see
+	// CheckActionArguments in net_action.cpp for the other direction).
+	sint32 Arg(uint32 value) { return static_cast<sint32>(value); }
+
+	void ArgPlayer(uint32 value)              { NET_PLAYER(Arg(value)); }
+	void ArgPlayerOrNone(uint32 value)        { if(Arg(value) != -1) ArgPlayer(value); }
+	void ArgIndex(uint32 value, sint32 count) { NET_INDEX(Arg(value), count); }
+	void ArgUpto(uint32 value, sint32 last)   { NET_CHECK(Arg(value) >= 0 && Arg(value) <= last); }
+	void ArgPosition(uint32 x, uint32 y)      { NET_POS(MapPoint(static_cast<sint16>(Arg(x)), static_cast<sint16>(Arg(y)))); }
+	void ArgPackedPosition(uint32 packed)
+	{
+		MapPoint pos;
+		g_network.UnpackedPos(packed, pos);
+		NET_POS(pos);
+	}
+
+	void CheckInfoArguments(NET_INFO_CODE type, uint32 d1, uint32 d2, uint32 d3, uint32 d4)
+	{
+		switch(type)
+		{
+		case NET_INFO_CODE_PLAYER_INDEX:
+		case NET_INFO_CODE_BEGIN_TURN:
+		case NET_INFO_CODE_SET_TURN:
+		case NET_INFO_CODE_BEGIN_SLICE:
+		case NET_INFO_CODE_ACTIVATE_SPACE_BUTTON:
+		case NET_INFO_CODE_CITIES_DONE:
+		case NET_INFO_CODE_BEGIN_SCHEDULER:
+		case NET_INFO_CODE_OTHER_CIV_LAB_MSG:
+		case NET_INFO_CODE_OTHER_CIV_SEQUENCE_MSG:
+		case NET_INFO_CODE_ALIEN_ALMOST_DONE_OTHERS_MSG:
+		case NET_INFO_CODE_ALIEN_SCRAPPED_OWNER:
+		case NET_INFO_CODE_CATACLYSM_OTHER:
+		case NET_INFO_CODE_WON_END_GAME:
+			ArgPlayer(d1);
+			break;
+		case NET_INFO_CODE_NEW_CIVILIZATION:
+			ArgPlayer(d1);
+			ArgUpto(d2, PLAYER_TYPE_NETWORK);
+			break;
+		case NET_INFO_CODE_KILL_PLAYER:
+			ArgPlayer(d1);
+			break;
+		case NET_INFO_CODE_RESET_CITY_OWNER:
+		case NET_INFO_CODE_RESET_UNIT_OWNER:
+		case NET_INFO_CODE_VIOLATE_AGREEMENT:
+			ArgPlayer(d2);
+			break;
+		case NET_INFO_CODE_CHANGE_INSTALLATION_OWNER:
+			ArgPlayer(d3);
+			break;
+		case NET_INFO_CODE_BREAK_ALLIANCE:
+		case NET_INFO_CODE_BREAK_CEASE_FIRE:
+		case NET_INFO_CODE_REVOLT_NOTICES:
+		case NET_INFO_CODE_OFFER_REJECTED_MESSAGE:
+			ArgPlayer(d1);
+			ArgPlayer(d2);
+			break;
+		case NET_INFO_CODE_SET_DIP_STATE:
+			ArgPlayer(d1);
+			ArgPlayer(d2);
+			ArgUpto(d3, DIPLOMATIC_STATE_ALLIED);
+			break;
+		case NET_INFO_CODE_CELL_OWNER:
+			ArgPackedPosition(d1);
+			ArgPlayerOrNone(d2);
+			break;
+		case NET_INFO_CODE_ADD_UNSEEN:
+			ArgPlayer(d1);
+			ArgPackedPosition(d2);
+			break;
+		case NET_INFO_CODE_SET_SETUP_AREA:
+			ArgPlayer(d1);
+			ArgPosition(d2, d3);
+			break;
+		case NET_INFO_CODE_REMOVE_HUT:
+			ArgPosition(d1, d2);
+			break;
+
+		case NET_INFO_CODE_ADVANCE:
+		case NET_INFO_CODE_RESEARCH:
+			ArgIndex(d2, g_theAdvanceDB->NumRecords());
+			break;
+		case NET_INFO_CODE_SET_GOVERNMENT:
+		case NET_INFO_CODE_ACTUALLY_SET_GOVERNMENT:
+			ArgIndex(d2, g_theGovernmentDB->NumRecords());
+			break;
+		case NET_INFO_CODE_BUILD_IMP:
+		case NET_INFO_CODE_SOLD_BUILDING:
+			ArgIndex(d2, g_theBuildingDB->NumRecords());
+			break;
+		case NET_INFO_CODE_BUILD_WONDER:
+			ArgIndex(d2, g_theWonderDB->NumRecords());
+			break;
+		case NET_INFO_CODE_WONDER_BUILT:
+			// also a bit number in a 64 bit mask
+			ArgIndex(d1, (g_theWonderDB->NumRecords() < 64 ? g_theWonderDB->NumRecords() : 64));
+			break;
+		case NET_INFO_CODE_WONDER_STARTED:
+		case NET_INFO_CODE_WONDER_ALMOST_DONE:
+		case NET_INFO_CODE_WONDER_STOPPED:
+			ArgPlayer(d1);
+			ArgIndex(d2, g_theWonderDB->NumRecords());
+			break;
+		case NET_INFO_CODE_WONDER_OBSOLETE:
+			ArgIndex(d1, g_theAdvanceDB->NumRecords());
+			ArgIndex(d2, g_theWonderDB->NumRecords());
+			break;
+		case NET_INFO_CODE_BUILD_END_GAME:
+			ArgIndex(d2, g_theEndGameObjectDB->NumRecords());
+			break;
+		case NET_INFO_CODE_CHANGE_BUILD:
+			if(Arg(d3) == k_GAME_OBJ_TYPE_UNIT)
+				ArgIndex(d4, g_theUnitDB->NumRecords());
+			else if(Arg(d3) == k_GAME_OBJ_TYPE_IMPROVEMENT)
+				ArgIndex(d4, g_theBuildingDB->NumRecords());
+			else if(Arg(d3) == k_GAME_OBJ_TYPE_WONDER)
+				ArgIndex(d4, g_theWonderDB->NumRecords());
+			else if(Arg(d3) == k_GAME_OBJ_TYPE_ENDGAME_OBJECT)
+				ArgIndex(d4, g_theEndGameObjectDB->NumRecords());
+			break;
+		case NET_INFO_CODE_SET_MAYOR:
+			ArgIndex(d2, g_theBuildListSequenceDB->NumRecords());
+			break;
+		case NET_INFO_CODE_SEND_TRADE_BID:
+			ArgPlayer(d1);
+			ArgIndex(d3, g_theResourceDB->NumRecords());
+			break;
+		case NET_INFO_CODE_SEND_OFFER_ACCEPT_MESSAGE:
+			ArgIndex(d3, g_theResourceDB->NumRecords());
+			break;
+		case NET_INFO_CODE_ACCOMPLISHED_FEAT:
+			ArgIndex(d1, g_theFeatDB->NumRecords());
+			ArgPlayer(d2);
+			break;
+
+		default:
+			break;
+		}
+	}
+}
+
 void
 NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 {
@@ -341,6 +492,7 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 	if(m_args[m_type] > 4) {
 		m_data5 = getlong(&buf[20]);
 	}
+	CheckInfoArguments(m_type, m_data, m_data2, m_data3, m_data4);
 
 	switch(m_type) {
 		case NET_INFO_CODE_PLAYER_INDEX:

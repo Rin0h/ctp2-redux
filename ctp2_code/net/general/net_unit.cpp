@@ -209,13 +209,15 @@ void NetUnit::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		NET_CHECK(unitType < static_cast<uint32>(g_theUnitDB->NumRecords()));
 		MapPoint unitPos((sint32)getshort(&buf[16]),
 						 (sint32)getshort(&buf[18]));
+		NET_POS_OR_NONE(unitPos);
 		uint32 flags = getlong(&buf[20]);
 
 		g_theUnitPool->HackSetKey(((uint32)uid & k_ID_KEY_MASK) + 1);
 
 		sint32 trans_t = 0;
         (void) g_theUnitDB->Get(unitType, g_player[NET_PLAYER(unitOwner)]->GetGovernmentType())->GetTransType(trans_t);
-		if (m_actorId.m_id != 0)
+		// ctp2-redux: an unknown actor unit would be read through NULL
+		if (m_actorId.m_id != 0 && m_actorId.IsValid())
         {
 			m_unitData = new UnitData(unitType, trans_t, uid, unitOwner,
 									  unitPos, Unit(),
@@ -346,11 +348,16 @@ void NetUnit::UnpacketizeUnit(uint8* buf, sint32 avail, uint16& size, UnitData* 
 #define NEED(n) net_Need(static_cast<sint32>(ptr - buf), static_cast<sint32>(n), avail)
 
 	NEED(2 + 4 + 2 + 2 + 4 + 4 + 8 + sizeof(double) + sizeof(unitData->m_temp_visibility_array.m_array_index));
-	unitData->m_owner = (PLAYER_INDEX)net_PlayerIndex(getshort(ptr)); ptr += 2;
-	unitData->m_type = getlong(ptr); ptr += 4;
-	NET_CHECK(unitData->m_type >= 0 && unitData->m_type < g_theUnitDB->NumRecords());
-	unitData->m_pos.x = getshort(ptr); ptr += 2;
-	unitData->m_pos.y = getshort(ptr); ptr += 2;
+	// owner, type and position are checked before they go into the unit
+	PLAYER_INDEX const owner = (PLAYER_INDEX)net_PlayerIndex(getshort(ptr)); ptr += 2;
+	sint32 const type = NET_INDEX(getlong(ptr), g_theUnitDB->NumRecords()); ptr += 4;
+	MapPoint unitPos;
+	unitPos.x = getshort(ptr); ptr += 2;
+	unitPos.y = getshort(ptr); ptr += 2;
+	NET_POS_OR_NONE(unitPos);
+	unitData->m_owner = owner;
+	unitData->m_type = type;
+	unitData->m_pos = unitPos;
 
 	unitData->m_flags = getlong(ptr); ptr += 4;
 
@@ -435,6 +442,7 @@ void NetUnitMove::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	PULLLONG(m_id);
 	PULLSHORT(m_point.x);
 	PULLSHORT(m_point.y);
+	NET_POS(m_point);
 
 	Unit u(m_id);
 	Assert(u.IsValid());
