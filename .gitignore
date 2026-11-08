@@ -910,3 +910,9 @@ ctp2_code/ctp/autotest_single/
 
 # ctp2-redux: HD graphics made by tools/upscale (never in the repository)
 ctp2_data/redux_hires/
+
+# ctp2-redux: files the game writes next to the program
+ctp2_code/ctp/x64/autotest_*
+ctp2_code/ctp/x64/crash.txt
+ctp2_code/ctp/x64/screenshot*.bmp
+
