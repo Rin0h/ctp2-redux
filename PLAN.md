@@ -236,6 +236,44 @@ und „Datei zeigen“ (`ctp/ctp2_utils/emailsend.cpp`, Skriptfunktionen
 getestet. Offen/Idee: Empfangsseite erleichtern (z.B. „Spiel laden“ schlägt
 neue Züge aus dem Downloads-Ordner vor).
 
+### Absicherung der Netzwerkpakete (2026-11-08)
+
+Anlass: externer Hinweis, dass der Original-Netzwerkcode Pakete nicht prüft
+(Activision-Code seit 2000). Bestätigt und behoben:
+- `net_util.h`: alle PULL-Makros prüfen gegen die Paketgröße; ein zu kurzes
+  Paket wirft `NetPacketError`, `Network::PacketReady` verwirft es (Log
+  „net: broken packet … thrown away“). `PULLSTRING` kürzt auf das Zielfeld
+  (Zeiger als Ziel kompiliert nicht mehr). `NET_PLAYER()` an allen 241
+  `g_player[...]` in `Unpacketize` mit Werten aus dem Paket, `NET_CHECK()` für
+  Anzahlen/Indizes (Armee-Einheiten, Aktion, Städtenamen, Agreement-Matrix,
+  Info-Typ, CRC-Bereich, Fortschritte, Sichtzeilen, Güter).
+- Direkte Lesezugriffe an den Makros vorbei (NetInfo, NetCity, NetUnit/
+  `UnpacketizeUnit`, NetDifficulty, NetGuid, Handel, Fortschritte, Sicht)
+  prüfen die Länge selbst.
+- `net_thread.cpp`: zerlegte Pakete (Gesamtlänge aus dem Paket, `Append`
+  prüfte nur per Assert) und komprimierte Pakete (Länge aus dem Paket) haben
+  Grenzen (16 MB); `DechunkList` prüft die Teillängen.
+- Folgefehler mit langen Texten: Namen aus Paketen auf 64 Zeichen, Chat auf
+  `k_MAX_CHAT_LEN`; `AddChatText`, `ChatBox::AddLine`, Spieleranzeige in
+  `DrawChatText`, Netzwerkmeldungen (`stringutils_Interpret`) begrenzt.
+- `NetMessage`: Text in eigene Allokation (war `memcpy` in einen Zeiger),
+  Städteliste per `Insert` (schrieb hinter die geleerte Liste).
+- `MapFile.cpp` (Kartendateien) mit denselben Makros; Typtabellen, Besitzer,
+  Namen und Sichtgröße geprüft, kaputte Datei bricht mit Meldung ab.
+
+Test: `CTP2_TEST_FORGED=1 pwsh tools/mptest.ps1 -Asan` – der Host schickt in
+Runde 3 einen Satz kaputter Pakete (jeder Typ nur mit Kennung, 5000-Zeichen-
+Namen, Chat mit Länge -1 und 3000 Zeichen, Spieler 200, Aktion 65535,
+falsche Teil-/Kompressions-/Sammelpakete). Ergebnis: ASan nur die 11 alten
+Lesefehler (ThroneDB-Tokenizer, Kartensymbole, Chat-Textfeld), kein
+Schreibfehler, Spiel synchron. Ohne Fälschungen wird kein Paket verworfen.
+
+Noch offen (bekannt, nicht abgesichert): Kartenkoordinaten aus Paketen
+(29 Stellen, teils mit Platzhalterwerten; `World::GetCell` prüft nur per
+Assert) und Datenbank-Indizes aus Paketen (Einheiten-/Gebäudetypen usw.
+außerhalb von `UnpacketizeUnit`). Vorschlag: zentrale Prüfung in
+`World::GetCell/AccessCell` bzw. in den DB-`Get`-Funktionen.
+
 ## Phase 2b – Gleichzeitige Züge (nach Phase 2, Wunsch des Besitzers)
 
 Heute laufen Netzwerkspiele nacheinander (Spielart „Normal“, „Zeitrunden“,

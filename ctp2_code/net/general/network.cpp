@@ -1038,6 +1038,13 @@ void Network::PacketReady(sint32 from,
 {
 	if(m_deleting)
 		return;
+	// ctp2-redux: a packet has at least its two id bytes and fits the
+	// 16 bit sizes of the handlers; anything else is thrown away
+	if(!buf || size < 2 || size > 0xffff) {
+		DPRINTF(k_DBG_NET, ("ctp2-redux: packet of size %d from %d thrown away\n", (int)size, (int)from));
+		autotest_Log("net: packet of size %d from %d thrown away", (int)size, (int)from);
+		return;
+	}
 	if(buf[0] == k_CHUNK_HEAD &&
 	   buf[1] == k_CHUNK_BODY) {
 
@@ -1050,7 +1057,14 @@ void Network::PacketReady(sint32 from,
 			// ctp2-redux: pin heap damage to the packet that causes it
 			bool heapOkBefore = _CrtCheckMemory() != 0;
 #endif
-			handler->Unpacketize((uint16)from, buf, static_cast<sint16>(size));
+			// ctp2-redux: the reads of the handlers check the packet (net_util.h);
+			// a broken or forged one stops its handler and is thrown away
+			try {
+				handler->Unpacketize((uint16)from, buf, static_cast<uint16>(size));
+			} catch(NetPacketError const &) {
+				DPRINTF(k_DBG_NET, ("ctp2-redux: broken packet %c%c (size %d) from %d thrown away\n", buf[0], buf[1], (int)size, (int)from));
+				autotest_Log("net: broken packet %c%c (size %d) from %d thrown away", buf[0], buf[1], (int)size, (int)from);
+			}
 #if defined(_DEBUG) && defined(WIN32)
 			if(heapOkBefore && !_CrtCheckMemory()) {
 				c3debug_dprintf("ctp2-redux: HEAP DAMAGED while handling packet %02x %02x ('%c%c'), size %d, from %d", buf[0], buf[1], buf[0], buf[1], (int)size, (int)from);
@@ -2387,18 +2401,14 @@ Network::ProcessNewPlayer(uint16 id)
 
 void Network::AddChatText(MBCHAR *str, uint8 from, BOOL priv)
 {
+	// ctp2-redux: text and sender come from a packet; kept inside m_chatStr
+	// (strcat wrote a long text behind it) and inside g_player
+	MBCHAR const * sender = (from == 0) ? g_theStringDB->GetNameStr("NETWORK_SENDER_SYSTEM") :
+	                        (from < k_MAX_PLAYERS && g_player[from]) ? g_player[from]->m_civilisation->GetLeaderName() : ".";
 	if(!priv)
-		sprintf(m_chatStr, "[%s] ",
-				((from == 0) ? g_theStringDB->GetNameStr("NETWORK_SENDER_SYSTEM") :
-				 (g_player[from] ? (g_player[from]->m_civilisation->GetLeaderName()) : ".")));
+		snprintf(m_chatStr, sizeof(m_chatStr), "[%s] %s", sender, str);
 	else
-		sprintf(m_chatStr, "[P] (%s) ", ((from == 0) ?
-										 (g_theStringDB->GetNameStr("NETWORK_SENDER_SYSTEM")) :
-										 (g_player[from] ?
-										  (g_player[from]->m_civilisation->GetLeaderName()) :
-										  ("."))));
-
-	strcat(m_chatStr, str);
+		snprintf(m_chatStr, sizeof(m_chatStr), "[P] (%s) %s", sender, str);
 
 	if (g_chatBox) {
 		MBCHAR *c;
@@ -3626,7 +3636,7 @@ void Network::SendJoinedMessage(MBCHAR *name, sint32 player)
 		so->AddRecipient(m_playerIndex);
 
 		MBCHAR interp[k_MAX_NAME_LEN];
-		stringutils_Interpret(g_theStringDB->GetNameStr("NETWORK_PLAYER_JOINED"), *so, interp);
+		stringutils_Interpret(g_theStringDB->GetNameStr("NETWORK_PLAYER_JOINED"), *so, interp, sizeof(interp));   // ctp2-redux: the name comes from a packet
 		AddChatText(interp, 0, FALSE);
 
 		g_slicEngine->Execute(so);
@@ -3660,7 +3670,7 @@ void Network::SendLeftMessage(const MBCHAR *name, sint32 player)
 		so->AddRecipient(m_playerIndex);
 
 		MBCHAR interp[k_MAX_NAME_LEN];
-		stringutils_Interpret(g_theStringDB->GetNameStr("NETWORK_PLAYER_LEFT"), *so, interp);
+		stringutils_Interpret(g_theStringDB->GetNameStr("NETWORK_PLAYER_LEFT"), *so, interp, sizeof(interp));   // ctp2-redux: the name comes from a packet
 		AddChatText(interp, 0, FALSE);
 
 		g_slicEngine->Execute(so);
@@ -3685,7 +3695,7 @@ void Network::SendNewHostMessage(MBCHAR *name, sint32 player)
 		so->AddRecipient(m_playerIndex);
 
 		MBCHAR interp[k_MAX_NAME_LEN];
-		stringutils_Interpret(g_theStringDB->GetNameStr("NETWORK_YOU_ARE_NOW_HOST"), *so, interp);
+		stringutils_Interpret(g_theStringDB->GetNameStr("NETWORK_YOU_ARE_NOW_HOST"), *so, interp, sizeof(interp));   // ctp2-redux: the name comes from a packet
 		AddChatText(interp, 0, FALSE);
 
 		g_slicEngine->Execute(so);
@@ -3963,7 +3973,13 @@ void Network::DechunkList(sint32 from, uint8 *buf, sint32 len)
 	pos = 0;
 	while(pos < len) {
 		sint32 packLen;
-		packLen = getshort(&buf[pos]); pos += 2;
+		// ctp2-redux: the length and the packet must lie in the chunk
+		if(pos > len - 2) break;
+		packLen = static_cast<uint16>(getshort(&buf[pos])); pos += 2;
+		if(packLen > len - pos) {
+			autotest_Log("net: broken chunk (size %d) from %d thrown away", (int)len, (int)from);
+			return;
+		}
 		PacketReady(from, &buf[pos], packLen);
 		if(!m_initialized)
 			return;

@@ -109,7 +109,7 @@ void NetEndGame::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	Assert(packid == k_PACKET_ENDGAME_ID);
 
 	PULLBYTE(m_owner);
-	if(!g_player[m_owner])
+	if(!g_player[NET_PLAYER(m_owner)])
 		return;
 
 

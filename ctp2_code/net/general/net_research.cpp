@@ -37,12 +37,13 @@ void NetResearch::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	Assert(packid == k_PACKET_RESEARCH_ID);
 	sint32 owner;
 	PULLLONG(owner);
-	Assert(g_player[owner]);
-	if(!g_player[owner])
+	Assert(g_player[NET_PLAYER(owner)]);
+	if(!g_player[NET_PLAYER(owner)])
 		return;
 
-	m_adv = g_player[owner]->m_advances;
+	m_adv = g_player[NET_PLAYER(owner)]->m_advances;
 	sint32 i, d;
+	net_Need(pos, (m_adv->m_size + 7) / 8, size);   // ctp2-redux: read directly
 	for(i = 0; i < m_adv->m_size; i += 8) {
 		for(d = 0; d < 8 && i+d < m_adv->m_size; d++) {
 			m_adv->m_canResearch[i + d] = uint8((buf[pos] & (1 << (7-d))) >> (7-d));

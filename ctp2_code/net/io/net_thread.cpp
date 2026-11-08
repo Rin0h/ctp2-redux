@@ -41,6 +41,7 @@
 #include "net_util.h"
 #include "SimpleDynArr.h"
 #include "zlib.h"
+#include "autotest.h"   // ctp2-redux: autotest_Log
 
 #if defined(_DEBUG)
 #include "debug.h"  // Os::SetThreadName
@@ -94,14 +95,16 @@ TPacketData::~TPacketData()
 		delete [] m_buf;
 }
 
-void TPacketData::Append(uint8 *buf, sint32 len)
+// ctp2-redux: the pieces must fit the total the start piece claimed; before
+// that was only an Assert, and a piece too many wrote behind the buffer
+bool TPacketData::Append(uint8 *buf, sint32 len)
 {
 	Assert(m_buf[0] == k_SPLIT_PACKET_HEAD);
-	if(m_buf[0] == k_SPLIT_PACKET_HEAD) {
-		Assert(m_len + len <= m_totalLen);
-		memcpy(&m_buf[m_len + 6], buf, len);
-		m_len += len;
-	}
+	if(m_buf[0] != k_SPLIT_PACKET_HEAD || len < 0 || len > m_totalLen - m_len)
+		return false;
+	memcpy(&m_buf[m_len + 6], buf, len);
+	m_len += len;
+	return true;
 }
 
 void TPacketData::RemoveSplitInfo()
@@ -192,6 +195,7 @@ NetThread::NetThread()
 	m_incoming = new PointerList<TPacketData>;
 	m_anet = NULL;
 	m_exit = m_exited = FALSE;
+	m_dropped = m_droppedLogged = 0;
 
 #if defined(__AUI_USE_SDL__)
 	m_mutex = SDL_CreateMutex();
@@ -505,16 +509,24 @@ NET_ERR NetThread::Idle()
 			}
 		} else {
 			if(packet->m_buf[0] == k_COMPRESSED_PACKET) {
-				uLongf uSize = getlong(&packet->m_buf[1]);
-
-				uint8 *uBuf = new uint8[uSize];
-				int err;
-				err = uncompress(uBuf, &uSize, &packet->m_buf[5], packet->m_len - 5);
-				Assert(err == Z_OK);
-				if(err == Z_OK) {
-					m_response->PacketReady(packet->m_id, uBuf, uSize);
+				// ctp2-redux: the unpacked size comes from the packet and is
+				// allocated; uncompress itself stays inside it
+				sint32 const claimed = packet->m_len >= 5 ? getlong(&packet->m_buf[1]) : -1;
+				if(claimed <= 0 || claimed > k_MAX_PACKET_LEN) {
+					Lock();
+					Drop(packet->m_id, packet->m_buf, packet->m_len);
+					Unlock();
+				} else {
+					uLongf uSize = static_cast<uLongf>(claimed);
+					uint8 *uBuf = new uint8[uSize];
+					int err;
+					err = uncompress(uBuf, &uSize, &packet->m_buf[5], packet->m_len - 5);
+					Assert(err == Z_OK);
+					if(err == Z_OK) {
+						m_response->PacketReady(packet->m_id, uBuf, uSize);
+					}
+					delete [] uBuf;
 				}
-				delete [] uBuf;
 			} else {
 				m_response->PacketReady(packet->m_id, packet->m_buf, packet->m_len);
 			}
@@ -525,7 +537,12 @@ NET_ERR NetThread::Idle()
 		if(hackPackets >= 1000)
 			break;
 	}
+	sint32 const dropped = m_dropped;
 	Unlock();
+	if(dropped != m_droppedLogged) {
+		autotest_Log("net: %d broken split or compressed packet(s) thrown away", (int)(dropped - m_droppedLogged));
+		m_droppedLogged = dropped;
+	}
 	return NET_ERR_OK;
 }
 
@@ -586,30 +603,53 @@ TPacketData *NetThread::FindSplitStart(uint16 from)
 	return NULL;
 }
 
+// ctp2-redux: a broken packet is not queued; counted for the log
+void NetThread::Drop(uint16 from, uint8 *buf, sint32 size)
+{
+	m_dropped++;
+	DPRINTF(k_DBG_NET, ("ctp2-redux: broken packet (%d bytes) from %d thrown away\n", (int)size, (int)from));
+}
+
 void NetThread::PacketReady(sint32 from, uint8* buf, sint32 size)
 {
 	Lock();
+	if(!buf || size < 1) {
+		Unlock();
+		return;
+	}
 #if 0
 	TPacketData *currentTail = m_incoming->GetTail();
 #endif
-	if(buf[0] == k_SPLIT_PACKET_HEAD && m_incoming->GetCount() > 0) {
+	// ctp2-redux: the pieces of a split packet are checked against the total
+	// length the start piece claims, which sizes the buffer they go to; a
+	// broken split packet is thrown away as a whole. Before, a start piece
+	// longer than its claim or a piece too many wrote behind the buffer.
+	if(buf[0] == k_SPLIT_PACKET_HEAD) {
 
-		TPacketData *splitStart = FindSplitStart((uint16)from);
+		TPacketData *splitStart = m_incoming->GetCount() > 0 ? FindSplitStart((uint16)from) : NULL;
 		if(!splitStart) {
-			Assert(buf[1] == k_SPLIT_PACKET_START);
-			m_incoming->AddTail(new TPacketData((uint16)from, 0, buf, size, FALSE));
+			sint32 const total = size >= 6 ? getlong(&buf[2]) : -1;
+			if(size >= 6 && buf[1] == k_SPLIT_PACKET_START &&
+			   total >= size - 6 && total <= k_MAX_PACKET_LEN) {
+				m_incoming->AddTail(new TPacketData((uint16)from, 0, buf, size, FALSE));
+			} else {
+				Drop((uint16)from, buf, size);
+			}
 		} else {
-			Assert(buf[1] != k_SPLIT_PACKET_START);
-			splitStart->Append(&buf[2], size - 2);
-			switch(buf[1]) {
-				case k_SPLIT_PACKET_BODY:
-					break;
-				case k_SPLIT_PACKET_END:
+			bool ok = size >= 2 &&
+			          (buf[1] == k_SPLIT_PACKET_BODY || buf[1] == k_SPLIT_PACKET_END) &&
+			          splitStart->Append(&buf[2], size - 2);
+			if(ok && buf[1] == k_SPLIT_PACKET_END) {
+				ok = splitStart->IsComplete();
+				if(ok)
 					splitStart->RemoveSplitInfo();
-					break;
-				default:
-					Assert(FALSE);
-					break;
+			}
+			if(!ok) {
+				PointerList<TPacketData>::PointerListNode *node = m_incoming->Find(splitStart);
+				if(node)
+					m_incoming->Remove(node);
+				delete splitStart;
+				Drop((uint16)from, buf, size);
 			}
 		}
 #if 0

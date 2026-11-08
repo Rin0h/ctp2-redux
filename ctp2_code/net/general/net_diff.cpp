@@ -27,10 +27,12 @@ void
 NetDifficulty::Unpacketize(uint16 id, uint8* buf, uint16 size)
 {
 	Assert(buf[0] == 'G' && buf[1] == 'D');
+	// ctp2-redux: read directly; the packet must hold the whole Difficulty
+	net_Need(0, 4 + sizeof(Difficulty), size);
 	PLAYER_INDEX pidx = (PLAYER_INDEX)getshort(&buf[2]);
 
 	Assert(pidx < k_MAX_PLAYERS);
-	Assert(g_player[pidx] != NULL);
+	Assert(g_player[NET_PLAYER(pidx)] != NULL);
 
-	*g_player[pidx]->m_difficulty = *(Difficulty*)&buf[4];
+	*g_player[NET_PLAYER(pidx)]->m_difficulty = *(Difficulty*)&buf[4];
 }

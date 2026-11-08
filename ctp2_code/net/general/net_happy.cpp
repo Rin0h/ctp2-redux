@@ -281,7 +281,7 @@ NetPlayerHappy::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 
 	sint32 pos = 2;
 	PULLBYTE(m_owner);
-	m_playerHappiness = g_player[m_owner]->m_global_happiness;
+	m_playerHappiness = g_player[NET_PLAYER(m_owner)]->m_global_happiness;
 	PULLBYTE(m_isInitialPacket);
 
 #define PDCHK2(x) {double tmp = x; PULLDOUBLE(x); if((m_owner == g_network.GetPlayerIndex()) && !m_isInitialPacket) { Assert(tmp == x); }}

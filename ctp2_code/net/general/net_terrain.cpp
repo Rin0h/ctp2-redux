@@ -142,7 +142,7 @@ void NetTerrainImprovement::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 		g_theTerrainImprovementPool->Insert(m_data);
 		g_theWorld->InsertImprovement(imp, m_data->m_point);
 		g_tiledMap->RedrawTile(&m_data->m_point);
-		g_player[m_data->m_owner]->AddImprovement(imp);
+		g_player[NET_PLAYER(m_data->m_owner)]->AddImprovement(imp);
 	} else {
 		if(oldpoint != m_data->m_point) {
 
@@ -155,8 +155,8 @@ void NetTerrainImprovement::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 
 		if(oldOwner != m_data->m_owner) {
 
-			g_player[oldOwner]->RemoveImprovementReferences(imp);
-			g_player[m_data->m_owner]->AddImprovement(imp);
+			g_player[NET_PLAYER(oldOwner)]->RemoveImprovementReferences(imp);
+			g_player[NET_PLAYER(m_data->m_owner)]->AddImprovement(imp);
 		}
 	}
 }

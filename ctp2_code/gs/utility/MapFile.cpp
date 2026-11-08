@@ -149,7 +149,10 @@ MapFile::MapFile()
     m_chunk                 (),
     m_unitTypeMap           (NULL),
     m_improvementTypeMap    (NULL),
-    m_advanceTypeMap        (NULL)
+    m_advanceTypeMap        (NULL),
+    m_unitTypeCount         (0),
+    m_improvementTypeCount  (0),
+    m_advanceTypeCount      (0)
 {
 }
 
@@ -714,6 +717,13 @@ bool MapFile::LoadMap(FILE *infile)
 			return false;
 		}
 
+		// ctp2-redux: the size comes from the file
+		if(chunkSize < 0)
+		{
+			MessageBoxDialog::Information("Error loading map: broken chunk size.","ErrLoadMapChunk");
+			return false;
+		}
+
 		uint8 * buf = new uint8[chunkSize];
 #define LoadMapStop()	{ delete [] buf; return false; }
 
@@ -733,6 +743,9 @@ bool MapFile::LoadMap(FILE *infile)
  			LoadMapStop();
 		}
 
+		// ctp2-redux: the reads check the chunk (net_util.h); a broken map file
+		// stops loading instead of being read on behind the buffer
+		try {
 		switch(chunkId) {
 			case k_TERRAIN_HEADER:           if(!LoadTerrain(buf, chunkSize)) LoadMapStop(); break;
 			case k_TERRAIN_ENV_HEADER:       if(!LoadTerrainEnv(buf, chunkSize)) LoadMapStop(); break;
@@ -751,6 +764,10 @@ bool MapFile::LoadMap(FILE *infile)
 			default:
 				Assert("Unknown chunk type" == 0);
 				break;
+		}
+		} catch(NetPacketError const &) {
+			MessageBoxDialog::Information("Error loading mapfile: broken data.","ErrLoadMapBroken");
+			LoadMapStop();
 		}
 
 		delete [] buf;
@@ -885,10 +902,10 @@ bool MapFile::LoadUnits(uint8 *buf, sint32 size)
 			sint32 type;
 			PULLBYTE(owner);
 			PULLLONG(type);
-			if(!g_player[owner]) {
+			if(owner >= k_MAX_PLAYERS || !g_player[owner]) {
 				DPRINTF(k_DBG_GAMESTATE, ("WARNING: Player %d does not exist, can't create unit"));
 			} else {
-				if(m_unitTypeMap[type] >= 0) {
+				if(type >= 0 && type < m_unitTypeCount && m_unitTypeMap[type] >= 0) {
 					MapPoint pos(x,y);
 					g_player[owner]->CreateUnit(m_unitTypeMap[type], pos, Unit(), FALSE, CAUSE_NEW_ARMY_CHEAT);
 				}
@@ -905,8 +922,10 @@ bool MapFile::LoadUnitTypes(uint8 *buf, sint32 size)
 
     sint32 numTypes;
     PULLLONG(numTypes);
+    NET_CHECK(numTypes >= 0 && numTypes <= size / 2);   // ctp2-redux: from the file
     delete [] m_unitTypeMap;
     m_unitTypeMap = new sint32[numTypes];
+    m_unitTypeCount = numTypes;
     std::fill(m_unitTypeMap, m_unitTypeMap + numTypes, CTPRecord::INDEX_INVALID);
 
     char dbName[k_MAX_NAME_LEN];
@@ -951,10 +970,14 @@ bool MapFile::LoadCities(uint8 *buf, sint32 size)
 		sint32 len;
 		MBCHAR name[k_MAPFILE_NAME_LEN + 1];
 		PULLLONG(len);
+		// ctp2-redux: the length comes from the file; the name was not ended
 		for (int j = 0; j < len; j++)
 		{
-			PULLBYTE(name[j]);
+			MBCHAR c;
+			PULLBYTE(c);
+			if (j < k_MAPFILE_NAME_LEN) name[j] = c;
 		}
+		name[len < 0 ? 0 : (len < k_MAPFILE_NAME_LEN ? len : k_MAPFILE_NAME_LEN)] = 0;
 
 		if(g_theWorld->IsLand(x, y)) {
 			citytype = unitutil_GetLandCity();
@@ -962,7 +985,7 @@ bool MapFile::LoadCities(uint8 *buf, sint32 size)
 			citytype = unitutil_GetSeaCity();
 		}
 
-		if(!g_player[owner])
+		if(owner >= k_MAX_PLAYERS || !g_player[owner])   // ctp2-redux: owner from the file
 			continue;
 
 		MapPoint pos(x,y);
@@ -1015,7 +1038,7 @@ bool MapFile::LoadOldCities(uint8 *buf, sint32 size)
 			citytype = unitutil_GetSeaCity();
 		}
 
-		if(!g_player[owner])
+		if(owner >= k_MAX_PLAYERS || !g_player[owner])   // ctp2-redux: owner from the file
 			continue;
 
 		MapPoint pos(x,y);
@@ -1052,7 +1075,7 @@ bool MapFile::LoadImprovements(uint8 *buf, sint32 size)
 		for(j = 0; j < numImprovements; j++) {
 			sint32 type;
 			PULLLONG(type);
-			if(m_improvementTypeMap[type] < 0)
+			if(type < 0 || type >= m_improvementTypeCount || m_improvementTypeMap[type] < 0)   // ctp2-redux: from the file
 				continue;
 
 			g_theWorld->GetCell(x, y)->InsertDBImprovement(m_improvementTypeMap[type]);
@@ -1068,8 +1091,10 @@ bool MapFile::LoadImprovementTypes(uint8 *buf, sint32 size)
 
     sint32 numTypes;
     PULLLONG(numTypes);
+    NET_CHECK(numTypes >= 0 && numTypes <= size / 2);   // ctp2-redux: from the file
     delete [] m_improvementTypeMap;
     m_improvementTypeMap = new sint32[numTypes];
+    m_improvementTypeCount = numTypes;
     std::fill(m_improvementTypeMap, m_improvementTypeMap + numTypes, CTPRecord::INDEX_INVALID);
 
     char dbName[k_MAX_NAME_LEN];
@@ -1094,10 +1119,11 @@ bool MapFile::LoadVision(uint8 *buf, sint32 size)
 	PULLBYTE(p);
 	PULLSHORT(w);
 	PULLSHORT(h);
-	Assert(w == g_theWorld->GetXWidth());
-	Assert(h == g_theWorld->GetYHeight());
+	// ctp2-redux: the vision array has the size of the world, p and the size
+	// come from the file
+	NET_CHECK(w == g_theWorld->GetXWidth() && h == g_theWorld->GetYHeight());
 
-	if(!g_player[p])
+	if(p >= k_MAX_PLAYERS || !g_player[p])
 		return true;
 
 	sint32 x, y;
@@ -1120,9 +1146,11 @@ bool MapFile::LoadAdvanceNames(uint8 *buf, sint32 size)
 
     sint32 numTypes;
     PULLLONG(numTypes);
+    NET_CHECK(numTypes >= 0 && numTypes <= size / 2);   // ctp2-redux: from the file
 
     delete [] m_advanceTypeMap;
     m_advanceTypeMap = new sint32[numTypes];
+    m_advanceTypeCount = numTypes;
     std::fill(m_advanceTypeMap, m_advanceTypeMap + numTypes, CTPRecord::INDEX_INVALID);
 
     char dbName[k_MAX_NAME_LEN];
@@ -1147,15 +1175,14 @@ bool MapFile::LoadAdvanceNames(uint8 *buf, sint32 size)
 /// Load advances of a single player
 /// @param buf Input stream from file
 /// @param a_Size Size of input stream
-bool MapFile::LoadAdvances(uint8 * buf, sint32 a_Size)
+bool MapFile::LoadAdvances(uint8 * buf, sint32 size)
 {
     sint32 pos = 0; // Used in PULL macros
 
     uint8 p;
     PULLBYTE(p);
 
-    Assert(g_player[p]);
-    if (!g_player[p])
+    if (p >= k_MAX_PLAYERS || !g_player[p])   // ctp2-redux: p from the file
         return true;
 
     Assert(!g_player[p]->m_disableChooseResearch);
@@ -1167,7 +1194,7 @@ bool MapFile::LoadAdvances(uint8 * buf, sint32 a_Size)
     {
         uint8 hasAdv;
         PULLBYTE(hasAdv);
-        if (hasAdv && (m_advanceTypeMap[i] >= 0))
+        if (hasAdv && i < static_cast<size_t>(m_advanceTypeCount) && (m_advanceTypeMap[i] >= 0))
         {
             g_player[p]->m_advances->SetHasAdvance(m_advanceTypeMap[i]);
         }
@@ -1232,6 +1259,7 @@ bool MapFile::LoadCivilizations(uint8 *buf, sint32 size)
 			{
 				PULLBYTE(name[j]);
 			}
+			name[k_MAPFILE_NAME_LEN - 1] = 0;   // ctp2-redux: not ended in the file
 
 
 			if (name[0])

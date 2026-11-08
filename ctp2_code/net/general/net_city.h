@@ -19,7 +19,7 @@ public:
 	void Packetize(uint8* buf, uint16& size);
 	void Unpacketize(uint16 id, uint8* buf, uint16 size);
 	void PacketizeResources(const Resources &resources, uint8 *buf, uint16 &size);
-	void UnpacketizeResources(Resources &resources, uint8 *buf, sint32 &pos);
+	void UnpacketizeResources(Resources &resources, uint8 *buf, sint32 &pos, sint32 size);
 
 private:
 	UnitData* m_unitData;

@@ -57,7 +57,11 @@
 #include "BuildingRecord.h"
 #include "Globals.h"
 #include "GameSettings.h"        // g_theGameSettings              // k_GAME_OBJ_TYPE_*
+#include "net_packet.h"         // Packetizer, k_PACKET_*
+#include "net_message.h"        // NET_MSG_PLAYER_JOINED
+#include "AgreementMatrix.h"    // AgreementMatrix::s_agreements
 #include <random>
+#include <vector>
 #ifdef __AUI_USE_SDL__
 #include "aui_sdlui.h"          // aui_SDLUI::RequestScreenshot
 #endif
@@ -276,6 +280,99 @@ namespace
 	}
 }
 
+namespace
+{
+	// For tests (environment CTP2_TEST_FORGED=1): the host sends a set of
+	// broken and forged packets once, in round 3. The clients must throw them
+	// away or cut their strings (net_util.h, net_thread.cpp) and play on; the
+	// log of the client lists them ("net: ... thrown away"), and the desync
+	// check of tools/mptest.ps1 shows that the game went on unchanged.
+	class ForgedPacket : public Packetizer
+	{
+	public:
+		// compressed like the game sends its chunks (net_anet.cpp passes on
+		// only packets beginning with A-Z or '^')
+		explicit ForgedPacket(std::vector<uint8> const & bytes, bool compressed = false) : m_bytes(bytes)
+		{
+			m_sendCompressed = compressed;
+		}
+		void Packetize(uint8 *buf, uint16 &size)
+		{
+			memcpy(buf, m_bytes.data(), m_bytes.size());
+			size = static_cast<uint16>(m_bytes.size());
+		}
+	private:
+		std::vector<uint8> m_bytes;
+	};
+
+	struct Bytes
+	{
+		std::vector<uint8> b;
+		Bytes() {}
+		explicit Bytes(uint16 id) { U8(id >> 8); U8(id & 0xff); }
+		Bytes & U8(int v)          { b.push_back(static_cast<uint8>(v)); return *this; }
+		Bytes & U16(int v)         { U8(v & 0xff); return U8((v >> 8) & 0xff); }
+		Bytes & U32(uint32 v)      { U16(v & 0xffff); return U16(v >> 16); }
+		Bytes & Fill(int n, int v) { b.insert(b.end(), n, static_cast<uint8>(v)); return *this; }
+		Bytes & Str(int n, int c)  { U16(n); return Fill(n, c); }
+	};
+
+	void SendForgedPackets(int me)
+	{
+		std::vector<std::vector<uint8> > packets;
+
+		// every packet type with nothing but its id
+		uint16 const ids[] = {
+			k_PACKET_CELL_ID, k_PACKET_CELL_LIST_ID, k_PACKET_UNIT_ID, k_PACKET_ACTION_ID,
+			k_PACKET_INFO_ID, k_PACKET_CITY_ID, k_PACKET_DIFFICULTY_ID, k_PACKET_PLAYER_ID,
+			k_PACKET_TRADE_ROUTE_ID, k_PACKET_TRADE_OFFER_ID, k_PACKET_RAND_ID, k_PACKET_TERRAIN_ID,
+			k_PACKET_INSTALLATION_ID, k_PACKET_CHAT_ID, k_PACKET_READINESS_ID, k_PACKET_HAPPY_ID,
+			k_PACKET_PLAYER_HAPPY_ID, k_PACKET_REPORT_ID, k_PACKET_UNIT_MOVE_ID, k_PACKET_UNIT_ORDER_ID,
+			k_PACKET_AGREEMENT_ID, k_PACKET_CIVILIZATION_ID, k_PACKET_CITY_NAME_ID, k_PACKET_DIP_PROPOSAL_ID,
+			k_PACKET_DIP_RESPONSE_ID, k_PACKET_MESSAGE_ID, k_PACKET_CITY2_ID, k_PACKET_POLLUTION_ID,
+			k_PACKET_CITY_BQ_ID, k_PACKET_KEYS_ID, k_PACKET_GAME_SETTINGS_ID, k_PACKET_CRC_ID,
+			k_PACKET_ARMY_ID, k_PACKET_WONDER_TRACKER_ID, k_PACKET_ACHIEVEMENT_TRACKER_ID, k_PACKET_VISION_ID,
+			k_PACKET_UNSEEN_CELL_ID, k_PACKET_EXCLUSIONS_ID, k_PACKET_RESOURCES_ID, k_PACKET_UNIT_HP_ID,
+			k_PACKET_CELL_UNIT_ORDER_ID, k_PACKET_ADD_PLAYER_ID, k_PACKET_RESEARCH_ID, k_PACKET_GUID_ID,
+			k_PACKET_STRENGTH_ID, k_PACKET_FULL_STRENGTHS_ID, k_PACKET_NET_INFO_MESSAGE_ID, k_PACKET_ENDGAME_ID,
+			k_PACKET_WORMHOLE_ID, k_PACKET_SET_PLAYER_GUID_ID, k_PACKET_SET_LEADER_NAME_ID, k_PACKET_WORLD_ID,
+			k_PACKET_DIP_AGREEMENT_MATRIX_ID, k_PACKET_GROUP_REQUEST_ID, k_PACKET_UNGROUP_REQUEST_ID,
+			k_PACKET_SCORES_ID, k_PACKET_FEAT_TRACKER_ID
+		};
+		for (size_t i = 0; i < sizeof(ids) / sizeof(ids[0]); i++)
+			packets.push_back(Bytes(ids[i]).b);
+
+		// strings far longer than their targets (the stack overflows of the report)
+		uint16 const meId = g_network.IndexToId(me);
+		packets.push_back(Bytes(k_PACKET_ADD_PLAYER_ID).U16(meId).Str(5000, 'A').b);
+		packets.push_back(Bytes(k_PACKET_SET_LEADER_NAME_ID).U8(me).Str(5000, 'B').b);
+		packets.push_back(Bytes(k_PACKET_CITY_NAME_ID).U32(0).Str(5000, 'C').b);
+		packets.push_back(Bytes(k_PACKET_NET_INFO_MESSAGE_ID).U32(NET_MSG_PLAYER_JOINED).Str(5000, 'D').U32(me).b);
+		// a string longer than the rest of its packet
+		packets.push_back(Bytes(k_PACKET_ADD_PLAYER_ID).U16(meId).U16(5000).Fill(10, 'E').b);
+		// counts and indices out of range
+		packets.push_back(Bytes(k_PACKET_CHAT_ID).U32(0xffffffff).U16(0xffff).U8(me).b);       // length -1
+		packets.push_back(Bytes(k_PACKET_CHAT_ID).U32(0xffffffff).U16(3000).U8(me).Fill(3000, 'L').b);   // long text
+		packets.push_back(Bytes(k_PACKET_ACTION_ID).U16(0xffff).Fill(28, 0).b);                 // action 65535
+		packets.push_back(Bytes(k_PACKET_DIP_AGREEMENT_MATRIX_ID)
+		                  .U16(AgreementMatrix::s_agreements.GetMaxPlayers())
+		                  .U8(200).Fill(97, 0).U8(0xff).b);                                      // player 200
+		packets.push_back(Bytes(k_PACKET_SET_LEADER_NAME_ID).U8(200).Str(4, 'F').b);            // player 200
+		// split and compressed packets that lie about their size (net_thread.cpp)
+		packets.push_back(Bytes().U8('Z').U8('s').U32(10).Fill(200, 'G').b);   // start longer than claimed
+		packets.push_back(Bytes().U8('Z').U8('b').Fill(50, 'H').b);            // piece without a start
+		packets.push_back(Bytes().U8('Z').U8('s').U32(100).Fill(50, 'I').b);   // start of 100 bytes ...
+		packets.push_back(Bytes().U8('Z').U8('b').Fill(200, 'J').b);           // ... and a piece too many
+		packets.push_back(Bytes().U8('^').U32(0x7fffffff).Fill(20, 'K').b);    // 2 GB unpacked
+
+		for (size_t i = 0; i < packets.size(); i++)
+			g_network.QueuePacketToAll(new ForgedPacket(packets[i]));
+		// a chunk claiming 32767 bytes in 4, compressed like real chunks
+		g_network.QueuePacketToAll(new ForgedPacket(Bytes().U8('>').U8('C').U8(0xff).U8(0x7f).b, true));
+		autotest_Log("forged: sent %d broken packets", (int)packets.size() + 1);
+	}
+}
+
 void autotest_ParseCommandLine(const char *cmdLine)
 {
 	if (!cmdLine) return;
@@ -449,6 +546,8 @@ void autotest_Process(bool gameLoaded)
 		autotest_Log("round %d", round);
 		LogGameInfo();   // once
 		LogStats(round);
+		if (round == 3 && autotest_IsHost() && getenv("CTP2_TEST_FORGED"))
+			SendForgedPackets(me);
 	}
 
 	// The client ends its turn of the last round and quits a moment later;

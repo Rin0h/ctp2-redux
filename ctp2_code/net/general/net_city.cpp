@@ -145,10 +145,12 @@ void NetCity::PacketizeResources(const Resources &resources, uint8 *buf, uint16 
 	PUSHLONG(resources.m_totalResources);
 }
 
-void NetCity::UnpacketizeResources(Resources &resources, uint8 *buf, sint32 &pos)
+void NetCity::UnpacketizeResources(Resources &resources, uint8 *buf, sint32 &pos, sint32 size)
 {
 	sint32 resourceCount;
 	PULLLONG(resourceCount);
+	// ctp2-redux: the count comes from the packet and sizes an allocation
+	NET_CHECK(resourceCount >= 0 && resourceCount <= g_theResourceDB->NumRecords());
 
 	Assert(resourceCount == resources.m_numGoods);
 	if(resourceCount != resources.m_numGoods) {
@@ -167,6 +169,7 @@ void NetCity::UnpacketizeResources(Resources &resources, uint8 *buf, sint32 &pos
 void NetCity::Unpacketize(uint16 id, uint8* buf, uint16 size)
 {
 	Assert(buf[0] == 'C' && buf[1] == 'D');
+	net_Need(0, 6, size);   // ctp2-redux: read directly
 	Unit uid(getlong(&buf[2]));
 	sint32 pos;
 
@@ -182,11 +185,11 @@ void NetCity::Unpacketize(uint16 id, uint8* buf, uint16 size)
 			return;
 		}
 
-		NetUnit::UnpacketizeUnit(&buf[6], unitSize, unitData);
+		NetUnit::UnpacketizeUnit(&buf[6], size - 6, unitSize, unitData);
 
 		if(oldOwner != unitData->m_owner) {
-			g_player[oldOwner]->RemoveCityReferenceFromPlayer(uid, CAUSE_REMOVE_CITY_UNKNOWN, unitData->m_owner);
-			g_player[unitData->m_owner]->AddCityReferenceToPlayer(uid, CAUSE_NEW_CITY_UNKNOWN);
+			g_player[NET_PLAYER(oldOwner)]->RemoveCityReferenceFromPlayer(uid, CAUSE_REMOVE_CITY_UNKNOWN, unitData->m_owner);
+			g_player[NET_PLAYER(unitData->m_owner)]->AddCityReferenceToPlayer(uid, CAUSE_NEW_CITY_UNKNOWN);
 		}
 		unitData->m_city_data->m_owner = unitData->m_owner;
 
@@ -244,9 +247,9 @@ void NetCity::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		PULLDOUBLE(cityData->m_defensiveBonus);
 		PULLBYTE(cityData->m_founder);
 
-		UnpacketizeResources(cityData->m_collectingResources, buf, pos);
-		UnpacketizeResources(cityData->m_sellingResources, buf, pos);
-		UnpacketizeResources(cityData->m_buyingResources, buf, pos);
+		UnpacketizeResources(cityData->m_collectingResources, buf, pos, size);
+		UnpacketizeResources(cityData->m_sellingResources, buf, pos, size);
+		UnpacketizeResources(cityData->m_buyingResources, buf, pos, size);
 
 		for(sint32 r = 0; r < g_theResourceDB->NumRecords(); r++)
 		{
@@ -283,6 +286,7 @@ void NetCityName::Unpacketize(uint16 id, uint8* buf, uint16 size)
 	PULLLONGTYPE(home_city, Unit);
 	char name[k_MAX_NAME_LEN];
 	PULLSTRING(name);
+	net_Cut(name, k_NET_MAX_NAME);   // ctp2-redux: city names are shown everywhere
 	if(g_theUnitPool->IsValid(home_city))
 	{
 		if(!home_city->GetCityData())

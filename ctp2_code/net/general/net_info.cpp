@@ -316,7 +316,12 @@ void
 NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 {
 	Assert(buf[0] == 'I' && buf[1] == 'I');
+	// ctp2-redux: read directly; the type indexes m_args, and the packet must
+	// hold as many values as m_args says
+	net_Need(0, 4, size);
 	m_type = (NET_INFO_CODE)getshort(&buf[2]);
+	NET_CHECK(m_type >= 0 && m_type < NET_INFO_CODE_NULL);
+	net_Need(0, 4 + 4 * m_args[m_type], size);
 
 	// Test code for detection of unexpected messages
 	Assert(size == 4 + (4 * m_args[m_type]));
@@ -365,7 +370,7 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 					g_gevManager->AddEvent(GEV_INSERT_Tail,
 										   GEV_BeginTurn,
 										   GEA_Player, m_data,
-										   GEA_Int, g_player[m_data]->GetCurRound() + 1,
+										   GEA_Int, g_player[NET_PLAYER(m_data)]->GetCurRound() + 1,
 										   GEA_End);
 
 					if (g_soundManager)
@@ -501,15 +506,15 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 			s = (double)m_data2 / 100000.;
 			Assert(0.0 <= s);
 			Assert(s <= 1.0);
-			if(g_player[m_data])
-				g_player[m_data]->m_tax_rate->SetTaxRates(s, m_data);
+			if(g_player[NET_PLAYER(m_data)])
+				g_player[NET_PLAYER(m_data)]->m_tax_rate->SetTaxRates(s, m_data);
 			DPRINTF(k_DBG_NET, ("Set taxes for player %d to %lf\n", m_data, s));
 			break;
 		}
 		case NET_INFO_CODE_GOLD_SCIENCE:
-			if(g_player[m_data]) {
-				g_player[m_data]->m_gold->SetLevel(m_data2);
-				g_player[m_data]->m_science->SetLevel(m_data3);
+			if(g_player[NET_PLAYER(m_data)]) {
+				g_player[NET_PLAYER(m_data)]->m_gold->SetLevel(m_data2);
+				g_player[NET_PLAYER(m_data)]->m_science->SetLevel(m_data3);
 				DPRINTF(k_DBG_NET, ("Set for player %d gold to %d, science to %d\n", m_data, m_data2, m_data3));
 			}
 			break;
@@ -517,14 +522,14 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		{
 			DPRINTF(k_DBG_NET, ("Player %d accquired %s\n",
 								m_data, g_theAdvanceDB->GetNameStr(m_data2)));
-			if(g_player[m_data]) {
-				g_player[m_data]->m_advances->SetHasAdvance(m_data2);
-				g_player[m_data]->m_advances->m_discovered = m_data3;
-				g_player[m_data]->m_science->SetLevel(m_data4);
+			if(g_player[NET_PLAYER(m_data)]) {
+				g_player[NET_PLAYER(m_data)]->m_advances->SetHasAdvance(m_data2);
+				g_player[NET_PLAYER(m_data)]->m_advances->m_discovered = m_data3;
+				g_player[NET_PLAYER(m_data)]->m_science->SetLevel(m_data4);
 
 				sint32 i;
-				for(i = 0; i < g_player[m_data]->m_all_cities->Num(); i++) {
-					g_player[m_data]->m_all_cities->Access(i).GetData()->
+				for(i = 0; i < g_player[NET_PLAYER(m_data)]->m_all_cities->Num(); i++) {
+					g_player[NET_PLAYER(m_data)]->m_all_cities->Access(i).GetData()->
 						GetCityData()->GetBuildQueue()->RemoveIllegalItems(TRUE);
 				}
 			}
@@ -609,28 +614,28 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		case NET_INFO_CODE_GOLD:
 			DPRINTF(k_DBG_NET, ("Net: Setting player %d's gold to %d\n",
 								m_data, m_data2));
-			if(g_player[m_data]) {
-				g_player[m_data]->m_gold->SetLevel(m_data2);
+			if(g_player[NET_PLAYER(m_data)]) {
+				g_player[NET_PLAYER(m_data)]->m_gold->SetLevel(m_data2);
 			}
 			break;
 		case NET_INFO_CODE_MATERIALS_TAX:
 			DPRINTF(k_DBG_NET, ("Net: Setting player %d's material tax to %d\n",
 								m_data, m_data2));
-			if(g_player[m_data]) {
-				g_player[m_data]->m_materialsTax = (double)((double)m_data2 / 100.0);
+			if(g_player[NET_PLAYER(m_data)]) {
+				g_player[NET_PLAYER(m_data)]->m_materialsTax = (double)((double)m_data2 / 100.0);
 			}
 			break;
 		case NET_INFO_CODE_WORKDAY_LEVEL:
-			if(g_player[m_data])
-				g_player[m_data]->m_global_happiness->SetWorkdayLevel(m_data2);
+			if(g_player[NET_PLAYER(m_data)])
+				g_player[NET_PLAYER(m_data)]->m_global_happiness->SetWorkdayLevel(m_data2);
 			break;
 		case NET_INFO_CODE_WAGES_LEVEL:
-			if(g_player[m_data])
-				g_player[m_data]->m_global_happiness->SetWagesLevel(m_data2);
+			if(g_player[NET_PLAYER(m_data)])
+				g_player[NET_PLAYER(m_data)]->m_global_happiness->SetWagesLevel(m_data2);
 			break;
 		case NET_INFO_CODE_RATIONS_LEVEL:
-			if(g_player[m_data])
-				g_player[m_data]->m_global_happiness->SetRationsLevel(m_data2);
+			if(g_player[NET_PLAYER(m_data)])
+				g_player[NET_PLAYER(m_data)]->m_global_happiness->SetRationsLevel(m_data2);
 			break;
 		case NET_INFO_CODE_NEW_CIVILIZATION:
 			DPRINTF(k_DBG_NET, ("Server sent new civilisation\n"));
@@ -639,10 +644,10 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 
 
 
-			if(g_player[m_data]) {
+			if(g_player[NET_PLAYER(m_data)]) {
 
 			} else {
-				g_player[m_data] = new Player(PLAYER_INDEX(m_data), 0, PLAYER_TYPE(m_data2));
+				g_player[NET_PLAYER(m_data)] = new Player(PLAYER_INDEX(m_data), 0, PLAYER_TYPE(m_data2));
 				g_selected_item->AddPlayer(PLAYER_INDEX(m_data));
 
 
@@ -700,8 +705,8 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		{
 			DPRINTF(k_DBG_NET, ("Server says player %d is researching %d\n",
 								m_data, m_data2));
-			if(g_player[m_data])
-				g_player[m_data]->SetResearching(m_data2);
+			if(g_player[NET_PLAYER(m_data)])
+				g_player[NET_PLAYER(m_data)]->SetResearching(m_data2);
 			break;
 		}
 		case NET_INFO_CODE_REMOVE_HUT:
@@ -735,8 +740,8 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		case NET_INFO_CODE_KILL_PLAYER:
 			DPRINTF(k_DBG_NET, ("Player %d is DEAD (%d,%d)\n", m_data,
 								m_data2, m_data3));
-			if(g_player[m_data])
-				g_player[m_data]->StartDeath((GAME_OVER)m_data2, m_data3);
+			if(g_player[NET_PLAYER(m_data)])
+				g_player[NET_PLAYER(m_data)]->StartDeath((GAME_OVER)m_data2, m_data3);
 			break;
 		case NET_INFO_CODE_BUILD_IMP:
 		{
@@ -793,8 +798,8 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		case NET_INFO_CODE_SET_GOVERNMENT:
 			DPRINTF(k_DBG_NET, ("Server: Player %d's governement is now %d\n",
 								m_data, m_data2));
-			if(g_player[m_data])
-				g_player[m_data]->SetGovernmentType(m_data2);
+			if(g_player[NET_PLAYER(m_data)])
+				g_player[NET_PLAYER(m_data)]->SetGovernmentType(m_data2);
 			break;
 		case NET_INFO_CODE_ENACT_REQUEST:
 		case NET_INFO_CODE_ENACT_REQUEST_NEED_ACK:
@@ -892,8 +897,8 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		{
 			DPRINTF(k_DBG_NET, ("Server: Run EndTurn() for player %d\n", m_data));
 
-			if(g_player[m_data]) {
-				g_player[m_data]->EndTurn();
+			if(g_player[NET_PLAYER(m_data)]) {
+				g_player[NET_PLAYER(m_data)]->EndTurn();
 			}
 			g_director->NextPlayer();
 			break;
@@ -902,8 +907,8 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		{
 			DPRINTF(k_DBG_NET, ("Server: Player %d's new government is %d\n",
 								m_data, m_data2));
-			if(g_player[m_data]) {
-				g_player[m_data]->ActuallySetGovernment(m_data2);
+			if(g_player[NET_PLAYER(m_data)]) {
+				g_player[NET_PLAYER(m_data)]->ActuallySetGovernment(m_data2);
 			}
 			break;
 		}
@@ -986,8 +991,8 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 				break;
 			}
 
-			if(g_player[m_data]) {
-				g_player[m_data]->AddArmy(army, (CAUSE_NEW_ARMY)m_data2,
+			if(g_player[NET_PLAYER(m_data)]) {
+				g_player[NET_PLAYER(m_data)]->AddArmy(army, (CAUSE_NEW_ARMY)m_data2,
 										  TRUE, Unit(m_data4));
 			}
 			break;
@@ -1071,8 +1076,8 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 			Unit city(m_data);
 			Assert(g_theUnitPool->IsValid(city));
 			if(g_theUnitPool->IsValid(city)) {
-				if(g_player[city.GetOwner()]) {
-					g_player[city.GetOwner()]->BuildWonder(m_data2, city);
+				if(g_player[NET_PLAYER(city.GetOwner())]) {
+					g_player[NET_PLAYER(city.GetOwner())]->BuildWonder(m_data2, city);
 				}
 			}
 			break;
@@ -1081,14 +1086,14 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		{
 			DPRINTF(k_DBG_NET, ("server: Trade bid from %d, fc: %lx, res: %d, tc: %lx, price: %d",
 								m_data, m_data2, m_data3, m_data4, m_data5));
-			Assert(g_player[m_data]);
-			if(g_player[m_data]) {
+			Assert(g_player[NET_PLAYER(m_data)]);
+			if(g_player[NET_PLAYER(m_data)]) {
 				Unit fromCity(m_data2);
 				Unit toCity(m_data4);
 				if(!fromCity.IsValid() || !toCity.IsValid()) {
 					g_network.RequestResync(RESYNC_INVALID_UNIT);
 				} else {
-					g_player[m_data]->SendTradeBid(fromCity, m_data3, toCity, m_data5);
+					g_player[NET_PLAYER(m_data)]->SendTradeBid(fromCity, m_data3, toCity, m_data5);
 				}
 			}
 			break;
@@ -1151,13 +1156,13 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		{
 			DPRINTF(k_DBG_NET, ("Server: Trade offer %lx taken by %d\n",
 								m_data2, m_data));
-			if(g_player[m_data]) {
+			if(g_player[NET_PLAYER(m_data)]) {
 				TradeOffer offer(m_data2);
 				Assert(g_theTradeOfferPool->IsValid(offer));
 				if(g_theTradeOfferPool->IsValid(offer)) {
 					Unit unit1(m_data3);
 					Unit unit2(m_data4);
-					g_player[m_data]->AcceptTradeOffer(offer, unit1, unit2);
+					g_player[NET_PLAYER(m_data)]->AcceptTradeOffer(offer, unit1, unit2);
 				}
 			}
 			break;
@@ -1185,15 +1190,15 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		case NET_INFO_CODE_BREAK_ALLIANCE:
 			DPRINTF(k_DBG_NET, ("Break alliances between %d and %d\n",
 								m_data, m_data2));
-			if(g_player[m_data]) {
-				g_player[m_data]->BreakAlliance(m_data2);
+			if(g_player[NET_PLAYER(m_data)]) {
+				g_player[NET_PLAYER(m_data)]->BreakAlliance(m_data2);
 			}
 			break;
 		case NET_INFO_CODE_BREAK_CEASE_FIRE:
 			DPRINTF(k_DBG_NET, ("Break cease fires between %d and %d\n",
 								m_data, m_data2));
-			if(g_player[m_data]) {
-				g_player[m_data]->BreakCeaseFire(m_data2, m_data3 != 0);
+			if(g_player[NET_PLAYER(m_data)]) {
+				g_player[NET_PLAYER(m_data)]->BreakCeaseFire(m_data2, m_data3 != 0);
 			}
 			break;
 
@@ -1220,8 +1225,8 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 				CityData *cd = city.GetData()->GetCityData();
 				cd->SetWonders(cd->GetBuiltWonders() | ((uint64)1 << (uint64)m_data));
 				wonderutil_AddBuilt(m_data);
-				if(g_player[cd->GetOwner()]) {
-					g_player[cd->GetOwner()]->AddWonder(m_data, city);
+				if(g_player[NET_PLAYER(cd->GetOwner())]) {
+					g_player[NET_PLAYER(cd->GetOwner())]->AddWonder(m_data, city);
 				}
 				cd->GetBuildQueue()->SendMsgWonderComplete(cd, m_data);
 			}
@@ -1246,18 +1251,18 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		case NET_INFO_CODE_ATTACH_ROBOT:
 		{
 			DPRINTF(k_DBG_NET, ("Player %d is a robot\n", m_data));
-			if(g_player[m_data])
-				g_player[m_data]->m_playerType = PLAYER_TYPE_ROBOT;
+			if(g_player[NET_PLAYER(m_data)])
+				g_player[NET_PLAYER(m_data)]->m_playerType = PLAYER_TYPE_ROBOT;
 			break;
 		}
 		case NET_INFO_CODE_DETACH_ROBOT:
 		{
 			DPRINTF(k_DBG_NET, ("Player %d is a non-robot\n", m_data));
-			if (g_player[m_data]) {
+			if (g_player[NET_PLAYER(m_data)]) {
 				if (static_cast<sint32>(m_data) == g_network.GetPlayerIndex()) {
-					g_player[m_data]->m_playerType = PLAYER_TYPE_HUMAN;
+					g_player[NET_PLAYER(m_data)]->m_playerType = PLAYER_TYPE_HUMAN;
 				} else {
-					g_player[m_data]->m_playerType = PLAYER_TYPE_NETWORK;
+					g_player[NET_PLAYER(m_data)]->m_playerType = PLAYER_TYPE_NETWORK;
 				}
 			}
 			break;
@@ -1266,8 +1271,8 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		{
 			DPRINTF(k_DBG_NET, ("Player %d's dip state towards %d is %d\n",
 								m_data, m_data2, m_data3));
-			if(g_player[m_data]) {
-				g_player[m_data]->SetDiplomaticState(m_data2,
+			if(g_player[NET_PLAYER(m_data)]) {
+				g_player[NET_PLAYER(m_data)]->SetDiplomaticState(m_data2,
 													 (DIPLOMATIC_STATE)m_data3);
 			}
 			break;
@@ -1318,7 +1323,7 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 								m_data));
 			Unit unit(m_data);
 			if(g_theUnitPool->IsValid(unit)) {
-				if(!g_player[unit.GetOwner()]) {
+				if(!g_player[NET_PLAYER(unit.GetOwner())]) {
 					g_network.RequestResync(RESYNC_BAD_PLAYER);
 					break;
 				}
@@ -1328,7 +1333,7 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 				unit.GetPos(pos);
 
 				g_theWorld->InsertUnit(pos, unit);
-				g_player[unit.GetOwner()]->InsertUnitReference(unit,
+				g_player[NET_PLAYER(unit.GetOwner())]->InsertUnitReference(unit,
 															   CAUSE_NEW_ARMY_UPRISING,
 															   Unit());
 			}
@@ -1354,7 +1359,7 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		{
 			DPRINTF(k_DBG_NET, ("Wonder %d started by player %d\n",
 								m_data2, m_data));
-			if(g_player[m_data]) {
+			if(g_player[NET_PLAYER(m_data)]) {
 				SlicObject *so;
 				so = new SlicObject("44WonderStarted");
 				so->AddCivilisation(m_data);
@@ -1379,8 +1384,8 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		{
 			DPRINTF(k_DBG_NET, ("BeginTurnEnemyUnits for Player %d\n",
 								m_data));
-			if(g_player && g_player[m_data]) {
-				g_player[m_data]->BeginTurnEnemyUnits();
+			if(g_player && g_player[NET_PLAYER(m_data)]) {
+				g_player[NET_PLAYER(m_data)]->BeginTurnEnemyUnits();
 			}
 			break;
 		}
@@ -1416,8 +1421,8 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		{
 			DPRINTF(k_DBG_NET, ("Player %d's production from franchises is %d\n",
 								m_data, m_data2));
-			if(g_player[m_data]) {
-				g_player[m_data]->m_productionFromFranchises = m_data2;
+			if(g_player[NET_PLAYER(m_data)]) {
+				g_player[NET_PLAYER(m_data)]->m_productionFromFranchises = m_data2;
 			}
 			break;
 		}
@@ -1449,15 +1454,15 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		{
 			MapPoint p;
 			g_network.UnpackedPos(m_data2, p);
-			if(g_player[m_data])
+			if(g_player[NET_PLAYER(m_data)])
 			{
-				g_player[m_data]->m_vision->AddUnseen(p);
+				g_player[NET_PLAYER(m_data)]->m_vision->AddUnseen(p);
 			}
 			break;
 		}
 		case NET_INFO_CODE_OFFER_REJECTED_MESSAGE:
 		{
-			if(g_player[m_data] && g_player[m_data2]) {
+			if(g_player[NET_PLAYER(m_data)] && g_player[NET_PLAYER(m_data2)]) {
 				SlicObject *so = new SlicObject("91OfferRejected");
 				so->AddRecipient(m_data);
 				so->AddCivilisation(m_data2);
@@ -1474,8 +1479,8 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 			so->AddCivilisation(m_data);
 			g_slicEngine->Execute(so);
 
-			if(g_player[m_data]) {
-				g_player[m_data]->GameOver(GAME_OVER_WON_SCIENCE, -1);
+			if(g_player[NET_PLAYER(m_data)]) {
+				g_player[NET_PLAYER(m_data)]->GameOver(GAME_OVER_WON_SCIENCE, -1);
 			}
 			uint32 i;
 			for(i = 0; i < k_MAX_PLAYERS; i++) {
@@ -1489,10 +1494,10 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		case NET_INFO_CODE_RECOVERED_PROBE:
 		{
 			DPRINTF(k_DBG_NET, ("%d recovered the probe\n", m_data));
-			if(g_player[m_data]) {
+			if(g_player[NET_PLAYER(m_data)]) {
 				Unit city(m_data2);
 
-				g_player[m_data]->RecoveredProbe(city);
+				g_player[NET_PLAYER(m_data)]->RecoveredProbe(city);
 			}
 			break;
 		}
@@ -1553,7 +1558,7 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		case NET_INFO_CODE_ACTIVATE_SPACE_BUTTON:
 		{
 			DPRINTF(k_DBG_NET, ("Space Button active for %d\n", m_data));
-			if(g_player[m_data]) {
+			if(g_player[NET_PLAYER(m_data)]) {
 				player_ActivateSpaceButton(m_data);
 			}
 			break;
@@ -1608,7 +1613,7 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		{
 			DPRINTF(k_DBG_NET, ("Server says all initial city states sent for player %d\n", m_data));
 			if(g_network.IsLocalPlayer(m_data)) {
-				if(g_player[m_data]->IsRobot()) {
+				if(g_player[NET_PLAYER(m_data)]->IsRobot()) {
 					CtpAi::NetworkClientBeginTurn(m_data);
 				}
 				else
@@ -1631,15 +1636,15 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		case NET_INFO_CODE_SET_ROUND:
 		{
 			DPRINTF(k_DBG_NET, ("Server says it's round %d for player %d\n", m_data2, m_data));
-			if(g_player[m_data]) {
-				g_player[m_data]->m_current_round = m_data2;
+			if(g_player[NET_PLAYER(m_data)]) {
+				g_player[NET_PLAYER(m_data)]->m_current_round = m_data2;
 			}
 			break;
 		}
 		case NET_INFO_CODE_BEGIN_SCHEDULER:
 		{
 			DPRINTF(k_DBG_NET, ("Server says ok to begin scheduler for player %d now\n", m_data));
-			if(m_data >= 0 && m_data < k_MAX_PLAYERS && g_player[m_data] && g_network.IsLocalPlayer(m_data)) {
+			if(m_data >= 0 && m_data < k_MAX_PLAYERS && g_player[NET_PLAYER(m_data)] && g_network.IsLocalPlayer(m_data)) {
 				g_director->AddBeginScheduler(m_data);
 			}
 			break;
@@ -1702,13 +1707,13 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		case NET_INFO_CODE_PLAYER_TRADE_DATA:
 		{
 			DPRINTF(k_DBG_NET, ("Player %d trade points: %d/%d\n", m_data, m_data2, m_data3));
-			if(!g_player[m_data]) {
+			if(!g_player[NET_PLAYER(m_data)]) {
 				g_network.RequestResync(RESYNC_BAD_PLAYER);
 				break;
 			}
 
-			g_player[m_data]->m_usedTradeTransportPoints = m_data2;
-			g_player[m_data]->m_tradeTransportPoints = m_data3;
+			g_player[NET_PLAYER(m_data)]->m_usedTradeTransportPoints = m_data2;
+			g_player[NET_PLAYER(m_data)]->m_tradeTransportPoints = m_data3;
 			TradeManager::Notify();
 			break;
 		}
@@ -1730,8 +1735,8 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		{
 			DPRINTF(k_DBG_NET, ("Server says game over for player %d, reason %d (%d)\n", m_data2, m_data, m_data3));
 			if(m_data >= 0 && m_data < k_MAX_PLAYERS) {
-				if(g_player[m_data2]) {
-					g_player[m_data2]->GameOver((GAME_OVER)m_data, m_data3);
+				if(g_player[NET_PLAYER(m_data2)]) {
+					g_player[NET_PLAYER(m_data2)]->GameOver((GAME_OVER)m_data, m_data3);
 				}
 			}
 			break;
@@ -1739,8 +1744,8 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		case NET_INFO_CODE_SET_EMBASSIES:
 		{
 			DPRINTF(k_DBG_NET, ("Server says embassies for player %d is %lx\n", m_data, m_data2));
-			if(g_player[m_data]) {
-				g_player[m_data]->m_embassies = m_data2;
+			if(g_player[NET_PLAYER(m_data)]) {
+				g_player[NET_PLAYER(m_data)]->m_embassies = m_data2;
 			}
 			break;
 		}
@@ -1752,7 +1757,7 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 					 m_data2, m_data, m_data3
 					)
 				   );
-			if (g_player[m_data2])
+			if (g_player[NET_PLAYER(m_data2)])
 			{
 				g_featTracker->AddFeat(m_data, m_data2, m_data3);
 			}
@@ -1781,8 +1786,8 @@ NetInfo::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		case NET_INFO_CODE_MATERIALS:
 			DPRINTF(k_DBG_NET, ("Net: Setting player %d's materials to %d\n",
 								m_data, m_data2));
-			if(g_player[m_data]) {
-				g_player[m_data]->m_materialPool->SetLevel((sint32)m_data2);
+			if(g_player[NET_PLAYER(m_data)]) {
+				g_player[NET_PLAYER(m_data)]->m_materialPool->SetLevel((sint32)m_data2);
 			}
 			break;
 

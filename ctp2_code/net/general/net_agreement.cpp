@@ -88,8 +88,8 @@ void NetAgreement::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	if(!g_theAgreementPool->IsValid(ag)) {
 		g_theAgreementPool->Insert(m_data);
 
-		g_player[m_data->m_owner]->m_agreed->Insert(ag);
-		g_player[m_data->m_recipient]->m_agreed->Insert(ag);
+		g_player[NET_PLAYER(m_data->m_owner)]->m_agreed->Insert(ag);
+		g_player[NET_PLAYER(m_data->m_recipient)]->m_agreed->Insert(ag);
 	}
 }
 

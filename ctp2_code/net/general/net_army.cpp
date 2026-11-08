@@ -58,7 +58,7 @@ void NetNewArmy::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	PULLLONGTYPE(m_cause, CAUSE_NEW_ARMY);
 	PULLBYTE(m_numUnits);
 
-	Assert(m_numUnits <= k_MAX_ARMY_SIZE);
+	NET_CHECK(m_numUnits <= k_MAX_ARMY_SIZE);   // ctp2-redux: was only an Assert
 
 	for(i = 0; i < m_numUnits; i++) {
 		PULLLONG(m_unitId[i]);
@@ -72,8 +72,8 @@ void NetNewArmy::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 			return;
 	}
 
-	Assert(g_player[m_player]->m_all_armies->Num() == m_index);
-	if(g_player[m_player]->m_all_armies->Num() != m_index)
+	Assert(g_player[NET_PLAYER(m_player)]->m_all_armies->Num() == m_index);
+	if(g_player[NET_PLAYER(m_player)]->m_all_armies->Num() != m_index)
 		return;
 
 	static ArmyList al;
@@ -83,7 +83,7 @@ void NetNewArmy::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 		Assert(g_theUnitPool->IsValid(unit));
 		al.Insert(unit);
 	}
-	g_player[m_player]->CopyArmyIntoPlayer(al, m_cause,
+	g_player[NET_PLAYER(m_player)]->CopyArmyIntoPlayer(al, m_cause,
 										   TRUE);
 #endif
 }
@@ -132,7 +132,7 @@ void NetRemoveArmy::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	PULLLONGTYPE(m_cause, CAUSE_REMOVE_ARMY);
 	PULLBYTE(m_numUnits);
 
-	Assert(m_numUnits <= k_MAX_ARMY_SIZE);
+	NET_CHECK(m_numUnits <= k_MAX_ARMY_SIZE);   // ctp2-redux: was only an Assert
 
 	for(i = 0; i < m_numUnits; i++) {
 		PULLLONG(m_unitId[i]);
@@ -153,14 +153,14 @@ void NetRemoveArmy::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 		al.Insert(unit);
 	}
 
-	ArmyList *realAl = g_player[m_player]->GetArmy(m_index);
+	ArmyList *realAl = g_player[NET_PLAYER(m_player)]->GetArmy(m_index);
 	Assert(m_numUnits == realAl->Num());
 	for(i = 0; i < m_numUnits; i++) {
 		Assert(al[i] == realAl->Access(i));
 	}
 #endif
 
-	g_player[m_player]->RemoveArmyFromPlayer(m_index, m_cause,
+	g_player[NET_PLAYER(m_player)]->RemoveArmyFromPlayer(m_index, m_cause,
 											 TRUE, -1);
 #endif
 }
@@ -275,7 +275,7 @@ void NetGroupRequest::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 		}
 		theArmy.m_id = m_armyId;
 	} else {
-		theArmy = g_player[pl]->GetNewArmy(CAUSE_NEW_ARMY_REMOTE_GROUPING);
+		theArmy = g_player[NET_PLAYER(pl)]->GetNewArmy(CAUSE_NEW_ARMY_REMOTE_GROUPING);
 		g_network.Enqueue(new NetInfo(NET_INFO_CODE_ADD_ARMY, pl, CAUSE_NEW_ARMY_REMOTE_GROUPING, theArmy.m_id));
 	}
 
@@ -332,7 +332,7 @@ void NetUngroupRequest::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	uint8 n, i;
 	PULLBYTE(n);
 	for(i = 0; i < n; i++) {
-		Army newArmy = g_player[pl]->GetNewArmy(CAUSE_NEW_ARMY_REMOTE_UNGROUPING);
+		Army newArmy = g_player[NET_PLAYER(pl)]->GetNewArmy(CAUSE_NEW_ARMY_REMOTE_UNGROUPING);
 		g_network.Enqueue(new NetInfo(NET_INFO_CODE_ADD_ARMY, pl, CAUSE_NEW_ARMY_REMOTE_UNGROUPING, newArmy.m_id));
 
 		uint32 unitId;

@@ -74,6 +74,10 @@ NetChat::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	PULLLONG(m_destmask);
 	PULLSHORT(m_len);
 	PULLBYTE(m_from);
+	// ctp2-redux: the text length and the sender come from the packet
+	NET_CHECK(m_len >= 0);
+	net_Need(pos, m_len * sizeof(MBCHAR), size);
+	net_PlayerIndex(m_from);
 	if(g_network.IsHost()) {
 		Assert(m_from == g_network.IdToIndex(id));
 		m_from = (uint8)g_network.IdToIndex(id);
@@ -85,6 +89,11 @@ NetChat::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	memcpy(m_str, &buf[pos], m_len);
 	m_str[m_len] = 0;
 	pos += m_len * sizeof(MBCHAR);
+	// ctp2-redux: no longer than the chat input allows (also when passed on)
+	if(m_len > k_MAX_CHAT_LEN) {
+		m_len = k_MAX_CHAT_LEN;
+		m_str[m_len] = 0;
+	}
 
 	if(g_network.IsHost()) {
 		for(sint32 p = 0; p < k_MAX_PLAYERS; p++) {

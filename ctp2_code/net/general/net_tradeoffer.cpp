@@ -39,6 +39,7 @@ void NetTradeOffer::Unpacketize(uint16 id, uint8* buf, uint16 size)
 	sint32 toCity;
 
 	Assert(MAKE_CIV3_ID(buf[0], buf[1]) == k_PACKET_TRADE_OFFER_ID);
+	net_Need(0, 6, size);   // ctp2-redux: read directly
 	TradeOffer offer(getlong(&buf[2]));
 
 	g_network.CheckReceivedObject((uint32)offer);

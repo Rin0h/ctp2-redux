@@ -31,6 +31,7 @@ void NetGuid::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	Assert(packid == k_PACKET_GUID_ID);
 
 	GUID guid;
+	net_Need(pos, sizeof(GUID), size);   // ctp2-redux: read directly
 	memcpy((uint8*)&guid, &buf[pos], sizeof(GUID));
 	pos += sizeof(GUID);
 	g_network.SetGuid(id, &guid);
@@ -56,10 +57,11 @@ void NetSetPlayerGuid::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	PULLBYTE(m_player);
 
 	GUID guid;
+	net_Need(pos, sizeof(GUID), size);   // ctp2-redux: read directly
 	memcpy((uint8*)&guid, &buf[pos], sizeof(GUID));
 	pos += sizeof(GUID);
-	if(g_player[m_player]) {
-		g_player[m_player]->m_networkGuid = guid;
+	if(g_player[NET_PLAYER(m_player)]) {
+		g_player[NET_PLAYER(m_player)]->m_networkGuid = guid;
 	}
 	Assert(pos == size);
 }

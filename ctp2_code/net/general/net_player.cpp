@@ -114,7 +114,7 @@ void NetPlayer::Unpacketize(uint16 id, uint8* buf, uint16 size)
 	PULLLONG(pidx);
 
 	Assert(pidx < k_MAX_PLAYERS);
-	p = g_player[pidx];
+	p = g_player[NET_PLAYER(pidx)];
 	Assert(p != NULL);
 	Assert(p->m_owner == pidx);
 
@@ -127,6 +127,9 @@ void NetPlayer::Unpacketize(uint16 id, uint8* buf, uint16 size)
 
 	sint32 advSize;
 	PULLLONG(advSize);
+	// ctp2-redux: sizes an allocation, and its bits are read directly
+	NET_CHECK(advSize >= 0 && advSize <= g_theAdvanceDB->NumRecords());
+	net_Need(pos, (advSize + 7) / 8, size);
 	if(p->m_advances->m_hasAdvance) {
 		delete [] p->m_advances->m_hasAdvance;
 	}
@@ -222,8 +225,9 @@ void NetAddPlayer::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	Assert(packid == k_PACKET_ADD_PLAYER_ID);
 
 	PULLSHORT(m_id);
-	MBCHAR name[1024];
+	MBCHAR name[k_MAX_NAME_LEN];   // ctp2-redux: the size of the names it ends in
 	PULLSTRING(name);
+	net_Cut(name, k_NET_MAX_NAME);
 
 	g_network.AddPlayer(m_id, name);
 	Assert(pos == size);

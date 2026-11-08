@@ -37,14 +37,14 @@ void NetStrengths::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	Assert(packid == k_PACKET_STRENGTH_ID);
 
 	PULLLONG(m_player);
-	Assert(g_player[m_player]);
-	if(!g_player[m_player])
+	Assert(g_player[NET_PLAYER(m_player)]);
+	if(!g_player[NET_PLAYER(m_player)])
 		return;
 
 	sint32 round;
 	PULLLONG(round);
 
-	Strengths *str = g_player[m_player]->m_strengths;
+	Strengths *str = g_player[NET_PLAYER(m_player)]->m_strengths;
 
 	sint32 i;
 	for(i = sint32(STRENGTH_CAT_NONE) + 1; i < sint32(STRENGTH_CAT_MAX); i++) {
@@ -87,14 +87,14 @@ void NetFullStrengths::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	Assert(packid == k_PACKET_FULL_STRENGTHS_ID);
 
 	PULLLONG(m_player);
-	Assert(g_player[m_player]);
-	if(!g_player[m_player])
+	Assert(g_player[NET_PLAYER(m_player)]);
+	if(!g_player[NET_PLAYER(m_player)])
 		return;
 
 	PULLLONG(m_startRound);
 	PULLLONG(m_endRound);
 
-	Strengths *str = g_player[m_player]->m_strengths;
+	Strengths *str = g_player[NET_PLAYER(m_player)]->m_strengths;
 
 	sint32 n; // Is needed
 	PULLLONG(n);
@@ -143,10 +143,10 @@ void NetScores::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	if(m_player < 0 || m_player >= k_MAX_PLAYERS)
 		return;
 
-	if(!g_player[m_player])
+	if(!g_player[NET_PLAYER(m_player)])
 		return;
 
-	Score *sc = g_player[m_player]->m_score;
+	Score *sc = g_player[NET_PLAYER(m_player)]->m_score;
 	Assert(sc);
 
 	PULLLONG(sc->m_cities_recaptured);

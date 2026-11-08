@@ -24,7 +24,7 @@ public:
 private:
 	friend class NetCity;
 	static void PacketizeUnit(uint8* buf, uint16& size, UnitData* unitData);
-	static void UnpacketizeUnit(uint8* buf, uint16& size, UnitData* unitData);
+	static void UnpacketizeUnit(uint8* buf, sint32 avail, uint16& size, UnitData* unitData);
 
 	UnitData* m_unitData;
 	Unit m_actorId;

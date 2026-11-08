@@ -139,7 +139,7 @@ void NetUnit::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		PLAYER_INDEX oldowner = m_unitData->m_owner;
 		uint32 oldFlags = m_unitData->m_flags;
 
-		UnpacketizeUnit(&buf[pos], unitSize, m_unitData);
+		UnpacketizeUnit(&buf[pos], size - pos, unitSize, m_unitData);
 		pos += unitSize;
 
 		if(pnt != m_unitData->m_pos)
@@ -174,8 +174,8 @@ void NetUnit::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		}
 #if 0
 		else if(oldVisionRange != m_unitData->m_vision_range) {
-			g_player[m_unitData->GetOwner()]->RemoveUnitVision(m_unitData->m_pos, oldVisionRange);
-			g_player[m_unitData->GetOwner()]->AddUnitVision(m_unitData->m_pos, m_unitData->m_vision_range);
+			g_player[NET_PLAYER(m_unitData->GetOwner())]->RemoveUnitVision(m_unitData->m_pos, oldVisionRange);
+			g_player[NET_PLAYER(m_unitData->GetOwner())]->AddUnitVision(m_unitData->m_pos, m_unitData->m_vision_range);
 		}
 #endif
 
@@ -188,8 +188,8 @@ void NetUnit::Unpacketize(uint16 id, uint8* buf, uint16 size)
 				BOOL ahaSoItDoesHappen = FALSE;
 				Assert(ahaSoItDoesHappen);
 			} else {
-				g_player[oldowner]->RemoveUnitReference(uid, CAUSE_REMOVE_ARMY_UNKNOWN, m_unitData->m_owner);
-				g_player[m_unitData->m_owner]->InsertUnitReference(uid, CAUSE_NEW_ARMY_UNKNOWN, Unit());
+				g_player[NET_PLAYER(oldowner)]->RemoveUnitReference(uid, CAUSE_REMOVE_ARMY_UNKNOWN, m_unitData->m_owner);
+				g_player[NET_PLAYER(m_unitData->m_owner)]->InsertUnitReference(uid, CAUSE_NEW_ARMY_UNKNOWN, Unit());
 			}
 		}
 
@@ -201,8 +201,12 @@ void NetUnit::Unpacketize(uint16 id, uint8* buf, uint16 size)
 			return;
 		}
 
-		PLAYER_INDEX unitOwner = (PLAYER_INDEX)getshort(&buf[10]);
+		// ctp2-redux: read directly; the packet must be that long, owner and
+		// type index arrays
+		net_Need(0, 24, size);
+		PLAYER_INDEX unitOwner = (PLAYER_INDEX)net_PlayerIndex(getshort(&buf[10]));
 		uint32 unitType = getlong(&buf[12]);
+		NET_CHECK(unitType < static_cast<uint32>(g_theUnitDB->NumRecords()));
 		MapPoint unitPos((sint32)getshort(&buf[16]),
 						 (sint32)getshort(&buf[18]));
 		uint32 flags = getlong(&buf[20]);
@@ -210,7 +214,7 @@ void NetUnit::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		g_theUnitPool->HackSetKey(((uint32)uid & k_ID_KEY_MASK) + 1);
 
 		sint32 trans_t = 0;
-        (void) g_theUnitDB->Get(unitType, g_player[unitOwner]->GetGovernmentType())->GetTransType(trans_t);
+        (void) g_theUnitDB->Get(unitType, g_player[NET_PLAYER(unitOwner)]->GetGovernmentType())->GetTransType(trans_t);
 		if (m_actorId.m_id != 0)
         {
 			m_unitData = new UnitData(unitType, trans_t, uid, unitOwner,
@@ -232,7 +236,7 @@ void NetUnit::Unpacketize(uint16 id, uint8* buf, uint16 size)
 			}
 		}
 
-		UnpacketizeUnit(&buf[pos], unitSize, m_unitData);
+		UnpacketizeUnit(&buf[pos], size - pos, unitSize, m_unitData);
 		pos += unitSize;
 
 		g_theUnitPool->Insert(m_unitData);
@@ -250,12 +254,12 @@ void NetUnit::Unpacketize(uint16 id, uint8* buf, uint16 size)
 		if(m_unitData->GetDBRec()->GetHasPopAndCanBuild()) {
 			m_unitData->GetCityData()->NetworkInitialize();
 
-			g_player[m_unitData->m_owner]->AddCityReferenceToPlayer(
+			g_player[NET_PLAYER(m_unitData->m_owner)]->AddCityReferenceToPlayer(
 				uid, CAUSE_NEW_CITY_UNKNOWN);
 			g_theWorld->InsertCity(m_unitData->m_pos, uid);
 
 		} else if(m_unitData->GetDBRec()->GetIsTrader()) {
-			g_player[m_unitData->m_owner]->AddTrader(uid);
+			g_player[NET_PLAYER(m_unitData->m_owner)]->AddTrader(uid);
 		} else {
 			if(m_unitData->IsBeingTransported()) {
 
@@ -264,7 +268,7 @@ void NetUnit::Unpacketize(uint16 id, uint8* buf, uint16 size)
 			}
 			if (!m_unitData->Flag(k_UDF_TEMP_SLAVE_UNIT))
             {
-				g_player[m_unitData->m_owner]->InsertUnitReference
+				g_player[NET_PLAYER(m_unitData->m_owner)]->InsertUnitReference
                     (uid, CAUSE_NEW_ARMY_NETWORK, Unit());
 			}
 		}
@@ -333,12 +337,18 @@ void NetUnit::PacketizeUnit(uint8* buf, uint16& size, UnitData* unitData)
 	size = static_cast<uint16>(ptr - buf);
 }
 
-void NetUnit::UnpacketizeUnit(uint8* buf, uint16& size, UnitData* unitData)
+// ctp2-redux: avail is what is left of the packet behind buf; every read is
+// checked against it, and the owner and the type, which index arrays, are
+// checked too (net_util.h). Before, this read on behind the packet.
+void NetUnit::UnpacketizeUnit(uint8* buf, sint32 avail, uint16& size, UnitData* unitData)
 {
 	uint8* ptr = buf;
+#define NEED(n) net_Need(static_cast<sint32>(ptr - buf), static_cast<sint32>(n), avail)
 
-	unitData->m_owner = (PLAYER_INDEX)getshort(ptr); ptr += 2;
+	NEED(2 + 4 + 2 + 2 + 4 + 4 + 8 + sizeof(double) + sizeof(unitData->m_temp_visibility_array.m_array_index));
+	unitData->m_owner = (PLAYER_INDEX)net_PlayerIndex(getshort(ptr)); ptr += 2;
 	unitData->m_type = getlong(ptr); ptr += 4;
+	NET_CHECK(unitData->m_type >= 0 && unitData->m_type < g_theUnitDB->NumRecords());
 	unitData->m_pos.x = getshort(ptr); ptr += 2;
 	unitData->m_pos.y = getshort(ptr); ptr += 2;
 
@@ -359,6 +369,7 @@ void NetUnit::UnpacketizeUnit(uint8* buf, uint16& size, UnitData* unitData)
 	}
 #endif
 
+	NEED(4 * 5);
 	unitData->m_army = Army(getlong(ptr)); ptr += 4;
 
 	unitData->m_visibility = getlong(ptr); ptr += 4;
@@ -372,6 +383,7 @@ void NetUnit::UnpacketizeUnit(uint8* buf, uint16& size, UnitData* unitData)
 	}
 
 
+	NEED(4 + 1);
 	unitData->m_transport = Unit(getlong(ptr)); ptr += 4;
 
 	uint8 canHaveCargo = getbyte(ptr); ptr++;
@@ -379,7 +391,9 @@ void NetUnit::UnpacketizeUnit(uint8* buf, uint16& size, UnitData* unitData)
 		if(!unitData->m_cargo_list) {
 			unitData->m_cargo_list = new UnitDynamicArray;
 		}
+		NEED(1);
 		uint8 transportedUnits = getbyte(ptr); ptr++;
+		NEED(4 * transportedUnits);
 		unitData->m_cargo_list->Clear();
 		for (uint8 i = 0; i < transportedUnits; i++)
         {
@@ -388,9 +402,11 @@ void NetUnit::UnpacketizeUnit(uint8* buf, uint16& size, UnitData* unitData)
 		}
 	}
 
+	NEED(4);
 	unitData->m_target_city.m_id = getlong(ptr); ptr += 4;
 
 	size = static_cast<uint16>(ptr - buf);
+#undef NEED
 }
 
 NetUnitMove::NetUnitMove(const Unit id, const MapPoint &pnt)
@@ -431,9 +447,9 @@ void NetUnitMove::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 
 	MapPoint oldPos = ud->m_pos;
 	g_theWorld->RemoveUnitReference(ud->m_pos, u);
-	g_player[ud->GetOwner()]->RemoveUnitVision(ud->m_pos, ud->GetVisionRange());
+	g_player[NET_PLAYER(ud->GetOwner())]->RemoveUnitVision(ud->m_pos, ud->GetVisionRange());
 	ud->m_pos = m_point;
-	g_player[ud->GetOwner()]->AddUnitVision(ud->m_pos, ud->GetVisionRange());
+	g_player[NET_PLAYER(ud->GetOwner())]->AddUnitVision(ud->m_pos, ud->GetVisionRange());
 	g_theWorld->InsertUnit(ud->m_pos, u);
 
 	g_director->AddMove(u, oldPos, ud->m_pos, 0, NULL, u.GetMoveSoundID());

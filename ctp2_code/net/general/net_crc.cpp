@@ -320,6 +320,7 @@ void NetCRC::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 
 	PULLLONG(m_startAt);
 	PULLLONG(m_stopAt);
+	NET_CHECK(m_startAt >= 0 && m_stopAt < k_MAX_DBS);   // ctp2-redux: index m_db_crc
 	sint32 num = SerializeDBs();
 	sint32 remoteNum;
 	PULLLONG(remoteNum);

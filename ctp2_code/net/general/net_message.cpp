@@ -92,7 +92,14 @@ void NetMessage::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	PULLBYTETYPE(m_data->m_sender, PLAYER_INDEX);
 	PULLBYTETYPE(m_data->m_msgType, MESSAGE_TYPE);
 	PULLLONG(m_data->m_timestamp);
-	PULLSTRING(m_data->m_text);
+	// ctp2-redux: m_text is a pointer; PULLSTRING copied the text to wherever
+	// it pointed. Now it gets an allocation of its own.
+	MBCHAR *text;
+	PULLNEWSTRING(text);
+	if(text) {
+		delete [] m_data->m_text;
+		m_data->m_text = text;
+	}
 
 	sint16 numCities;
 	PULLSHORT(numCities);
@@ -101,7 +108,10 @@ void NetMessage::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 
 	if(numCities > 0) {
 		for(sint32 i = 0 ; i < numCities; i++) {
-			PULLLONGTYPE(m_data->m_cityList->Access(i), Unit);
+			// ctp2-redux: Access(i) wrote behind the emptied list
+			Unit city;
+			PULLLONGTYPE(city, Unit);
+			m_data->m_cityList->Insert(city);
 		}
 	}
 	if(g_network.IsHost()) {
@@ -112,12 +122,12 @@ void NetMessage::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 			g_network.QueuePacket(id, new NetInfo(NET_INFO_CODE_NAK_OBJECT,
 												  (uint32)msg, (uint32)realmsg));
 		}
-		g_player[m_data->m_owner]->AddMessage(realmsg);
+		g_player[NET_PLAYER(m_data->m_owner)]->AddMessage(realmsg);
 		g_network.Enqueue(m_data);
 	} else if(!g_theMessagePool->IsValid(msg)) {
 		g_theMessagePool->HackSetKey(((uint32)msg & k_ID_KEY_MASK)+1);
 		g_theMessagePool->Insert(m_data);
-		g_player[m_data->m_owner]->AddMessage(msg);
+		g_player[NET_PLAYER(m_data->m_owner)]->AddMessage(msg);
 	}
 }
 
@@ -147,8 +157,9 @@ void NetInfoMessage::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	Assert(packid == k_PACKET_NET_INFO_MESSAGE_ID);
 
 	PULLLONGTYPE(m_msg, NET_MSG_TYPE);
-	MBCHAR name[1024];
+	MBCHAR name[k_MAX_NAME_LEN];   // ctp2-redux: the size of the names it ends in
 	PULLSTRING(name);
+	net_Cut(name, k_NET_MAX_NAME);
 	PULLLONG(m_player);
 
 	switch(m_msg) {

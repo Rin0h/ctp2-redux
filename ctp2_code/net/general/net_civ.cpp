@@ -103,9 +103,16 @@ void NetCivilization::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	PULLSTRING(m_data->m_country_name);
 	PULLSTRING(m_data->m_singular_name);
 	PULLSTRING(m_data->m_personality_description);
+	// ctp2-redux: the names are shown and copied into buffers of 256 and less
+	net_Cut(m_data->m_leader_name, k_NET_MAX_NAME);
+	net_Cut(m_data->m_civilisation_name, k_NET_MAX_NAME);
+	net_Cut(m_data->m_country_name, k_NET_MAX_NAME);
+	net_Cut(m_data->m_singular_name, k_NET_MAX_NAME);
+	net_Cut(m_data->m_personality_description, 255);
 
 	uint16 numCityNames;
 	PULLSHORT(numCityNames);
+	NET_CHECK(numCityNames <= k_MAX_CityName);   // ctp2-redux: fills a fixed array
 	sint32 i;
 	for(i = 0; i < numCityNames; i++) {
 		PULLBYTE(m_data->m_cityname_count[i]);
@@ -114,7 +121,7 @@ void NetCivilization::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	if(!g_theCivilisationPool->IsValid(cid)) {
 		g_theCivilisationPool->HackSetKey(((uint32)cid + k_ID_KEY_MASK) + 1);
 		g_theCivilisationPool->Insert(m_data);
-		*g_player[m_data->m_owner]->m_civilisation = cid;
+		*g_player[NET_PLAYER(m_data->m_owner)]->m_civilisation = cid;
 	}
 }
 
@@ -134,11 +141,12 @@ void NetSetLeaderName::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	PULLID(packid);
 	Assert(packid == k_PACKET_SET_LEADER_NAME_ID);
 
-	MBCHAR nbuf[1024];
+	MBCHAR nbuf[k_MAX_NAME_LEN];   // ctp2-redux: SetLeaderName copies it into k_MAX_NAME_LEN
 	PULLBYTE(m_player);
 	PULLSTRING(nbuf);
-	if(g_player[m_player]) {
-		g_player[m_player]->m_civilisation->AccessData()->SetLeaderName(nbuf);
+	net_Cut(nbuf, k_NET_MAX_NAME);
+	if(g_player[NET_PLAYER(m_player)]) {
+		g_player[NET_PLAYER(m_player)]->m_civilisation->AccessData()->SetLeaderName(nbuf);
 
 		if(g_networkPlayersScreen) {
 			g_networkPlayersScreen->UpdateData();

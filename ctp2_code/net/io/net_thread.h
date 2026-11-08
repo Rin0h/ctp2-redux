@@ -33,6 +33,10 @@
 
 #define k_SPLIT_LEN 238
 
+// ctp2-redux: the largest length a packet may claim (split total, size of a
+// compressed one); the receiver allocates it
+#define k_MAX_PACKET_LEN (16 * 1024 * 1024)
+
 template <class T> class SimpleDynamicArray;
 
 class TPacketData
@@ -47,8 +51,9 @@ public:
 
 	~TPacketData();
 
-	void Append(uint8 *buf, sint32 len);
+	bool Append(uint8 *buf, sint32 len);
 	void RemoveSplitInfo();
+	bool IsComplete() const { return m_len == m_totalLen; }
 
 	uint16 m_id;
 	sint32 m_flags;
@@ -79,8 +84,13 @@ private:
 	volatile sint32 m_setMaxPlayers;
 	volatile bool m_setLock;
 	SimpleDynamicArray<uint16> *m_kickPlayers;
+	// ctp2-redux: broken split packets thrown away by the receiving thread,
+	// logged by Idle() on the main thread
+	sint32 m_dropped;
+	sint32 m_droppedLogged;
 	void Lock();
 	void Unlock();
+	void Drop(uint16 from, uint8 *buf, sint32 size);
 
 public:
 	NetThread();

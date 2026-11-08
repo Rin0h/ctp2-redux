@@ -54,7 +54,7 @@ void netdiplomacy_PacketizeArgument(DiplomacyArg &arg, uint8 *buf, uint16 &size)
 	PUSHDOUBLE(arg.percent);
 }
 
-void netdiplomacy_UnpacketizeArgument(DiplomacyArg &arg, uint8 *buf, uint16 &pos)
+void netdiplomacy_UnpacketizeArgument(DiplomacyArg &arg, uint8 *buf, uint16 &pos, uint16 size)
 {
 	PULLBYTE(arg.playerId);
 	PULLLONG(arg.cityId);
@@ -76,12 +76,12 @@ void netdiplomacy_PacketizeProposalData(ProposalData &data, uint8 *buf, uint16 &
 	PUSHBYTE(data.tone);
 }
 
-void netdiplomacy_UnpacketizeProposalData(ProposalData &data, uint8 *buf, uint16 &pos)
+void netdiplomacy_UnpacketizeProposalData(ProposalData &data, uint8 *buf, uint16 &pos, uint16 size)
 {
 	PULLBYTETYPE(data.first_type, PROPOSAL_TYPE);
-	netdiplomacy_UnpacketizeArgument(data.first_arg, buf, pos);
+	netdiplomacy_UnpacketizeArgument(data.first_arg, buf, pos, size);
 	PULLBYTETYPE(data.second_type, PROPOSAL_TYPE);
-	netdiplomacy_UnpacketizeArgument(data.second_arg, buf, pos);
+	netdiplomacy_UnpacketizeArgument(data.second_arg, buf, pos, size);
 	PULLBYTETYPE(data.tone, DIPLOMATIC_TONE);
 }
 
@@ -109,7 +109,10 @@ void NetDipProposal::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	PULLSHORT(m_prop.priority);
 	PULLBYTE(m_prop.senderId);
 	PULLBYTE(m_prop.receiverId);
-	netdiplomacy_UnpacketizeProposalData(m_prop.detail, buf, pos);
+	// ctp2-redux: both index the diplomats
+	net_PlayerIndex(m_prop.senderId);
+	net_PlayerIndex(m_prop.receiverId);
+	netdiplomacy_UnpacketizeProposalData(m_prop.detail, buf, pos, size);
 
 	bool execute;
 	NewProposal curProp = Diplomat::GetDiplomat(m_prop.senderId).GetMyLastNewProposal(m_prop.receiverId);
@@ -147,10 +150,10 @@ void netdiplomacy_PacketizeThreatData(ThreatData &threat, uint8 *buf, uint16 &si
 	netdiplomacy_PacketizeArgument(threat.arg, buf, size);
 }
 
-void netdiplomacy_UnpacketizeThreatData(ThreatData &threat, uint8 *buf, uint16 &pos)
+void netdiplomacy_UnpacketizeThreatData(ThreatData &threat, uint8 *buf, uint16 &pos, uint16 size)
 {
 	PULLLONGTYPE(threat.type, THREAT_TYPE);
-	netdiplomacy_UnpacketizeArgument(threat.arg, buf, pos);
+	netdiplomacy_UnpacketizeArgument(threat.arg, buf, pos, size);
 }
 
 void NetDipResponse::Packetize(uint8 *buf, uint16 &size)
@@ -183,8 +186,12 @@ void NetDipResponse::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	PULLLONG(m_resp.senderId);
 	PULLLONG(m_resp.receiverId);
 	PULLLONGTYPE(m_resp.type, RESPONSE_TYPE);
-	netdiplomacy_UnpacketizeProposalData(m_resp.counter, buf, pos);
-	netdiplomacy_UnpacketizeThreatData(m_resp.threat, buf, pos);
+	netdiplomacy_UnpacketizeProposalData(m_resp.counter, buf, pos, size);
+	netdiplomacy_UnpacketizeThreatData(m_resp.threat, buf, pos, size);
+	// ctp2-redux: they index the diplomats
+	net_PlayerIndex(m_resp.senderId);
+	net_PlayerIndex(m_resp.receiverId);
+	net_PlayerIndex(m_executor);
 
 	bool execute;
 	Response curResp = Diplomat::GetDiplomat(m_resp.receiverId).GetMyLastResponse(m_resp.senderId);
@@ -303,10 +310,14 @@ void NetAgreementMatrix::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 		PULLBYTE(ag.receiverId);
 		PULLSHORT(ag.start);
 		PULLSHORT(ag.end);
-		netdiplomacy_UnpacketizeProposalData(ag.proposal, buf, pos);
+		netdiplomacy_UnpacketizeProposalData(ag.proposal, buf, pos, size);
 		PULLLONG(ag.explainStrId);
 		PULLLONG(ag.newsStrId);
 
+        // ctp2-redux: the index of the write comes from the packet
+        NET_CHECK(p1 < AgreementMatrix::s_agreements.GetMaxPlayers() &&
+                  p2 < AgreementMatrix::s_agreements.GetMaxPlayers() &&
+                  prop < PROPOSAL_MAX);
         size_t const    agIndex = AgreementMatrix::s_agreements.AgreementIndex
                                     (p1, p2, static_cast<PROPOSAL_TYPE>(prop));
         AgreementMatrix::s_agreements.SetAgreementFast(agIndex, ag);

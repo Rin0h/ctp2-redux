@@ -81,6 +81,7 @@ void NetTradeRoute::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 
 	Assert(MAKE_CIV3_ID(buf[0], buf[1]) == k_PACKET_TRADE_ROUTE_ID);
 
+	net_Need(0, 6, size);   // ctp2-redux: read directly
 	TradeRoute route(getlong(&buf[2]));
 
 	g_network.CheckReceivedObject((uint32)route);

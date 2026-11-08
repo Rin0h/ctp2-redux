@@ -158,10 +158,13 @@ void NetVision::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 
 	uint8 *         ptr     = NULL;
 	uint8           bitPos  = 0;
-	Vision *        vision  = g_player[m_owner]->m_vision;
+	Vision *        vision  = g_player[NET_PLAYER(m_owner)]->m_vision;
 	sint32          w       = vision->m_width;
 	sint32 const    bottom  =
 	    std::min<sint32>(m_row + m_numRows, vision->m_height);
+	// ctp2-redux: the rows come from the packet and are read directly
+	NET_CHECK(m_row >= 0);
+	net_Need(pos, std::max<sint32>(0, bottom - m_row) * ((w + 7) / 8), size);
 
 	for (sint32 y = m_row; y < bottom; ++y)
 	{
@@ -407,7 +410,7 @@ void NetUnseenCell::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 		uint16 dbIndex;
 		PULLSHORT(dbIndex);
 
-		double		visionRange = g_theUnitDB->Get(dbIndex, g_player[m_owner]->GetGovernmentType())->GetVisionRange();
+		double		visionRange = g_theUnitDB->Get(dbIndex, g_player[NET_PLAYER(m_owner)]->GetGovernmentType())->GetVisionRange();
 
 
 		m_ucell->m_actor = new UnitActor(ss,
@@ -460,5 +463,5 @@ void NetUnseenCell::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 		PULLBYTE(m_ucell->m_tileInfo->m_transitions[c]);
 	}
 
-	g_player[m_owner]->m_vision->AddUnseen(m_ucell);
+	g_player[NET_PLAYER(m_owner)]->m_vision->AddUnseen(m_ucell);
 }

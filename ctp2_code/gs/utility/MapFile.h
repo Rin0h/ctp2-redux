@@ -83,6 +83,10 @@ private:
 	sint32 *    m_unitTypeMap;
 	sint32 *    m_improvementTypeMap;
 	sint32 *    m_advanceTypeMap;
+	// ctp2-redux: their lengths (the indices come from the file)
+	sint32      m_unitTypeCount;
+	sint32      m_improvementTypeCount;
+	sint32      m_advanceTypeCount;
 
 	bool LoadMap(FILE * infile);
 	bool LoadTerrain(uint8 *buf, sint32 size);

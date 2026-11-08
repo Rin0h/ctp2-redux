@@ -91,7 +91,7 @@ NetCheat::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 			DPRINTF(k_DBG_NET, ("Cheat create unit: pl: %d, city: %d, unit: %d, pos: %d,%d\n",
 								m_data[2], m_data[0], m_data[1],
 								m_data[3], m_data[4]));
-			UnitDynamicArray* unitList = g_player[m_data[2]]->GetAllCitiesList();
+			UnitDynamicArray* unitList = g_player[NET_PLAYER(m_data[2])]->GetAllCitiesList();
 			Unit city;
 			if(unitList->Num() > 0) {
 				city = unitList->Get(m_data[0]);
@@ -99,14 +99,14 @@ NetCheat::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 				city.m_id = (0);
 			}
 			MapPoint pos(m_data[3], m_data[4]);
-			g_player[m_data[2]]->CreateUnit(m_data[1], pos, city,
+			g_player[NET_PLAYER(m_data[2])]->CreateUnit(m_data[1], pos, city,
 											FALSE,
 											CAUSE_NEW_ARMY_INITIAL);
 			break;
 		}
 		case NET_CHEAT_ADD_MATERIALS:
 			DPRINTF(k_DBG_NET, ("Player %d, the cheater, added %d materials.\n", m_data[0], m_data[1]));
-			g_player[m_data[0]]->m_materialPool->AddMaterials(m_data[1]);
+			g_player[NET_PLAYER(m_data[0])]->m_materialPool->AddMaterials(m_data[1]);
 			break;
 		case NET_CHEAT_GLOBAL_WARMING:
 			DPRINTF(k_DBG_NET, ("Player %d has caused global warming!\n", index));
@@ -121,14 +121,14 @@ NetCheat::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 			DPRINTF(k_DBG_NET, ("Player %d, the big fat lousy CHEATER, added %d gold\n", m_data[0], m_data[1]));
 			Gold amount;
 			amount.SetLevel(m_data[1]);
-			g_player[m_data[0]]->BequeathGold(amount);
+			g_player[NET_PLAYER(m_data[0])]->BequeathGold(amount);
 			break;
 		}
 		case NET_CHEAT_GRANT_ADVANCE:
 		{
 			DPRINTF(k_DBG_NET, ("Player %d cheated to get advance #%d\n",
 								index, m_data[0]));
-			g_player[index]->m_advances->GiveAdvance(m_data[0], CAUSE_SCI_UNKNOWN);
+			g_player[NET_PLAYER(index)]->m_advances->GiveAdvance(m_data[0], CAUSE_SCI_UNKNOWN);
 			break;
 		}
 
@@ -137,7 +137,7 @@ NetCheat::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 			DPRINTF(k_DBG_NET, ("Player %d is cheating up the wazoo by granting himself every advance\n", index));
 			sint32 i;
 			for(i = 0; i < g_theAdvanceDB->NumRecords(); i++) {
-				g_player[index]->m_advances->GiveAdvance(i, CAUSE_SCI_UNKNOWN);
+				g_player[NET_PLAYER(index)]->m_advances->GiveAdvance(i, CAUSE_SCI_UNKNOWN);
 			}
 			break;
 		}

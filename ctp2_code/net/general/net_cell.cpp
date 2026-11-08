@@ -231,7 +231,7 @@ void NetCellList::Packetize(uint8* buf, uint16& size)
 	}
 }
 
-void NetCellList::Unpacketize(uint16 id, uint8* buf, uint16 len)
+void NetCellList::Unpacketize(uint16 id, uint8* buf, uint16 size)
 {
 	Assert(buf[0] = 'G' && buf[1] == 'L');
 
@@ -258,7 +258,9 @@ void NetCellList::Unpacketize(uint16 id, uint8* buf, uint16 len)
 #else
 	MapPoint  mapsize = *g_theWorld->GetSize();
 #endif
-	// The map is put into chunks, m_x and m_y are 
+	// ctp2-redux: the start comes from the packet
+	NET_CHECK(m_x >= 0 && m_y >= 0);
+	// The map is put into chunks, m_x and m_y are
 	// the start coordinates of each chunk.
 	// Each chunk has at max 37 Cells.
 	// Once the inner loop is complete, m_y
@@ -345,7 +347,7 @@ void NetCellList::Unpacketize(uint16 id, uint8* buf, uint16 len)
 			cells++;
 			if (cells >= m_cells)
 			{
-				Assert(pos == len);
+				Assert(pos == size);
 				return;
 			}
 		}

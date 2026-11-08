@@ -156,10 +156,15 @@ void ChatBox::AddLine(sint32 playerNum, const MBCHAR *text)
 	COLOR		color = g_colorSet->ComputePlayerColor(playerNum);
 	COLORREF	colorRef = g_colorSet->GetColorRef(color);
 
-	MBCHAR			coloredText[_MAX_PATH];
-	memset(coloredText, 0, _MAX_PATH);
+	// ctp2-redux: the text (from a chat packet too) was colored into 260
+	// bytes on the stack without a check; now it is cut to the size of the
+	// chat line of the network (400) and colored into room for it
+	MBCHAR			line[400];
+	snprintf(line, sizeof(line), "%s", text);
+	MBCHAR			coloredText[sizeof(line) + 64];
+	memset(coloredText, 0, sizeof(coloredText));
 
-	m_chatWindow->ColorizeString(coloredText, text, colorRef);
+	m_chatWindow->ColorizeString(coloredText, line, colorRef);
 
 	strcat(coloredText, "\n");
 

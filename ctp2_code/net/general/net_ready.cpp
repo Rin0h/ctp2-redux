@@ -36,10 +36,10 @@ void NetReadiness::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	uint8 owner;
 	PULLBYTE(owner);
 
-	if(!g_player[owner])
+	if(!g_player[NET_PLAYER(owner)])
 		return;
 
-	MilitaryReadiness *readiness = g_player[owner]->m_readiness;
+	MilitaryReadiness *readiness = g_player[NET_PLAYER(owner)]->m_readiness;
 
 	uint8 level;
 	PULLBYTE(level);

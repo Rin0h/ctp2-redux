@@ -54,7 +54,7 @@ void NetInstallation::Unpacketize(uint16 id, uint8 *buf, uint16 size)
 	if(!g_theInstallationPool->IsValid(inst)) {
 		g_theInstallationPool->HackSetKey(((uint32)inst & k_ID_KEY_MASK) + 1);
 		g_theInstallationPool->Insert(m_data);
-		g_player[m_data->m_owner]->AddInstallation(inst);
+		g_player[NET_PLAYER(m_data->m_owner)]->AddInstallation(inst);
 		g_theWorld->InsertInstallation(inst, m_data->m_point);
 		m_data->DoVision();
 	}
